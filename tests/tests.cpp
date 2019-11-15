@@ -5,9 +5,9 @@
 #include <experimental/filesystem>
 #include <string>
 
-#include <master/catch.hpp>
-#include <master/Mesh.h>
-#include <master/Helpers.h>
+#include <catch/catch.hpp>
+#include <Mesh.h>
+#include <Helpers.h>
 // #include "../Solver.h"
 
 namespace fs = std::experimental::filesystem;
@@ -19,7 +19,7 @@ TEST_CASE( "1: Check elements' id of a Mesh Object", "[multi-file:2]" )
 	
     Mesh mesh1 {2};
 
-	mesh1.read_gmsh((cur_path.parent_path() / "data" / "mesh3.msh").string());
+	mesh1.read_gmsh((cur_path.parent_path() / "resources" / "mesh1.msh").string());
 	
     REQUIRE( mesh1.elems[0]->id == 0);
     REQUIRE( mesh1.elems[17]->id == 17);
@@ -31,7 +31,7 @@ TEST_CASE( "2: Check nodes' id of an Element Object", "[multi-file:2]" )
 	
     Mesh mesh1 {2};
 
-	mesh1.read_gmsh((cur_path.parent_path() / ".." / "resources" / "mesh3.msh").string());
+	mesh1.read_gmsh((cur_path.parent_path() / "resources" / "mesh1.msh").string());
 	
     long n0 = mesh1.elems[0]->nodes[0];
     long n1 = mesh1.elems[0]->nodes[1];
@@ -59,7 +59,7 @@ TEST_CASE( "3: Check coordinates of a Node Object", "[multi-file:2]" )
 	
     Mesh mesh1 {2};
 
-	mesh1.read_gmsh((cur_path.parent_path() / ".." / "resources" / "mesh3.msh").string());
+	mesh1.read_gmsh((cur_path.parent_path() / "resources" / "mesh1.msh").string());
 	
     long n = mesh1.elems[0]->nodes[0];
 

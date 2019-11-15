@@ -7,6 +7,11 @@ set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -lstdc++fs -g -lm")
 link_libraries(stdc++fs)
 
+enable_language(CXX)
+
+# enabling test
+enable_testing()
+
 # main project
 project(master)
 
@@ -31,22 +36,23 @@ target_include_directories(master_lib PUBLIC include)
 target_include_directories(master_lib PUBLIC src)
 
 # tests
-#add_executable(master_test 
-#               tests/tests.cpp
-#)
+add_executable(master_test 
+               tests/main.cpp
+               tests/tests.cpp
+)
 
-#target_link_libraries(master_test 
-#                      master_lib
-#                      catch_lib
-#)
+target_link_libraries(master_test master_lib)
+target_link_libraries(master_test catch_lib)
 
-#add_library(catch_lib
-#            thirdparty/catch/catch.hpp
-#)
+add_library(catch_lib
+            thirdparty/catch/catch.hpp
+)
 
-#target_include_directories(catch_lib PUBLIC tests)
-#target_include_directories(catch_lib PUBLIC thirdparty)
+set_target_properties(catch_lib PROPERTIES LINKER_LANGUAGE CXX)
+
+target_include_directories(catch_lib INTERFACE tests)
+target_include_directories(catch_lib INTERFACE thirdparty)
 
 
 # add test
-#add_test(master_test master_test)
+add_test(master_test master_test)

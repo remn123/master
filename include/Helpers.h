@@ -26,6 +26,8 @@ public:
     double dPn(double, double,int, double); // (alpha, beta, n, x)
 };
 
+std::vector<double> Poly::memo{};  // static memo definition
+
 // Poly.cpp
 void Poly::newton_raphson(double a, double b, int n, double guess)
 {
@@ -103,6 +105,42 @@ long Poly::factorial(int n)
 
 // ------------------------------- POLY ------------------------------
 
+
+// Chebyshev
+class Chebyshev : public Poly
+{
+public:
+    Chebyshev(){std::cout << "Chebyshev is Alive; \n";};
+    ~Chebyshev(){std::cout << "Chebyshev is Dead; \n";};
+    
+    void setup(int);
+    std::vector<double> get_nodes(void);
+    double get_node(int);
+};
+
+void Chebyshev::setup(int n)
+{
+    std::cout << "Setting up Chebyshev Polynomials" << "\n";
+    this->nodes.reserve(n);
+
+    double xk = 0.0;
+    for (auto k=0; k<n; k++)
+    {
+        xk = cos((2.0*k+1.0)*M_PI/(2.0*n));
+        this->nodes.push_back(xk);
+    }
+    //this->nodes = a+1;
+}
+
+std::vector<double> Chebyshev::get_nodes(void)
+{
+    return this->nodes;
+}
+double Chebyshev::get_node(int k)
+{
+    return this->nodes[k];
+}
+// ------------------------------- CHEBYSHEV ------------------------------
 
 // Gauss-Legendre 
 class GL : public Poly
@@ -189,42 +227,6 @@ double GLL::get_node(int k)
 // ------------------------------- GLL ------------------------------
 
 
-// Chebyshev
-class Chebyshev : public Poly
-{
-public:
-    Chebyshev(){std::cout << "Chebyshev is Alive; \n";};
-    ~Chebyshev(){std::cout << "Chebyshev is Dead; \n";};
-    
-    void setup(int);
-    std::vector<double> get_nodes(void);
-    double get_node(int);
-};
-
-void Chebyshev::setup(int n)
-{
-    std::cout << "Setting up Chebyshev Polynomials" << "\n";
-    this->nodes.reserve(n);
-
-    double xk = 0.0;
-    for (auto k=0; k<n; k++)
-    {
-        xk = cos((2.0*k+1.0)*M_PI/(2.0*n));
-        this->nodes.push_back(xk);
-    }
-    //this->nodes = a+1;
-}
-
-std::vector<double> Chebyshev::get_nodes(void)
-{
-    return this->nodes;
-}
-double Chebyshev::get_node(int k)
-{
-    return this->nodes[k];
-}
-// ------------------------------- CHEBYSHEV ------------------------------
-
 
 
 // Helpers.h
@@ -252,9 +254,11 @@ template <typename P>
 void Helpers<P>::print_nodes(void)
 {
     int i=0;
-    for (auto v : Helpers<P>::pol.get_nodes())
+    for (auto n : Helpers<P>::pol.get_nodes())
+    {
         i++;
-        std::cout << "Node (" << i << "): " << v << "\n";
+        std::cout << "Node (" << i << "): " << n << "\n";
+    }
 }
 
 template <typename P>
