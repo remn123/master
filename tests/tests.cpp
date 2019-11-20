@@ -68,33 +68,6 @@ TEST_CASE( "3: Check coordinates of a Node Object", "[multi-file:2]" )
     REQUIRE( mesh1.nodes[n].coords[2] == 0.0);
 }
 
-TEST_CASE("4: Test Legendre Nodes", "[multi-file:2]")
-{
-    Helpers<GL>::init();
-    Helpers<GL>::set_nodes(1);
-    std::vector<double> nodes = Helpers<GL>::get_nodes();
-    REQUIRE( nodes[0] == 0.0);
-}
-
-TEST_CASE("5: Test 2 Legendre Nodes", "[multi-file:2]")
-{
-    Helpers<GL>::init();
-    Helpers<GL>::set_nodes(2);
-    std::vector<double> nodes = Helpers<GL>::get_nodes();
-    REQUIRE( nodes[0] == -1.0/(sqrt(3.0)));
-    REQUIRE( nodes[1] == 1.0/(sqrt(3.0)));
-}
-
-TEST_CASE("6: Test 3 Legendre Nodes", "[multi-file:2]")
-{
-    Helpers<GL>::init();
-    Helpers<GL>::set_nodes(3);
-    std::vector<double> nodes = Helpers<GL>::get_nodes();
-    REQUIRE( nodes[0] == -sqrt(3.0/5.0));
-    REQUIRE( nodes[1] == 0.0);
-    REQUIRE( nodes[2] == sqrt(3.0/5.0));
-}
-
 //TEST_CASE( "4: Test Pipeline", "[multi-file:2]" ) 
 //{
 //    fs::path cur_path = fs::current_path();

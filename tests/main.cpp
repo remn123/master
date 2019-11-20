@@ -6,7 +6,16 @@
 // Let Catch provide main():
 #define CATCH_CONFIG_MAIN
 
+#include <vector>
+
 #include <catch/catch.hpp>
+#include <Helpers.h>
+#include <Poly.h>
+
+// Static Variables
+//std::vector<double> Poly::memo{1};  // static memo definition
+//template <class P> P Helpers<P>::pol;         // template definition
+
 
 TEST_CASE( "1: All test cases reside in other .cpp files (empty)", "[multi-file:1]" ) {
 }

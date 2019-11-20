@@ -27,7 +27,9 @@ target_link_libraries(master_exe
 add_library(master_lib
             src/Mesh.cpp
             src/Element.cpp
+            src/Poly.cpp
             include/Helpers.h
+            include/Poly.h
             include/Mesh.h
 
 )
@@ -39,6 +41,8 @@ target_include_directories(master_lib PUBLIC src)
 add_executable(master_test 
                tests/main.cpp
                tests/tests.cpp
+               tests/test_helpers.cpp
+
 )
 
 target_link_libraries(master_test master_lib)
@@ -50,8 +54,8 @@ add_library(catch_lib
 
 set_target_properties(catch_lib PROPERTIES LINKER_LANGUAGE CXX)
 
-target_include_directories(catch_lib INTERFACE tests)
-target_include_directories(catch_lib INTERFACE thirdparty)
+target_include_directories(catch_lib PUBLIC tests)
+target_include_directories(catch_lib PUBLIC thirdparty)
 
 
 # add test
