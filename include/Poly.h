@@ -10,11 +10,11 @@ class Poly
 {
 public:
     std::vector<double> nodes;
-    double MAX_ERROR;
+    inline static double MAX_ERROR = 1e-10;
     inline static std::vector<double> memo{1};
 
 public:
-    Poly(){std::cout << "Poly Interface is Alive; \n"; MAX_ERROR = 1e-16;};
+    Poly(){std::cout << "Poly Interface is Alive; \n";};
     virtual ~Poly() = default;
     
     virtual void setup(int)=0;

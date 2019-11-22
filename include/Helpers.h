@@ -21,6 +21,7 @@ public:
     static void init(void);
     static void set_nodes(int);
     static std::vector<double> get_nodes(void);
+    static double get_node(int);
     static void print_nodes(void);
 };
 
@@ -43,6 +44,12 @@ template <typename P>
 std::vector<double> Helpers<P>::get_nodes(void)
 {
     return Helpers<P>::pol.get_nodes();
+}
+
+template <typename P>
+double Helpers<P>::get_node(int k)
+{
+    return Helpers<P>::pol.get_node(k);
 }
 
 template <typename P>
