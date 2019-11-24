@@ -68,31 +68,82 @@ TEST_CASE("1: Test setup","[chebyshev]")
   Chebyshev cheb {};
   cheb.setup(2);
 
-  REQUIRE(cheb.get_node(0) == 0.707107_a);
-  REQUIRE(cheb.get_node(1) == -0.707107_a);
+  REQUIRE(cheb.get_node(0) == -0.707107_a);
+  REQUIRE(cheb.get_node(1) == 0.707107_a);
 }
 
-
-TEST_CASE("4: Test Legendre - get_node method", "[multi-file:2]")
+// Gauss-Legendre
+TEST_CASE("4: Test Legendre - get_node method", "[gauss-legendre]")
 {
   Helpers<GL>::init();
   Helpers<GL>::set_nodes(2);
-  REQUIRE( Helpers<GL>::get_node(0) == Approx(0.0).margin(1E-10));
+  REQUIRE( Helpers<GL>::get_node(0) == Approx(-0.577350269189626).margin(1E-15));
+  REQUIRE( Helpers<GL>::get_node(1) == Approx(0.577350269189626).margin(1E-15));
 }
 
-//TEST_CASE("5: Test Poly - print_nodes method", "[multi-file:2]")
-//{
-//  GL::setup(5);
-//  GL::print_nodes();
-//}
-//
-TEST_CASE("6: Test Legendre - get_nodes method", "[multi-file:2]")
+TEST_CASE("5: Test Legendre - nodes length", "[gauss-legendre]")
 {
   Helpers<GL>::init();
-  Helpers<GL>::set_nodes(1);
-  std::vector<double> nodes = Helpers<GL>::get_nodes();
-  REQUIRE( nodes[0] == Approx(0.0).margin(1E-10));
+  Helpers<GL>::set_nodes(2);
+  REQUIRE( Helpers<GL>::get_nodes().size() == 2);
 }
+
+TEST_CASE("6: Test Legendre - get_nodes method", "[gauss-legendre]")
+{
+  Helpers<GL>::init();
+  Helpers<GL>::set_nodes(2);
+  std::vector<double> nodes = Helpers<GL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-0.577350269189626).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(0.577350269189626).margin(1E-15));
+}
+
+TEST_CASE("7: Test Legendre - set_nodes", "[gauss-legendre]")
+{
+  Helpers<GL>::init();
+  Helpers<GL>::set_nodes(2);
+  std::vector<double> nodes = Helpers<GL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-0.577350269189626).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(0.577350269189626).margin(1E-15));
+  
+  nodes.clear();
+
+  Helpers<GL>::set_nodes(3);
+  nodes = Helpers<GL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-0.7745966692414833770359).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(0.0).margin(1E-15));
+  REQUIRE( nodes[2] == Approx(0.7745966692414833770359).margin(1E-15));
+}
+// ----------------------------------------------------------------- //
+
+
+// Gauss-Legendre-Lobatto
+TEST_CASE("1: Test Gauss-Lobatto - get_node method", "[gauss-lobatto]")
+{
+  Helpers<GLL>::init();
+  Helpers<GLL>::set_nodes(2);
+  REQUIRE( Helpers<GLL>::get_node(0) == -1.0);
+  REQUIRE( Helpers<GLL>::get_node(1) == 1.0);
+}
+
+TEST_CASE("2: Test Gauss-Lobatto - nodes length", "[gauss-lobatto]")
+{
+  Helpers<GLL>::init();
+  Helpers<GLL>::set_nodes(2);
+  REQUIRE( Helpers<GLL>::get_nodes().size() == 2);
+}
+
+TEST_CASE("3: Test Gauss-Lobatto - get_nodes method", "[gauss-lobatto]")
+{
+  Helpers<GLL>::init();
+  Helpers<GLL>::set_nodes(1);
+  std::vector<double> nodes = Helpers<GL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-0.577350269189626).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(0.577350269189626).margin(1E-15));
+}
+// ----------------------------------------------------------------- //
+
+
+
 //
 //TEST_CASE("4: Test 2 Legendre Nodes", "[multi-file:2]")
 //{

@@ -12,17 +12,17 @@ template <typename P>
 class Helpers
 {
 private:
-    static P pol;
+  static P pol;
 public:
 
-    Helpers()=delete; // not instatiable
-    virtual ~Helpers(){std::cout<<"Helpers is Dead;\n";};
+  Helpers()=delete; // not instatiable
+  virtual ~Helpers(){std::cout<<"Helpers is Dead;\n";};
 
-    static void init(void);
-    static void set_nodes(int);
-    static std::vector<double> get_nodes(void);
-    static double get_node(int);
-    static void print_nodes(void);
+  static void init(void);
+  static void set_nodes(int);
+  static std::vector<double> get_nodes(void);
+  static double get_node(int);
+  static void print_nodes(void);
 };
 
 
@@ -32,44 +32,44 @@ template <class P> P Helpers<P>::pol;
 template <typename P>
 void Helpers<P>::print_nodes(void)
 {
-    int i=0;
-    for (auto n : Helpers<P>::pol.get_nodes())
-    {
-        i++;
-        std::cout << "Node (" << i << "): " << n << "\n";
-    }
+  int i=0;
+  for (auto n : Helpers<P>::pol.get_nodes())
+  {
+    i++;
+    std::cout << "Node (" << i << "): " << n << "\n";
+  }
 }
 
 template <typename P>
 std::vector<double> Helpers<P>::get_nodes(void)
 {
-    return Helpers<P>::pol.get_nodes();
+  return Helpers<P>::pol.get_nodes();
 }
 
 template <typename P>
 double Helpers<P>::get_node(int k)
 {
-    return Helpers<P>::pol.get_node(k);
+  return Helpers<P>::pol.get_node(k);
 }
 
 template <typename P>
 void Helpers<P>::set_nodes(int n)
 {
-    if (n<1)
-    {
-        std::cout << "n must be greater or equal to 1" << "\n";
-    }
-    else
-    {
-        Helpers<P>::pol.setup(n);
-    }
+  if (n<1)
+  {
+    std::cout << "n must be greater or equal to 1" << "\n";
+  }
+  else
+  {
+    Helpers<P>::pol.setup(n);
+  }
 }
 
 template <typename P>
 void Helpers<P>::init(void)
 {
-    // stuff
-    std::cout << "Initializing Helper functions!" << "\n";
+  // stuff
+  std::cout << "Initializing Helper functions!" << "\n";
 }
 #endif // HELPERS_H
 

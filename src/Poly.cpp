@@ -1,23 +1,35 @@
 #include <Helpers.h>
 #include <Poly.h>
+#include <math.h>
 
 // Poly.cpp
-void Poly::newton_raphson(double a, double b, int n, double guess)
+void Poly::newton_raphson(double a, double b, unsigned int k, unsigned int n, double r)
 {
-    double xn = 0.0;
-    double x0 = guess;
-    double dx = 1.0;
-
-    while (dx > this->MAX_ERROR)
+  double x0 = r, S = 0.0, xn = 0.0, dx = 1.0;
+  long counter = 0;
+  while (dx > this->MAX_ERROR)
+  {
+    S = 0.0;
+    for(unsigned int i=0; i<k; i++)
     {
-        xn = x0 - this->Pn(a,b,n,x0)/this->dPn(a,b,n,x0);
-        dx = abs(xn-x0);
-        x0 = xn;
+      S += 1.0/(x0 - this->nodes[i]);
     }
-    this->nodes.push_back(xn);
+    xn = x0 - this->Pn(a,b,n,x0)/(this->dPn(a,b,n,x0) - this->Pn(a,b,n,x0)*S);
+    dx = abs(xn-x0);
+    x0 = xn;
+    if(counter % 100 == 0) 
+    {
+      std::cout << "[newton_raphson] - Iter("   <<\
+                   counter << "): Residue = "   <<\
+                   log10(dx) << "; xn = " << xn <<\
+                   "; r = " << r << "\n";
+    }
+    counter++;
+  }
+  this->nodes.push_back(xn);
 }
 
-double Poly::Pn(double a, double b, int n, double x)
+double Poly::Pn(double a, double b, unsigned int n, double x)
 {
     if (n == 0)
     {
@@ -36,15 +48,15 @@ double Poly::Pn(double a, double b, int n, double x)
     return (1.0/a1)*((a2+a3*x)*Pn(a,b,n-1,x)-a4*Pn(a,b,n-2,x));
 }
 
-double Poly::dPn(double a, double b, int n, double x)
+double Poly::dPn(double a, double b, unsigned int n, double x)
 {
     if (n == 0)
     {
-        return 0.0;
+      return 0.0;
     }
     else if (n == 1)
     {
-        return 0.5*(a+b+2.0);
+      return 0.5*(a+b+2.0);
     }
     // for n==2 we will use the recurrence relation
     double b1 = (2.0*n+a+b)*(1.0-x*x);
@@ -54,7 +66,7 @@ double Poly::dPn(double a, double b, int n, double x)
     return (b2/b1)*Pn(a,b,n,x) + (b3/b1)*Pn(a,b,n-1,x); 
 }
 
-long Poly::factorial(int n)
+unsigned long Poly::factorial(unsigned int n)
 {
     if(n==0)
     {
@@ -67,7 +79,7 @@ long Poly::factorial(int n)
       return this->memo[n];
     }
     
-    long tmp = n*this->factorial(n-1);
+    unsigned long tmp = n*this->factorial(n-1);
     
     this->memo.resize(n+1);
     this->memo[n] = tmp;
@@ -78,87 +90,104 @@ long Poly::factorial(int n)
 
 
 // CHebyshev
-void Chebyshev::setup(int n)
+void Chebyshev::setup(unsigned int n)
 {
-    std::cout << "Setting up Chebyshev Polynomials" << "\n";
+  std::cout << "Setting up Chebyshev Polynomials" << "\n";
+  
+  double xk = 0.0;
+  if(this->nodes.size() < n)
+  {
     this->nodes.reserve(n);
-
-    double xk = 0.0;
-    for (auto k=0; k<n; k++)
+    for (unsigned int k=0; k<n; k++)
     {
-        xk = cos((2.0*k+1.0)*M_PI/(2.0*n));
-        this->nodes.push_back(xk);
+      xk = -cos((2.0*k+1.0)*M_PI/(2.0*n));
+      this->nodes[k] = xk;
     }
-    //this->nodes = a+1;
+  }
 }
 
 std::vector<double> Chebyshev::get_nodes(void)
 {
-    return this->nodes;
+  return this->nodes;
 }
-double Chebyshev::get_node(int k)
+
+double Chebyshev::get_node(unsigned int k)
 {
-    return this->nodes[k];
+  return this->nodes[k];
 }
 // ------------------------------- CHEBYSHEV ------------------------------
 
 // Gauss-Legendre
-void GL::setup(int n)
+void GL::setup(unsigned int n)
 {
-    std::cout << "Setting up Gauss-Legendre Polynomials" << "\n";
-    double guess_k;
+  std::cout << "Setting up Gauss-Legendre Polynomials" << "\n";
+  
+  double r=0.0;   
+  if(this->nodes.size() < n)
+  {
     Chebyshev cheb{};
     cheb.setup(n);
 
     this->nodes.reserve(n);
-    for (auto k=0; k<n; k++)
+    for (unsigned int k=0; k<n; k++)
     {
-        guess_k = cheb.get_node(k); 
-        newton_raphson(0.0, 0.0, k, guess_k); // Legendre Polynomials
+      r = cheb.get_node(k); 
+      if(k>0)
+      {
+        r = (r+this->nodes[k-1])/2.0;
+      }
+      newton_raphson(0.0, 0.0, k, n, r); // Legendre Polynomials
     }
-    //this->nodes = a;
+  }
 }
 
 std::vector<double> GL::get_nodes(void)
 {
-    return this->nodes;
+  return this->nodes;
 }
 
 
-double GL::get_node(int k)
+double GL::get_node(unsigned int k)
 {
-    return this->nodes[k];
+  return this->nodes[k];
 }
 // ------------------------------- GL ------------------------------
 
 
 // Guass-Legendre-Lobatto
-void GLL::setup(int n)
+void GLL::setup(unsigned int n)
 {
-    std::cout << "Setting up Gauss-Legendre-Lobatto Polynomials" << "\n";
+  std::cout << "Setting up Gauss-Legendre-Lobatto Polynomials" << "\n";
     
-    double guess_k;
+  double r=0.0;   
+  if(this->nodes.size() < n)
+  {
     Chebyshev cheb{};
     cheb.setup(n);
 
     this->nodes.reserve(n);
     this->nodes[0] = -1.0;
-    for (auto k=1; k<n-1; k++)
+    for (unsigned int k=1; k<n-1; k++)
     {
-        guess_k = cheb.get_node(k); 
-        newton_raphson(1.0, 1.0, k, guess_k);
+      r = cheb.get_node(k); 
+      if(k>0)
+      {
+        r = (r+this->nodes[k-1])/2.0;
+      }
+      newton_raphson(1.0, 1.0, k, n, r); // Legendre Polynomials
     }
     this->nodes[n-1] = 1.0;
+  }
 }
 
 std::vector<double> GLL::get_nodes(void)
 {
-    return this->nodes;
+  return this->nodes;
 }
 
-double GLL::get_node(int k)
+double GLL::get_node(unsigned int k)
 {
-    return this->nodes[k];
+  return this->nodes[k];
 }
 // ------------------------------- GLL ------------------------------
 
