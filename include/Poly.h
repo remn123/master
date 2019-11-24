@@ -25,6 +25,7 @@ public:
   void newton_raphson(double, double, unsigned int, unsigned int, double);
   double Pn(double, double, unsigned int, double); // (alpha, beta, n, x)
   double dPn(double, double, unsigned int, double); // (alpha, beta, n, x)
+  void delete_nodes(void); // (alpha, beta, n, x)
 };
 
 //std::vector<double> Poly::memo{};  // static memo definition

@@ -23,6 +23,7 @@ public:
   static std::vector<double> get_nodes(void);
   static double get_node(int);
   static void print_nodes(void);
+  static void delete_nodes(void);
 };
 
 
@@ -71,6 +72,15 @@ void Helpers<P>::init(void)
   // stuff
   std::cout << "Initializing Helper functions!" << "\n";
 }
+
+template <typename P>
+void Helpers<P>::delete_nodes(void)
+{
+  std::cout << "Freeing memory!" << "\n";
+  Helpers<P>::pol.delete_nodes();
+}
+
+
 #endif // HELPERS_H
 
 

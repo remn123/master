@@ -79,6 +79,7 @@ TEST_CASE("4: Test Legendre - get_node method", "[gauss-legendre]")
   Helpers<GL>::set_nodes(2);
   REQUIRE( Helpers<GL>::get_node(0) == Approx(-0.577350269189626).margin(1E-15));
   REQUIRE( Helpers<GL>::get_node(1) == Approx(0.577350269189626).margin(1E-15));
+  Helpers<GL>::delete_nodes();
 }
 
 TEST_CASE("5: Test Legendre - nodes length", "[gauss-legendre]")
@@ -86,6 +87,7 @@ TEST_CASE("5: Test Legendre - nodes length", "[gauss-legendre]")
   Helpers<GL>::init();
   Helpers<GL>::set_nodes(2);
   REQUIRE( Helpers<GL>::get_nodes().size() == 2);
+  Helpers<GL>::delete_nodes();
 }
 
 TEST_CASE("6: Test Legendre - get_nodes method", "[gauss-legendre]")
@@ -95,6 +97,7 @@ TEST_CASE("6: Test Legendre - get_nodes method", "[gauss-legendre]")
   std::vector<double> nodes = Helpers<GL>::get_nodes();
   REQUIRE( nodes[0] == Approx(-0.577350269189626).margin(1E-15));
   REQUIRE( nodes[1] == Approx(0.577350269189626).margin(1E-15));
+  Helpers<GL>::delete_nodes();
 }
 
 TEST_CASE("7: Test Legendre - set_nodes", "[gauss-legendre]")
@@ -104,7 +107,8 @@ TEST_CASE("7: Test Legendre - set_nodes", "[gauss-legendre]")
   std::vector<double> nodes = Helpers<GL>::get_nodes();
   REQUIRE( nodes[0] == Approx(-0.577350269189626).margin(1E-15));
   REQUIRE( nodes[1] == Approx(0.577350269189626).margin(1E-15));
-  
+  Helpers<GL>::delete_nodes();
+
   nodes.clear();
 
   Helpers<GL>::set_nodes(3);
@@ -112,6 +116,7 @@ TEST_CASE("7: Test Legendre - set_nodes", "[gauss-legendre]")
   REQUIRE( nodes[0] == Approx(-0.7745966692414833770359).margin(1E-15));
   REQUIRE( nodes[1] == Approx(0.0).margin(1E-15));
   REQUIRE( nodes[2] == Approx(0.7745966692414833770359).margin(1E-15));
+  Helpers<GL>::delete_nodes(); 
 }
 // ----------------------------------------------------------------- //
 
@@ -123,6 +128,7 @@ TEST_CASE("1: Test Gauss-Lobatto - get_node method", "[gauss-lobatto]")
   Helpers<GLL>::set_nodes(2);
   REQUIRE( Helpers<GLL>::get_node(0) == -1.0);
   REQUIRE( Helpers<GLL>::get_node(1) == 1.0);
+  Helpers<GLL>::delete_nodes();
 }
 
 TEST_CASE("2: Test Gauss-Lobatto - nodes length", "[gauss-lobatto]")
@@ -130,17 +136,38 @@ TEST_CASE("2: Test Gauss-Lobatto - nodes length", "[gauss-lobatto]")
   Helpers<GLL>::init();
   Helpers<GLL>::set_nodes(2);
   REQUIRE( Helpers<GLL>::get_nodes().size() == 2);
+  Helpers<GLL>::delete_nodes();
 }
 
 TEST_CASE("3: Test Gauss-Lobatto - get_nodes method", "[gauss-lobatto]")
 {
   Helpers<GLL>::init();
-  Helpers<GLL>::set_nodes(1);
-  std::vector<double> nodes = Helpers<GL>::get_nodes();
-  REQUIRE( nodes[0] == Approx(-0.577350269189626).margin(1E-15));
-  REQUIRE( nodes[1] == Approx(0.577350269189626).margin(1E-15));
+  Helpers<GLL>::set_nodes(3);
+  std::vector<double> nodes = Helpers<GLL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-1.0).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(0.0).margin(1E-15));
+  REQUIRE( nodes[2] == Approx(1.0).margin(1E-15));
+  Helpers<GLL>::delete_nodes();
 }
 // ----------------------------------------------------------------- //
+
+TEST_CASE("1: Test GL and GLL - get_nodes method", "[GL-GLL]")
+{
+  Helpers<GL>::init();
+  Helpers<GL>::set_nodes(2);
+  std::vector<double> nodes_gl = Helpers<GL>::get_nodes();
+  REQUIRE( nodes_gl[0] == Approx(-0.5773502691896257645092).margin(1E-15));
+  REQUIRE( nodes_gl[1] == Approx(0.5773502691896257645092).margin(1E-15));
+  //Helpers<GL>::delete_nodes();
+  
+  Helpers<GLL>::init();
+  Helpers<GLL>::set_nodes(3);
+  std::vector<double> nodes_gll = Helpers<GLL>::get_nodes();
+  REQUIRE( nodes_gll[0] == Approx(-1.0).margin(1E-15));
+  REQUIRE( nodes_gll[1] == Approx(0.0).margin(1E-15));
+  REQUIRE( nodes_gll[2] == Approx(1.0).margin(1E-15));
+  //Helpers<GLL>::delete_nodes();
+}
 
 
 

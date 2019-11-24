@@ -26,7 +26,7 @@ void Poly::newton_raphson(double a, double b, unsigned int k, unsigned int n, do
     }
     counter++;
   }
-  this->nodes.push_back(xn);
+  this->nodes[k] = xn;
 }
 
 double Poly::Pn(double a, double b, unsigned int n, double x)
@@ -86,6 +86,12 @@ unsigned long Poly::factorial(unsigned int n)
     return this->memo[n];
 }
 
+
+void Poly::delete_nodes(void)
+{
+  this->nodes.clear();
+}
+
 // ------------------------------- POLY ------------------------------//
 
 
@@ -95,9 +101,14 @@ void Chebyshev::setup(unsigned int n)
   std::cout << "Setting up Chebyshev Polynomials" << "\n";
   
   double xk = 0.0;
-  if(this->nodes.size() < n)
+  if(this->nodes.size() != n)
   {
-    this->nodes.reserve(n);
+    if(this->nodes.size() > 0)
+    {
+      this->delete_nodes();
+    }
+
+    this->nodes.resize(n);
     for (unsigned int k=0; k<n; k++)
     {
       xk = -cos((2.0*k+1.0)*M_PI/(2.0*n));
@@ -123,12 +134,17 @@ void GL::setup(unsigned int n)
   std::cout << "Setting up Gauss-Legendre Polynomials" << "\n";
   
   double r=0.0;   
-  if(this->nodes.size() < n)
+  if(this->nodes.size() != n)
   {
+    if(this->nodes.size() != 0)
+    {
+      this->delete_nodes();
+    }
+    
     Chebyshev cheb{};
     cheb.setup(n);
-
-    this->nodes.reserve(n);
+    
+    this->nodes.resize(n);
     for (unsigned int k=0; k<n; k++)
     {
       r = cheb.get_node(k); 
@@ -160,12 +176,16 @@ void GLL::setup(unsigned int n)
   std::cout << "Setting up Gauss-Legendre-Lobatto Polynomials" << "\n";
     
   double r=0.0;   
-  if(this->nodes.size() < n)
+  if(this->nodes.size() != n)
   {
+    if(this->nodes.size() > 0)
+    {
+      this->delete_nodes();
+    }
     Chebyshev cheb{};
     cheb.setup(n);
 
-    this->nodes.reserve(n);
+    this->nodes.resize(n);
     this->nodes[0] = -1.0;
     for (unsigned int k=1; k<n-1; k++)
     {
