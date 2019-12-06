@@ -158,7 +158,7 @@ TEST_CASE("1: Test GL and GLL - get_nodes method", "[GL-GLL]")
   std::vector<double> nodes_gl = Helpers<GL>::get_nodes();
   REQUIRE( nodes_gl[0] == Approx(-0.5773502691896257645092).margin(1E-15));
   REQUIRE( nodes_gl[1] == Approx(0.5773502691896257645092).margin(1E-15));
-  //Helpers<GL>::delete_nodes();
+  Helpers<GL>::delete_nodes();
   
   Helpers<GLL>::init();
   Helpers<GLL>::set_nodes(3);
@@ -166,7 +166,7 @@ TEST_CASE("1: Test GL and GLL - get_nodes method", "[GL-GLL]")
   REQUIRE( nodes_gll[0] == Approx(-1.0).margin(1E-15));
   REQUIRE( nodes_gll[1] == Approx(0.0).margin(1E-15));
   REQUIRE( nodes_gll[2] == Approx(1.0).margin(1E-15));
-  //Helpers<GLL>::delete_nodes();
+  Helpers<GLL>::delete_nodes();
 }
 
 // Lagrange

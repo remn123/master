@@ -20,6 +20,7 @@ public:
 
   static void init(void);
   static void set_nodes(int);
+  static void set_nodes(std::vector<double>)
   static std::vector<double> get_nodes(void);
   static double get_node(int);
   static void print_nodes(void);
@@ -63,6 +64,19 @@ void Helpers<P>::set_nodes(int n)
   else
   {
     Helpers<P>::pol.setup(n);
+  }
+}
+
+template <typename P>
+void Helpers<P>::set_nodes(std::vector<double> nodes)
+{
+  if (nodes.size()<1)
+  {
+    std::cout << "Node vector is empty!" << "\n";
+  }
+  else
+  {
+    Helpers<P>::pol.setup(nodes);
   }
 }
 
