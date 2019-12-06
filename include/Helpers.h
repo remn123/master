@@ -20,7 +20,7 @@ public:
 
   static void init(void);
   static void set_nodes(int);
-  static void set_nodes(std::vector<double>)
+  static void set_nodes(std::vector<double>);
   static std::vector<double> get_nodes(void);
   static double get_node(int);
   static void print_nodes(void);
