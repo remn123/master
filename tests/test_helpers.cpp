@@ -169,6 +169,16 @@ TEST_CASE("1: Test GL and GLL - get_nodes method", "[GL-GLL]")
   //Helpers<GLL>::delete_nodes();
 }
 
+// Lagrange
+// TEST_CASE("1: Test Lagrange - get_node method", "[lagrange]")
+// {
+//   Helpers<Lagrange>::init();
+//   Helpers<Lagrange>::set_nodes(2);
+//   REQUIRE( Helpers<Lagrange>::get_node(0) == -1.0);
+//   REQUIRE( Helpers<Lagrange>::get_node(1) == 1.0);
+//   Helpers<Lagrange>::delete_nodes();
+// }
+// ----------------------------------------------------------------- //
 
 
 //

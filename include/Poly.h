@@ -22,7 +22,7 @@ public:
   virtual std::vector<double> get_nodes(void)=0;
   virtual double get_node(unsigned int)=0;
   unsigned long factorial(unsigned int); // with memoization
-  void newton_raphson(double, double, unsigned int, unsigned int, double);
+  void newton_raphson(double, double, unsigned int, double);
   double Pn(double, double, unsigned int, double); // (alpha, beta, n, x)
   double dPn(double, double, unsigned int, double); // (alpha, beta, n, x)
   void delete_nodes(void); // (alpha, beta, n, x)
@@ -72,6 +72,8 @@ public:
 class Lagrange
 {
 public:
+  std::vector<double> nodes;
+public:
   Lagrange(){std::cout << "Lagrange is Alive; \n";};
   ~Lagrange(){std::cout << "Lagrange is Dead; \n";};
 
@@ -80,7 +82,7 @@ public:
   double get_node(unsigned int);
   double Pn(unsigned int, double); // (i, x)
   double dPn(unsigned int, double); // (i, x)
-  
+  void delete_nodes(void);
 };
 
 #endif

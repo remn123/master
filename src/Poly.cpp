@@ -2,7 +2,7 @@
 #include <Poly.h>
 
 // Poly.cpp
-void Poly::newton_raphson(double a, double b, int n, double guess)
+void Poly::newton_raphson(double a, double b, unsigned int n, double guess)
 {
   double xn = 0.0;
   double x0 = guess;
@@ -17,7 +17,7 @@ void Poly::newton_raphson(double a, double b, int n, double guess)
   this->nodes.push_back(xn);
 }
 
-double Poly::Pn(double a, double b, int n, double x)
+double Poly::Pn(double a, double b, unsigned int n, double x)
 {
   if (n == 0)
   {
@@ -36,7 +36,7 @@ double Poly::Pn(double a, double b, int n, double x)
   return (1.0/a1)*((a2+a3*x)*Pn(a,b,n-1,x)-a4*Pn(a,b,n-2,x));
 }
 
-double Poly::dPn(double a, double b, int n, double x)
+double Poly::dPn(double a, double b, unsigned int n, double x)
 {
   if (n == 0)
   {
@@ -54,7 +54,7 @@ double Poly::dPn(double a, double b, int n, double x)
   return (b2/b1)*Pn(a,b,n,x) + (b3/b1)*Pn(a,b,n-1,x); 
 }
 
-long Poly::factorial(int n)
+unsigned long Poly::factorial(unsigned int n)
 {
   if(n==0)
   {
@@ -74,11 +74,15 @@ long Poly::factorial(int n)
   return this->memo[n];
 }
 
+void Poly::delete_nodes(void)
+{
+  this->nodes.clear();
+}
 // ------------------------------- POLY ------------------------------//
 
 
 // CHebyshev
-void Chebyshev::setup(int n)
+void Chebyshev::setup(unsigned int n)
 {
   std::cout << "Setting up Chebyshev Polynomials" << "\n";
   this->nodes.reserve(n);
@@ -96,14 +100,14 @@ std::vector<double> Chebyshev::get_nodes(void)
 {
   return this->nodes;
 }
-double Chebyshev::get_node(int k)
+double Chebyshev::get_node(unsigned int k)
 {
   return this->nodes[k];
 }
 // ------------------------------- CHEBYSHEV ------------------------------
 
 // Gauss-Legendre
-void GL::setup(int n)
+void GL::setup(unsigned int n)
 {
   std::cout << "Setting up Gauss-Legendre Polynomials" << "\n";
   double guess_k;
@@ -125,7 +129,7 @@ std::vector<double> GL::get_nodes(void)
 }
 
 
-double GL::get_node(int k)
+double GL::get_node(unsigned int k)
 {
   return this->nodes[k];
 }
@@ -133,7 +137,7 @@ double GL::get_node(int k)
 
 
 // Guass-Legendre-Lobatto
-void GLL::setup(int n)
+void GLL::setup(unsigned int n)
 {
   std::cout << "Setting up Gauss-Legendre-Lobatto Polynomials" << "\n";
   
@@ -156,7 +160,7 @@ std::vector<double> GLL::get_nodes(void)
   return this->nodes;
 }
 
-double GLL::get_node(int k)
+double GLL::get_node(unsigned int k)
 {
   return this->nodes[k];
 }
@@ -174,7 +178,7 @@ std::vector<double> Lagrange::get_nodes(void)
 {
   return this->nodes;
 }
-double Lagrange::get_node(int k)
+double Lagrange::get_node(unsigned int k)
 {
   return this->nodes[k];
 }
@@ -182,7 +186,7 @@ double Lagrange::get_node(int k)
 double Lagrange::Pn(unsigned int i, double x)
 {
   double xi=0.0, xk=0.0, prod=1.0;
-  int n = this->nodes.size();
+  unsigned int n = this->nodes.size();
   if (n > 0)
   {
     for (auto k=0; k<n; k++)
@@ -202,7 +206,7 @@ double Lagrange::Pn(unsigned int i, double x)
 double Lagrange::dPn(unsigned int i, double x)
 {
   double xi=0.0, xk=0.0, xj=0.0, prod=1.0, sum=0.0;
-  int n = this->nodes.size();
+  unsigned int n = this->nodes.size();
   if (n > 0)
   {
     for (auto j=0; j<n; j++)
