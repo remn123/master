@@ -68,4 +68,19 @@ public:
   double get_node(unsigned int);
 };
 
+// Lagrange
+class Lagrange
+{
+public:
+  Lagrange(){std::cout << "Lagrange is Alive; \n";};
+  ~Lagrange(){std::cout << "Lagrange is Dead; \n";};
+
+  void setup(unsigned int);    
+  std::vector<double> get_nodes(void);
+  double get_node(unsigned int);
+  double Pn(unsigned int, double); // (i, x)
+  double dPn(unsigned int, double); // (i, x)
+  
+};
+
 #endif

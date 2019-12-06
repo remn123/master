@@ -212,5 +212,68 @@ double GLL::get_node(unsigned int k)
 // ------------------------------- GLL ------------------------------
 
 
+// Lagrange
+void Lagrange::setup(std::vector<double> nodes)
+{
+  std::cout << "Setting up Lagrange Polynomials" << "\n";
+  this->nodes = nodes;
+}
 
+std::vector<double> Lagrange::get_nodes(void)
+{
+  return this->nodes;
+}
+double Lagrange::get_node(int k)
+{
+  return this->nodes[k];
+}
+
+double Lagrange::Pn(unsigned int i, double x)
+{
+  double xi=0.0, xk=0.0, prod=1.0;
+  int n = this->nodes.size();
+  if (n > 0)
+  {
+    for (auto k=0; k<n; k++)
+    {
+      if (i != k)
+      {
+        xi = this->nodes[i];
+        xk = this->nodes[k];
+
+        prod *= (x - xk)/(xi - xk);
+      }
+    }
+  }
+  return prod;
+}
+
+double Lagrange::dPn(unsigned int i, double x)
+{
+  double xi=0.0, xk=0.0, xj=0.0, prod=1.0, sum=0.0;
+  int n = this->nodes.size();
+  if (n > 0)
+  {
+    for (auto j=0; j<n; j++)
+    {
+      xj = this->nodes[j];
+      for (auto k=0; k<n; k++)
+      {
+        if (k != i && k != j)
+        {
+          xi = this->nodes[i];
+          xk = this->nodes[k];
+
+          prod *= (x - xk)/(xi - xk);
+        }
+      }
+      if (j != i)
+      {
+        sum += (-xj)/(xi - xj);
+      }
+    }
+  }
+   return sum;
+}
+// ------------------------------- LAGRANGE ------------------------------
 
