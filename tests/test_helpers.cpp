@@ -180,6 +180,33 @@ TEST_CASE("1: Test GL and GLL - get_nodes method", "[GL-GLL]")
 // }
 // ----------------------------------------------------------------- //
 
+// Lagrange
+// TEST_CASE("1: Test Lagrange - Pn method", "[lagrange]")
+// {
+//   // 
+//   // 1) Initialize Lagrange polynomial with a set of nodes
+//   // 
+//   int Ns = 3;
+//   Helpers<GL>::init();
+//   Helpers<GL>::set_nodes(Ns);
+//   std::vector<double> nodes_gl = Helpers<GL>::get_nodes();
+  
+//   Helpers<Lagrange>::init();
+//   Helpers<Lagrange>::set_nodes(nodes_gl); // initialize Lagrange polynomial with a set of nodes
+
+
+
+//   for (auto i=0; i<= Ns; i++)
+//   {
+//     // All nodes are
+//     L = Helpers<Lagrange>::Pn(i, j, nodes_gl[i]);
+//     REQUIRE(  == Approx(n).margin(1E-15));
+//   }
+  
+//   REQUIRE( Helpers<Lagrange>::get_node(1) == 1.0);
+//   Helpers<Lagrange>::delete_nodes();
+// }
+
 
 //
 //TEST_CASE("4: Test 2 Legendre Nodes", "[multi-file:2]")
