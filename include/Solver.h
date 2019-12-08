@@ -101,21 +101,21 @@ public:
 class SD : public SpacialDiscretization
 {
 public:
-  std::vector<Node> fnodes; // flux points (FP)
-  std::vector<Node> snodes; // solution points (SP)
+  std::vector<std::vector<Node>> fnodes; // flux points (FP)
+  std::vector<Node> snodes;              // solution points (SP)
 
 private:
 
 public:
-  SD();
+  SD(int, int);
   ~SD();
 
   void setup(void);
-  void initial_condition(Element&);
+  void boundary_condition(Element&);
   void calc_high_order_nodes(Element&);
   void interpolate_sp2fp(Element&);
   void riemann_solver(Element&);
   void interpolate_fp2sp(Element&);
   void residue(Element&);
-
+  void solve(Element&);
 }

@@ -22,7 +22,7 @@ public:
   virtual std::vector<double> get_nodes(void)=0;
   virtual double get_node(unsigned int)=0;
   unsigned long factorial(unsigned int); // with memoization
-   void newton_raphson(double, double, unsigned int, unsigned int, double);
+  void newton_raphson(double, double, unsigned int, unsigned int, double);
   double Pn(double, double, unsigned int, double); // (alpha, beta, n, x)
   double dPn(double, double, unsigned int, double); // (alpha, beta, n, x)
   void delete_nodes(void); // (alpha, beta, n, x)

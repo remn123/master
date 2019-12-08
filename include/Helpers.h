@@ -24,6 +24,10 @@ public:
   static std::vector<double> get_nodes(void);
   static double get_node(int);
   static void print_nodes(void);
+  static double Pn(double, double, unsigned int, double);
+  static double Pn(unsigned int, double);
+  static double dPn(double, double, unsigned int, double);
+  static double dPn(unsigned int, double);
   static void delete_nodes(void);
 };
 
@@ -85,6 +89,30 @@ void Helpers<P>::init(void)
 {
   // stuff
   std::cout << "Initializing Helper functions!" << "\n";
+}
+
+template <typename P>
+double Helpers<P>::Pn(double a, double b, unsigned int n, double x)
+{
+  return Helpers<P>::pol.Pn(a, b, n, x);
+}
+
+template <typename P>
+double Helpers<P>::Pn(unsigned int n, double x)
+{
+  return Helpers<P>::pol.Pn(n, x);
+}
+
+template <typename P>
+double Helpers<P>::dPn(double a, double b, unsigned int n, double x)
+{
+  return Helpers<P>::pol.dPn(a, b, n, x);
+}
+
+template <typename P>
+double Helpers<P>::dPn(unsigned int n, double x)
+{
+  return Helpers<P>::pol.dPn(n, x);
 }
 
 template <typename P>

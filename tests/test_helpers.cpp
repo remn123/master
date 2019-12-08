@@ -167,17 +167,31 @@ TEST_CASE("1: Test GL and GLL - get_nodes method", "[GL-GLL]")
   REQUIRE( nodes_gll[1] == Approx(0.0).margin(1E-15));
   REQUIRE( nodes_gll[2] == Approx(1.0).margin(1E-15));
   Helpers<GLL>::delete_nodes();
+
+  nodes_gl.clear();
+  nodes_gll.clear();
 }
 
 // Lagrange
-// TEST_CASE("1: Test Lagrange - get_node method", "[lagrange]")
-// {
-//   Helpers<Lagrange>::init();
-//   Helpers<Lagrange>::set_nodes(2);
-//   REQUIRE( Helpers<Lagrange>::get_node(0) == -1.0);
-//   REQUIRE( Helpers<Lagrange>::get_node(1) == 1.0);
-//   Helpers<Lagrange>::delete_nodes();
-// }
+ TEST_CASE("1: Test Lagrange - get_node method", "[lagrange]")
+ {
+   // First I will create a Legendre polynomial 
+   Helpers<GL>::init();
+   Helpers<GL>::set_nodes(2);
+   std::vector<double> nodes_gl = Helpers<GL>::get_nodes();
+
+   // I create a Lagrange polynomial using the gauss-legendre roots as nodes
+   Helpers<Lagrange>::init();
+   Helpers<Lagrange>::set_nodes(nodes_gl);
+   REQUIRE( Helpers<Lagrange>::Pn(0, nodes_gl[0]) == 1.0);
+   REQUIRE( Helpers<Lagrange>::Pn(0, nodes_gl[1]) == 0.0);
+   REQUIRE( Helpers<Lagrange>::Pn(1, nodes_gl[0]) == 0.0);
+   REQUIRE( Helpers<Lagrange>::Pn(1, nodes_gl[1]) == 1.0);
+
+   Helpers<Lagrange>::delete_nodes();
+   Helpers<GL>::delete_nodes();
+   nodes_gl.clear();
+ }
 // ----------------------------------------------------------------- //
 
 // Lagrange

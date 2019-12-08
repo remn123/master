@@ -272,5 +272,11 @@ double Lagrange::dPn(unsigned int i, double x)
   }
    return sum;
 }
+
+
+void Lagrange::delete_nodes(void)
+{
+  this->nodes.clear();
+}
 // ------------------------------- LAGRANGE ------------------------------
 
