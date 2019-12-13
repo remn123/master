@@ -10,10 +10,23 @@ SD::SD(int order, int dimension)
   this->order = order;
   this->dim = dimension;
 
+ 
+}
+
+SD::~SD()
+{
+
+}
+
+// 0)
+void SD::setup(void)
+{
   // Solution Points will be located at Gauss-Legendre Nodes
   Helpers<GL>::init();
   Helpers<GL>::setup(order);
   std::vector<double> nodes_gl = Helpers<GL>::get_nodes();
+
+  Helpers<GL>::delete_nodes();
 
   /*  
       Second Order SPs
@@ -37,12 +50,11 @@ SD::SD(int order, int dimension)
   Helpers<GLL>::init();
   Helpers<GLL>::setup(order+1); // Flux must be one order higher
   std::vector<double> nodes_gll = Helpers<GLL>::get_nodes();
+  
+  Helpers<GLL>::delete_nodes();
 
   std::vector<Node> vecx;
   std::vector<Node> vecy;
-
-  vecx.resize(order*(order+1));
-  vecy.resize(order*(order+1));
 
   if (dimension==2)
   {
@@ -101,18 +113,6 @@ SD::SD(int order, int dimension)
   }
 }
 
-SD::~SD()
-{
-
-}
-
-// 0)
-void SD::setup(void)
-{
-  this->calc_sp_nodes();
-  this->calc_fp_nodes();
-}
-
 // 1)
 void SD::boundary_condition (Element& e)
 {
@@ -122,7 +122,48 @@ void SD::boundary_condition (Element& e)
 // 2)
 void SD::interpolate_sp2fp (Element& e)
 {
-  //pass
+  Helpers<GL>::init();
+  Helpers<GL>::setup(this->order);
+  
+  Helpers<Lagrange>::init();
+  Helpers<Lagrange>::setup(Helpers<GL>::get_nodes());
+  
+  double csi=0.0, eta=0.0;
+  double Lcsi, Leta;
+  unsigned int i, j;
+  unsigned int index, s_index, f_index;
+  
+  index = 0;
+  for (auto& vec_lines : this->fnodes)
+  {
+    index++;
+
+    f_index = 0;
+    for (auto& node : vec_lines)
+    {
+      f_index++;
+      csi = node.coords[0];
+      eta = node.coords[1];
+
+      e.Qfp[index-1][f_index-1] = 0.0;
+
+      s_index = 0;
+      for (auto& n : this->snodes)
+      {
+        s_index++;
+        // s_index = (j+1) + this->order*i;
+
+        i = (int) s_index / this->order;
+        j = s_index % this->order;
+
+        Lcsi = Helpers<Lagrange>::Pn(i, csi);
+        Leta = Helpers<Lagrange>::Pn(j, eta);
+        e.Qfp[index-1][f_index-1] += Lcsi*Leta*e.Qsp[s_index-1];
+      }
+    }
+  }
+  Helpers<Lagrange>::delete_nodes();
+  Helpers<GL>::delete_nodes();
 }
 
 // 3)
@@ -146,6 +187,7 @@ void SD::residue (Element& e)
 // 6)
 void SD::solve (Element& e)
 {
+  this->bondary_condition(e);
   this->interpolate_sp2fp(e);
   this->riemann_solver(e);
   this->interpolate_fp2sp(e);

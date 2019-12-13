@@ -86,19 +86,20 @@ public:
 
 
 /* SpacialDiscretization */
-class SpacialDiscretization
-{
-public:
+// class SpacialDiscretization
+// {
+// public:
 
-public:
-  SpacialDiscretization();
-  virtual ~SpacialDiscretization();
+// public:
+//   SpacialDiscretization();
+//   virtual ~SpacialDiscretization();
 
-  virtual void setup(void);
-  virtual void residue(void);
-}
+//   virtual void setup(void);
+//   virtual void residue(void);
+// }
 
-class SD : public SpacialDiscretization
+// class SD : public SpacialDiscretization
+class SD
 {
 public:
   std::vector<std::vector<Node>> fnodes; // flux points (FP)

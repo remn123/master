@@ -30,7 +30,6 @@ int main()
     for (auto& e : mesh.elems)
     {
       sd.solve(e);
-        
     }
   }
 

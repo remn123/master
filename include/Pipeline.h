@@ -1,105 +1,189 @@
-#include <vector>
+ 
+#include <memory>
 #include <string>
-#include <map>
+#include <vector>
 
-typedef std::map<const std::string, const void> dict;
+#include <Dict.h>
+// #include <Preproc.h>
+// #include <Solver.h>
+// #include <Posproc.h>
 
-/* PIPE */
-class Pipe
+// typedef std::unordered_map<const std::string, const void> dict;
+
+/* Interface Pipe */
+class IPipe
 {
+private: 
+  dict params;
+  std::string message;
+  int type;
 public:
-    dict params;
-    std::string message;
-public:
-    Pipe(/* args */);
-    virtual ~Pipe();
+  IPipe(dict&);
+  virtual ~IPipe();
 
-    void set(dict params);
-    void get(void);
-    void run(void);
+  virtual void setup(dict& params);
+  virtual void run(void);
 };
 
-/* PREPROC */
-class Preproc : public Pipe
+/* Templated Pipe */
+template <typename C>
+class Pipe : public IPipe
+{
+private: 
+  C container;
+public:
+  Pipe(dict&);
+  ~Pipe();
+
+  void setup(dict& params);
+  void run(void);
+};
+
+/* pipe.cpp */
+template <typename C>
+void Pipe<C>::setup(dict& params)
+{
+  this->container = C{params};
+  this->container.setup();
+}
+
+template <typename C>
+void Pipe<C>::run(void)
+{
+  this->container.run();
+}
+
+/* 
+  CONTAINERS:
+   - Preproc
+   - Solver
+   - Posproc
+ */
+
+/* Preproc */
+class Preproc
 {
 private:
-    
+  
 public:
-    Preproc();
-    ~Preproc();
+  Preproc(dict&);
+  ~Preproc();
+
+  void setup(dict& params);
+  void run(void);
 };
 
-/* SOLVER */
-template<typename T>
-class Solver : public Pipe, public Method<T>
+/* Solver */
+template <typename S, typename T>
+class Solver
 {
 private:
-    /* data */
+  S space;
+  T time;
 public:
-    Solver();
-    ~Solver();
+  Solver(dict&);
+  ~Solver();
+
+  void setup(dict& params);
+  void run(void);
 };
 
-/* POSPROC */
-class Posproc : public Pipe
+/* Posproc */
+class Posproc
 {
 private:
-    /* data */
+  
 public:
-    Posproc();
-    ~Posproc();
+  Posproc(dict&);
+  ~Posproc();
+
+  void setup(dict& params);
+  void run(void);
 };
 
-/* PIPELINE */
+
 class Pipeline
 {
 private:
-    std::vector<Pipe> pipes;
-    int verbose;
-    std::string message;
+  std::vector<std::shared_ptr<IPipe>> pipes;
 public:
-    Pipeline(std::vector<Pipe>);
-    ~Pipeline();
+  Pipeline(std::vector<std::shared_ptr<IPipe>> vec_pipes) : pipes(vec_pipes){};
+  ~Pipeline();
 
-    void set(void);
-    void start(void);
-    void log(const std::string&);
-    void print(const std::string&);
+  void setup(std::vector<std::shared_ptr<dict>> dicts);
+  void start(void);
 };
+// /* SOLVER */
+// template<typename T>
+// class Solver : public Pipe, public Method<T>
+// {
+// private:
+//     /* data */
+// public:
+//     Solver();
+//     ~Solver();
+// };
 
-void Pipeline::set(void)
-{
-    for (auto pipe : this->pipes)
-    {
-        if (pipe.params["verbose"]==1)
-        {
-            this->print(pipe.message);
-        }
-        else if(pipe.params["verbose"]==2)
-        {
-            this->log(pipe.message);
-        }
-        pipe.set();
-    }
-}
+// /* POSPROC */
+// class Posproc : public Pipe
+// {
+// private:
+//     /* data */
+// public:
+//     Posproc();
+//     ~Posproc();
+// };
 
-void Pipeline::start(void)
-{
-    for (auto pipe : this->pipes)
-    {
-        if (pipe.params["verbose"]==1)
-        {
-            this->print(pipe.message);
-        }
-        else if(pipe.params["verbose"]==2)
-        {
-            this->log(pipe.message);
-        }
-        pipe.run();
-    }
-}
+// /* PIPELINE */
+// class Pipeline
+// {
+// private:
+//     std::vector<Pipe> pipes;
+//     int verbose;
+//     std::string message;
+// public:
+//     Pipeline(std::vector<Pipe>);
+//     ~Pipeline();
 
-void Pipeline::log(const std::string& message)
-{
-    //std::cout << ""
-}
+//     void set(void);
+//     void start(void);
+//     void log(const std::string&);
+//     void print(const std::string&);
+// };
+
+// void Pipeline::set(void)
+// {
+//     for (auto pipe : this->pipes)
+//     {
+//         if (pipe.params["verbose"]==1)
+//         {
+//             this->print(pipe.message);
+//         }
+//         else if(pipe.params["verbose"]==2)
+//         {
+//             this->log(pipe.message);
+//         }
+//         pipe.set();
+//     }
+// }
+
+// void Pipeline::start(void)
+// {
+//     for (auto pipe : this->pipes)
+//     {
+//         if (pipe.params["verbose"]==1)
+//         {
+//             this->print(pipe.message);
+//         }
+//         else if(pipe.params["verbose"]==2)
+//         {
+//             this->log(pipe.message);
+//         }
+//         pipe.run();
+//     }
+// }
+
+// void Pipeline::log(const std::string& message)
+// {
+//     //std::cout << ""
+// }

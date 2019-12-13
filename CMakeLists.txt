@@ -27,8 +27,11 @@ target_link_libraries(master_exe
 add_library(master_lib
             src/Mesh.cpp
             src/Element.cpp
+            src/Pipeline.cpp
             src/Poly.cpp
+            include/Dict.h
             include/Helpers.h
+            include/Pipeline.h
             include/Poly.h
             include/Mesh.h
 
@@ -42,6 +45,7 @@ add_executable(master_test
                tests/main.cpp
                tests/tests.cpp
                tests/test_helpers.cpp
+               tests/test_dict.cpp
 
 )
 
