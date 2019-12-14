@@ -1,16 +1,14 @@
 #include <vector>
 
+#include <Helpers.h>
 #include <Mesh.h>
 #include <Solver.h>
-#include <Helpers.h>
 
 
 SD::SD(int order, int dimension)
 {
   this->order = order;
   this->dim = dimension;
-
- 
 }
 
 SD::~SD()
@@ -139,12 +137,14 @@ void SD::interpolate_sp2fp (Element& e)
     index++;
 
     f_index = 0;
-    for (auto& node : vec_lines)
+    for (auto& node : vec_lines) // line nodes for a specific direction (x, y)
     {
       f_index++;
-      csi = node.coords[0];
+      // flux node coordinates
+      csi = node.coords[0]; 
       eta = node.coords[1];
 
+      // initialize flux nodes solution
       e.Qfp[index-1][f_index-1] = 0.0;
 
       s_index = 0;
@@ -158,7 +158,7 @@ void SD::interpolate_sp2fp (Element& e)
 
         Lcsi = Helpers<Lagrange>::Pn(i, csi);
         Leta = Helpers<Lagrange>::Pn(j, eta);
-        e.Qfp[index-1][f_index-1] += Lcsi*Leta*e.Qsp[s_index-1];
+        e.Qfp[index-1][f_index-1] += (Lcsi*Leta)*e.Qsp[s_index-1];
       }
     }
   }
@@ -175,13 +175,81 @@ void SD::riemann_solver (Element& e)
 // 4)
 void SD::interpolate_fp2sp (Element& e)
 {
-  //pass
+  Helpers<GLL>::init();
+  Helpers<GLL>::setup(this->order+1);
+  
+  Helpers<Lagrange>::init();
+  Helpers<Lagrange>::setup(Helpers<GLL>::get_nodes());
+  
+  double csi=0.0, eta=0.0;
+  //double Lcsi, Leta;
+  double dLcsi, dLeta;
+  unsigned int i, j;
+  unsigned int index, s_index, f_index;
+  
+  s_index = 0;
+  for (auto& node : this->snodes)
+  {
+    // for each solution point
+    // I will calculate the lagrange polynomial at its position
+    // interpolate the flux in (x/y) direction from fps
+    s_index++;
+
+    csi = node.coords[0];
+    eta = node.coords[1];
+
+    index = 0;
+    for (auto& vec_lines : this->fnodes)
+    {
+      index++;
+
+      //e.Fsp[index-1][s_index-1] = 0.0;
+      e.dFsp[index-1][s_index-1] = 0.0;
+  
+      f_index = 0;
+      for (auto& node : vec_lines)
+      {
+        f_index++;      
+        i = (int) f_index / this->order;
+        j = f_index % this->order;
+
+        //Lcsi = Helpers<Lagrange>::Pn(i, csi);
+        //Leta = Helpers<Lagrange>::Pn(j, eta);
+        dLcsi = Helpers<Lagrange>::dPn(i, csi);
+        dLeta = Helpers<Lagrange>::dPn(j, eta);
+        
+        // index-1 is related to the flux direction (x/0 or y/1)
+        //e.Fsp[index-1][s_index-1] += Lcsi*Leta*e.Ffp[index-1][f_index-1];
+        e.dFsp[index-1][s_index-1] += (dLcsi*dLeta)*e.Ffp[index-1][f_index-1];
+      }
+    }
+  }
+  Helpers<Lagrange>::delete_nodes();
+  Helpers<GLL>::delete_nodes();
 }
 
 // 5)
 void SD::residue (Element& e)
 {
-  //pass
+  double csi=0.0, eta=0.0;
+  //double Lcsi, Leta;
+  double dLcsi, dLeta;
+  unsigned int index, s_index;
+
+  s_index = 0;
+  for (auto& node : this->snodes)
+  {
+    s_index++;
+
+    e.res[s_index-1] = 0.0;
+    index = 0;
+    for (auto& vec_lines : this->fnodes)
+    {
+      index++;
+      e.res[s_index-1] += -e.dFcsp[index-1][s_index-1] + e.d2Fdsp[index-1][s_index-1];
+    }
+  }
+  
 }
 
 // 6)

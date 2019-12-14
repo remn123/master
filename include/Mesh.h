@@ -7,6 +7,8 @@
 #include <unordered_map> 
 #include <functional>
 
+#include <DVector.h>
+
 // NODE CLASS
 class Node
 {
@@ -97,6 +99,34 @@ public:
 	std::vector<long> nodes;
 	std::vector<Edge> edges;
 	std::vector<Edge> faces;
+	
+  /* 
+    DVector represents a property vector containing all fluid 
+    properties or flux properties;
+    
+    The need of a vector of DVector is due to the high-order 
+    polynomial interpolation. So for each (solution/flux) node
+    a DVector is allocated as an element inside this vector.
+
+    Although, for flux properties as it has 2 (or 3) directions, 
+    the first vector stands for DIRECTION (x, y, z),
+    the second vector stands for the number of nodes 
+    (as in solution properties).
+
+    At last, for the residue, it has one DVector for each
+    node similar to the solution properties.
+	 */
+  std::vector<DVector> Qsp;    // Solution at Solution nodes
+	std::vector<DVector> Qfp;    // Solution at Flux nodes
+	//std::vector<DVector> Fsp;
+	std::vector<std::vector<DVector>> Fcfp;   // Convective Flux
+	std::vector<std::vector<DVector>> Fdfp;   // Diffusive Flux
+  std::vector<std::vector<DVector>> dFcsp;  // Derivative of Convective Flux 
+  std::vector<std::vector<DVector>> dFdsp;  // Derivative of Diffusive Flux
+	
+  // Residue Vector
+	std::vector<DVector> res;
+
 	static std::unordered_map<std::vector<long>, std::vector<long>> faces_map;
 	static std::unordered_map<std::vector<long>, std::vector<long>> edges_map;
 	long id;

@@ -30,6 +30,7 @@ add_library(master_lib
             src/Pipeline.cpp
             src/Poly.cpp
             include/Dict.h
+            include/DVector.h
             include/Helpers.h
             include/Pipeline.h
             include/Poly.h
@@ -46,6 +47,7 @@ add_executable(master_test
                tests/tests.cpp
                tests/test_helpers.cpp
                tests/test_dict.cpp
+               tests/test_dvector.cpp
 
 )
 

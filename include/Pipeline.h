@@ -18,7 +18,7 @@ private:
   std::string message;
   int type;
 public:
-  IPipe(dict&);
+  IPipe();
   virtual ~IPipe();
 
   virtual void setup(dict& params);
@@ -32,7 +32,7 @@ class Pipe : public IPipe
 private: 
   C container;
 public:
-  Pipe(dict&);
+  Pipe();
   ~Pipe();
 
   void setup(dict& params);
@@ -110,9 +110,11 @@ public:
   Pipeline(std::vector<std::shared_ptr<IPipe>> vec_pipes) : pipes(vec_pipes){};
   ~Pipeline();
 
-  void setup(std::vector<std::shared_ptr<dict>> dicts);
+  void setup(std::vector<dict> dicts);
   void start(void);
 };
+
+
 // /* SOLVER */
 // template<typename T>
 // class Solver : public Pipe, public Method<T>
