@@ -342,3 +342,19 @@ TEST_CASE("27: Test DVector - Elementwise multiplication operator * DVector", "[
   REQUIRE(d[1] == 6.0);
   REQUIRE(d[2] == 7.0);
 }
+
+TEST_CASE("28: Test DVector - negative DVector", "[dvector]")
+{
+  DVector d0{std::vector<double>{0.0, 0.0, 0.0}};
+  DVector d1{std::vector<double>{5.0, 2.0, 1.0}};
+  DVector d{-d1};
+  REQUIRE(d.size() == 3);
+  REQUIRE(d[0] == -5.0);
+  REQUIRE(d[1] == -2.0);
+  REQUIRE(d[2] == -1.0);
+
+  REQUIRE(d1.size() == 3);
+  REQUIRE(d1[0] == 5.0);
+  REQUIRE(d1[1] == 2.0);
+  REQUIRE(d1[2] == 1.0);
+}
