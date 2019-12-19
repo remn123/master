@@ -4,54 +4,10 @@
 #include <vector>
 
 #include <Dict.h>
-// #include <Preproc.h>
-// #include <Solver.h>
-// #include <Posproc.h>
+#include <Preproc.h>
+#include <Posproc.h>
+#include <Solver.h>
 
-// typedef std::unordered_map<const std::string, const void> dict;
-
-/* Interface Pipe */
-class IPipe
-{
-private: 
-  dict params;
-  std::string message;
-  int type;
-public:
-  IPipe();
-  virtual ~IPipe();
-
-  virtual void setup(dict& params);
-  virtual void run(void);
-};
-
-/* Templated Pipe */
-template <typename C>
-class Pipe : public IPipe
-{
-private: 
-  C container;
-public:
-  Pipe();
-  ~Pipe();
-
-  void setup(dict& params);
-  void run(void);
-};
-
-/* pipe.cpp */
-template <typename C>
-void Pipe<C>::setup(dict& params)
-{
-  this->container = C{params};
-  this->container.setup();
-}
-
-template <typename C>
-void Pipe<C>::run(void)
-{
-  this->container.run();
-}
 
 /* 
   CONTAINERS:
@@ -60,46 +16,83 @@ void Pipe<C>::run(void)
    - Posproc
  */
 
-/* Preproc */
-class Preproc
+/* Interface Pipe */
+class IPipe
 {
-private:
-  
+private: 
+  dict params;
+  std::string message;
+  int type;
+
 public:
-  Preproc(dict&);
-  ~Preproc();
+  IPipe(){};
+  virtual ~IPipe(){};
+
+  virtual void setup(dict& params);
+  virtual void setup(dict&, const std::shared_ptr<IPipe>&);
+  virtual void run(void);
+};
+
+/* Templated Pipe */
+//template <typename C>
+template <template <typename, typename...> class ContainerClass,
+          typename Type, typename... Args>
+class Pipe : public IPipe
+{
+private: 
+  ContainerClass<Type, Args...> container;
+  std::shared_ptr<IPipe> left;
+public:
+  Pipe();
+  ~Pipe();
 
   void setup(dict& params);
+  void setup(dict& params, const std::shared_ptr<IPipe>&);
   void run(void);
 };
 
-/* Solver */
-template <typename S, typename T>
-class Solver
+/* pipe.cpp */
+template <template <typename, typename...> class ContainerClass,
+          typename Type, typename... Args>
+Pipe<ContainerClass, Type, Args...>::Pipe()
 {
-private:
-  S space;
-  T time;
-public:
-  Solver(dict&);
-  ~Solver();
+  std::cout << "New Pipe has been created!\n";
+}
 
-  void setup(dict& params);
-  void run(void);
-};
-
-/* Posproc */
-class Posproc
+template <template <typename, typename...> class ContainerClass,
+          typename Type, typename... Args>
+Pipe<ContainerClass, Type, Args...>::~Pipe()
 {
-private:
-  
-public:
-  Posproc(dict&);
-  ~Posproc();
+  std::cout << "A Pipe has been deleted!\n";
+}
 
-  void setup(dict& params);
-  void run(void);
-};
+template <template <typename, typename...> class ContainerClass,
+          typename Type, typename... Args>
+void Pipe<ContainerClass, Type, Args...>::setup(dict& params, const std::shared_ptr<IPipe>& left)
+{
+  this->left = left; // address of the last Pipe (first points to nullptr)
+  this->params = params;
+  this->container = ContainerClass<Type, Args...>{params};
+  this->container.setup();
+}
+
+
+template <template <typename, typename...> class ContainerClass,
+          typename Type, typename... Args>
+void Pipe<ContainerClass, Type, Args...>::setup(dict& params)
+{
+  this->left = nullptr; // address of the last Pipe (first points to nullptr)
+  this->container = ContainerClass<Type, Args...>{params};
+  this->container.setup();
+}
+
+
+template <template <typename, typename...> class ContainerClass,
+          typename Type, typename... Args>
+void Pipe<ContainerClass, Type, Args...>::run(void)
+{
+  this->container.run();
+}
 
 
 class Pipeline

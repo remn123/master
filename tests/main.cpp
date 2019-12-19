@@ -9,8 +9,8 @@
 #include <vector>
 
 #include <catch/catch.hpp>
-#include <Helpers.h>
-#include <Poly.h>
+//#include <Helpers.h>
+//#include <Poly.h>
 
 // Static Variables
 //std::vector<double> Poly::memo{1};  // static memo definition

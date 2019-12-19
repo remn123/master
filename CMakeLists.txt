@@ -25,16 +25,25 @@ target_link_libraries(master_exe
 )
 
 add_library(master_lib
-            src/Mesh.cpp
             src/Element.cpp
-            src/Pipeline.cpp
+            src/Mesh.cpp
+            #src/Pipeline.cpp
+            #src/Posproc.cpp
+            #src/Preproc.cpp
             src/Poly.cpp
+            src/SD.cpp
+            #src/Solver.cpp
             include/Dict.h
             include/DVector.h
+            include/Dummies.h
             include/Helpers.h
-            include/Pipeline.h
-            include/Poly.h
             include/Mesh.h
+            #include/Pipeline.h
+            #include/Posproc.h
+            #include/Preproc.h
+            include/Poly.h
+            include/SD.h
+            #include/Solver.h
 
 )
 
@@ -45,9 +54,13 @@ target_include_directories(master_lib PUBLIC src)
 add_executable(master_test 
                tests/main.cpp
                tests/tests.cpp
-               tests/test_helpers.cpp
                tests/test_dict.cpp
                tests/test_dvector.cpp
+               tests/test_helpers.cpp
+               #tests/test_pipeline.cpp
+               #tests/test_sd.cpp
+               
+
 
 )
 

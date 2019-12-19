@@ -12,48 +12,30 @@
 
   ***************************************************************************************
 */
-
-template<typename T>
-concept Solverkind = requires(T a){
-  {std::function_traits<a>::}
-};
+#include <Dict.h>
 
 
-template<typename T>
-concept Solverkind = requires(T a){
-  {std::function_traits<a>::}
-};
-
-template<Solverkind T, Solverkind U>
-class Solver : public Pipe, public Method<T>
+/* Solver */
+template <template <typename, typename...> class SpaceClass,
+          template <typename> class TimeClass,
+          typename SpaceType, typename TimeType, typename... Args>
+class Solver
 {
-public:
-
-  Solver;
-  ~Solver;
-
 private:
+  dict params;
+  dict space_params;
+  dict time_params;
 
-}
-
-
-/* 
- * Method<SD, ExplicitRungeKutta>
- * Solver<SD, ExplicitEuler>
- * */
-
-class Solver : public Pipe
-{
-public:
-  SpacialDiscretization spacial;
-  TimeDiscretization time;
-private:
+  SpaceClass<SpaceType, Args..> space;
+  TimeClass<TimeType> time;
   
 public:
-  Solver();
+  Solver(dict&);
   ~Solver();
 
-}
+  void setup(void);
+  void run(void);
+};
 
 
 /* TimeDiscretization */
@@ -83,40 +65,3 @@ public:
   void step(void);
 }
 
-
-
-/* SpacialDiscretization */
-// class SpacialDiscretization
-// {
-// public:
-
-// public:
-//   SpacialDiscretization();
-//   virtual ~SpacialDiscretization();
-
-//   virtual void setup(void);
-//   virtual void residue(void);
-// }
-
-// class SD : public SpacialDiscretization
-class SD
-{
-public:
-  std::vector<std::vector<Node>> fnodes; // flux points (FP)
-  std::vector<Node> snodes;              // solution points (SP)
-
-private:
-
-public:
-  SD(int, int);
-  ~SD();
-
-  void setup(void);
-  void boundary_condition(Element&);
-  void calc_high_order_nodes(Element&);
-  void interpolate_sp2fp(Element&);
-  void riemann_solver(Element&);
-  void interpolate_fp2sp(Element&);
-  void residue(Element&);
-  void solve(Element&);
-}
