@@ -25,14 +25,14 @@ SD<NavierStokes>::SD(int order, int dimension)
 }
 
 template <typename Equation>
-SD::~SD()
+SD<Equation>::~SD()
 {
 
 }
 
 // 0.1)
 template <typename Equation>
-void SD::create_nodes(void)
+void SD<Equation>::create_nodes(void)
 {
    // Solution Points will be located at Gauss-Legendre Nodes
   Helpers<GL>::init();
@@ -127,8 +127,8 @@ void SD::create_nodes(void)
 }
 
 // Auxiliar function
-template <Equation>
-void SD::_init_dvec(std::vector<DVector>& vec, size_t num_nodes)
+template <typename Equation>
+void SD<Equation>::_init_dvec(std::vector<DVector>& vec, size_t num_nodes)
 {
   std::vector<double> init_vec(this->dimension+2, 1.0); 
 
@@ -140,8 +140,8 @@ void SD::_init_dvec(std::vector<DVector>& vec, size_t num_nodes)
   }
 }
 
-template <Equation>
-void SD::_init_dvec(std::vector<std::vector<DVector>>& vec, size_t num_nodes)
+template <typename Equation>
+void SD<Equation>::_init_dvec(std::vector<std::vector<DVector>>& vec, size_t num_nodes)
 {
   std::vector<double> init_vec(this->dimension+2, 1.0); 
   
@@ -162,60 +162,60 @@ void SD::_init_dvec(std::vector<std::vector<DVector>>& vec, size_t num_nodes)
 template <>
 void SD<Euler>::initialize_properties(Mesh& mesh)
 {
-  for (auto& e : mesh->elems)
+  for (auto& e : mesh.elems)
   {
     // Conservative Properties
-    this->_init_dvec(e.Qsp,  this->snodes.size());
-    this->_init_dvec(e.Qfp,  this->fnodes[0].size());
+    this->_init_dvec(e->Qsp,  this->snodes.size());
+    this->_init_dvec(e->Qfp,  this->fnodes[0].size());
 
     // Convective Fluxes
-    this->_init_dvec(e.Fcsp, this->snodes.size());
-    this->_init_dvec(e.Fcfp, this->fnodes[0].size());
+    this->_init_dvec(e->Fcsp, this->snodes.size());
+    this->_init_dvec(e->Fcfp, this->fnodes[0].size());
 
     // Gradients
-    this->_init_dvec(e.dFcsp, this->snodes.size());
-    this->_init_dvec(e.dFcfp, this->fnodes[0].size());
+    this->_init_dvec(e->dFcsp, this->snodes.size());
+    this->_init_dvec(e->dFcfp, this->fnodes[0].size());
   }
 }
 
 template <>
 void SD<NavierStokes>::initialize_properties(Mesh& mesh)
 {
-  for (auto& e : mesh->elems)
+  for (auto& e : mesh.elems)
   {
     // Conservative Properties
-    this->_init_dvec(e.Qsp,  this->snodes.size());
-    this->_init_dvec(e.Qfp,  this->fnodes[0].size());
+    this->_init_dvec(e->Qsp,  this->snodes.size());
+    this->_init_dvec(e->Qfp,  this->fnodes[0].size());
 
     // Convective Fluxes
-    this->_init_dvec(e.Fcsp, this->snodes.size());
-    this->_init_dvec(e.Fcfp, this->fnodes[0].size());
+    this->_init_dvec(e->Fcsp, this->snodes.size());
+    this->_init_dvec(e->Fcfp, this->fnodes[0].size());
 
     // Diffusive Fluxes
-    this->_init_dvec(e.Fdsp, this->snodes.size());
-    this->_init_dvec(e.Fdfp, this->fnodes[0].size());
+    this->_init_dvec(e->Fdsp, this->snodes.size());
+    this->_init_dvec(e->Fdfp, this->fnodes[0].size());
 
     // Gradients
     // Conservative Properties
-    this->_init_dvec(e.dQsp,  this->snodes.size());
-    this->_init_dvec(e.dQfp,  this->fnodes[0].size());
+    this->_init_dvec(e->dQsp,  this->snodes.size());
+    this->_init_dvec(e->dQfp,  this->fnodes[0].size());
 
     // Convective Fluxes
-    this->_init_dvec(e.dFcsp, this->snodes.size());
-    this->_init_dvec(e.dFcfp, this->fnodes[0].size());
+    this->_init_dvec(e->dFcsp, this->snodes.size());
+    this->_init_dvec(e->dFcfp, this->fnodes[0].size());
 
     // Diffusive Fluxes
-    this->_init_dvec(e.dFdsp, this->snodes.size());
-    this->_init_dvec(e.dFdfp, this->fnodes[0].size());
+    this->_init_dvec(e->dFdsp, this->snodes.size());
+    this->_init_dvec(e->dFdfp, this->fnodes[0].size());
 
     // Residue
-    this->_init_dvec(e.res, this->snodes.size());
+    this->_init_dvec(e->res, this->snodes.size());
   }
 }
 
 // 0)
 template <typename Equation>
-void SD::setup(Mesh& mesh)
+void SD<Equation>::setup(Mesh& mesh)
 {
   /* 
     On setup method, all solution and flux nodes
@@ -254,13 +254,15 @@ void SD::setup(Mesh& mesh)
         Q_inflow = Q_outflow
 
 */
-void SD::boundary_condition (Element& e)
+template <typename Equation>
+void SD<Equation>::boundary_condition (Element& e)
 {
   
 }
 
-// 2)
-void SD::interpolate_sp2fp (Element& e)
+// 2) INTERPOLATE FROM SOLUTION POINTS TO FLUX POINTS
+template <typename Equation>
+void SD<Equation>::interpolate_sp2fp (Element& e)
 {
   Helpers<GL>::init();
   Helpers<GL>::setup(this->order);
@@ -308,14 +310,23 @@ void SD::interpolate_sp2fp (Element& e)
   Helpers<GL>::delete_nodes();
 }
 
-// 3)
-void SD::riemann_solver (Element& e)
+// 3) RIEMANN SOLVER
+template <>
+void SD<Euler>::riemann_solver (Element& e)
 {
   //pass
 }
 
-// 4)
-void SD::interpolate_fp2sp (Element& e)
+template <>
+void SD<NavierStokes>::riemann_solver (Element& e)
+{
+  //pass
+}
+
+// 4) INTERPOLATE FROM FLUX POINTS TO SOLUTION POINTS
+// Euler
+template<>
+void SD<Euler>::interpolate_fp2sp (Element& e)
 {
   Helpers<GLL>::init();
   Helpers<GLL>::setup(this->order+1);
@@ -362,7 +373,7 @@ void SD::interpolate_fp2sp (Element& e)
         
         // index-1 is related to the flux direction (x/0 or y/1)
         //e.Fsp[index-1][s_index-1] += Lcsi*Leta*e.Ffp[index-1][f_index-1];
-        e.dFsp[index-1][s_index-1] += (dLcsi*dLeta)*e.Ffp[index-1][f_index-1];
+        e.dFcsp[index-1][s_index-1] += (dLcsi*dLeta)*e.Fcfp[index-1][f_index-1];
       }
     }
   }
@@ -370,13 +381,69 @@ void SD::interpolate_fp2sp (Element& e)
   Helpers<GLL>::delete_nodes();
 }
 
-// 5) EULER EQUATION
-template <>
-void SD::residue<Euler> (Element& e)
+template<>
+void SD<NavierStokes>::interpolate_fp2sp (Element& e)
 {
+  Helpers<GLL>::init();
+  Helpers<GLL>::setup(this->order+1);
+  
+  Helpers<Lagrange>::init();
+  Helpers<Lagrange>::setup(Helpers<GLL>::get_nodes());
+  
   double csi=0.0, eta=0.0;
   //double Lcsi, Leta;
   double dLcsi, dLeta;
+  unsigned int i, j;
+  unsigned int index, s_index, f_index;
+  
+  s_index = 0;
+  for (auto& node : this->snodes)
+  {
+    // for each solution point
+    // I will calculate the lagrange polynomial at its position
+    // interpolate the flux in (x/y) direction from fps
+    s_index++;
+
+    csi = node.coords[0];
+    eta = node.coords[1];
+
+    index = 0;
+    for (auto& vec_lines : this->fnodes)
+    {
+      index++;
+
+      //e.Fsp[index-1][s_index-1] = 0.0;
+      e.dFcsp[index-1][s_index-1] = 0.0;
+      e.dFdsp[index-1][s_index-1] = 0.0;
+  
+      f_index = 0;
+      for (auto& node : vec_lines)
+      {
+        f_index++;      
+        i = (int) f_index / this->order;
+        j = f_index % this->order;
+
+        //Lcsi = Helpers<Lagrange>::Pn(i, csi);
+        //Leta = Helpers<Lagrange>::Pn(j, eta);
+        dLcsi = Helpers<Lagrange>::dPn(i, csi);
+        dLeta = Helpers<Lagrange>::dPn(j, eta);
+        
+        // index-1 is related to the flux direction (x/0 or y/1)
+        //e.Fsp[index-1][s_index-1] += Lcsi*Leta*e.Ffp[index-1][f_index-1];
+        e.dFcsp[index-1][s_index-1] += (dLcsi*dLeta)*e.Fcfp[index-1][f_index-1];
+        e.dFdsp[index-1][s_index-1] += (dLcsi*dLeta)*e.Fdfp[index-1][f_index-1];
+      }
+    }
+  }
+  Helpers<Lagrange>::delete_nodes();
+  Helpers<GLL>::delete_nodes();
+}
+
+// 5) RESIDUE 
+// Euler
+template <>
+void SD<Euler> ::residue(Element& e)
+{
   unsigned int index, s_index;
 
   s_index = 0;
@@ -394,13 +461,10 @@ void SD::residue<Euler> (Element& e)
   }
 }
 
-// 5) NAVIER-STOKES EQUATION
+// Navier-Stokes
 template <>
-void SD::residue<NavierStokes> (Element& e)
+void SD<NavierStokes>::residue (Element& e)
 {
-  double csi=0.0, eta=0.0;
-  //double Lcsi, Leta;
-  double dLcsi, dLeta;
   unsigned int index, s_index;
 
   s_index = 0;
@@ -418,13 +482,36 @@ void SD::residue<NavierStokes> (Element& e)
   }
 }
 
-// 6)
+// 6) SOLVE
 template <typename Equation>
-void SD::solve (Element& e)
+void SD<Equation>::solve (Element& e)
 {
   this->bondary_condition(e);
   this->interpolate_sp2fp(e);
+  this->calculate_fluxes(e);
   this->riemann_solver(e);
   this->interpolate_fp2sp(e);
   this->residue(e);
 }
+
+
+
+/*
+  1) Setup (all element in Mesh)
+     1.1) Calculate solution and fluxes points
+     1.2) Initialize solution and fluxes
+
+  2) Solver Loop (for each element in Mesh)
+     2.1) Apply Boundary Conditions on interfaces (flux points)
+     2.2) Interpolate Q and dQ from SPs to FPs
+     2.3) Calculate Fluxes at internal FPs
+     2.4) Calculate Fluxes at faces FPs (riemann solver and BR2)
+     2.5) Interpolate Fluxes derivatives from FPs to SPs
+     2.6) Calculate Residue
+  
+  3) Iterate in time
+     3.1) Calculate residue norm
+     3.2) Check if it's already converged
+     3.3) (if not) Apply time iteration then go to (2)
+*/
+

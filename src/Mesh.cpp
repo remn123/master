@@ -195,17 +195,17 @@ void Mesh::read_gmsh(const std::string& filename)
 		blocks _BLOCK_ = blocks::MESH_FORMAT;
 
 		std::map<std::string, blocks> blck_map = {
-			{ "$MeshFormat",	 blocks::MESH_FORMAT },
-			{ "$EndMeshFormat",	 blocks::eMESH_FORMAT },
-			{ "$Nodes",		 blocks::NODES },
-			{ "$EndNodes",		 blocks::eNODES },
-			{ "$Elements",		 blocks::ELEMENTS },
-			{ "$EndElements",	 blocks::eELEMENTS },
-			{ "$NodeData",		 blocks::NODEDATA },
-			{ "$EndNodeData",	 blocks::eNODEDATA },
-			{ "$ElementData",	 blocks::ELEMENTDATA },
-			{ "$EndElementData",	 blocks::eELEMENTDATA },
-			{ "$ElementNodeData",	 blocks::ELEMENTNODEDATA },
+			{ "$MeshFormat",	       blocks::MESH_FORMAT },
+			{ "$EndMeshFormat",	     blocks::eMESH_FORMAT },
+			{ "$Nodes",		           blocks::NODES },
+			{ "$EndNodes",		       blocks::eNODES },
+			{ "$Elements",		       blocks::ELEMENTS },
+			{ "$EndElements",	       blocks::eELEMENTS },
+			{ "$NodeData",		       blocks::NODEDATA },
+			{ "$EndNodeData",	       blocks::eNODEDATA },
+			{ "$ElementData",	       blocks::ELEMENTDATA },
+			{ "$EndElementData",	   blocks::eELEMENTDATA },
+			{ "$ElementNodeData",	   blocks::ELEMENTNODEDATA },
 			{ "$EndElementNodeData", blocks::eELEMENTNODEDATA }
 		};
 		
@@ -299,11 +299,11 @@ void Mesh::read_gmsh(const std::string& filename)
 					auto last = parser.end();
 					
 					if (elm_type(elem_type) != elm_type::NODE2_LINE    && \
-						elm_type(elem_type) != elm_type::NODE3_O2_LINE && \
-						elm_type(elem_type) != elm_type::NODE1_POINT   && \
-						elm_type(elem_type) != elm_type::NODE4_O3_EDG  && \
-						elm_type(elem_type) != elm_type::NODE5_O4_EDG  && \
-						elm_type(elem_type) != elm_type::NODE6_O5_EDG)
+						  elm_type(elem_type) != elm_type::NODE3_O2_LINE && \
+						  elm_type(elem_type) != elm_type::NODE1_POINT   && \
+						  elm_type(elem_type) != elm_type::NODE4_O3_EDG  && \
+						  elm_type(elem_type) != elm_type::NODE5_O4_EDG  && \
+						  elm_type(elem_type) != elm_type::NODE6_O5_EDG)
 					{
 						std::vector<std::string> newVec(first, last);
 						//std::cout << "Creating mesh element of type (" << elem_type << ")..." << std::endl;
