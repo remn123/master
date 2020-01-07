@@ -1,4 +1,5 @@
 #include <vector>
+#include <memory>
 
 #include <DVector.h>
 #include <Mesh.h>
@@ -24,13 +25,13 @@ public:
   void create_nodes(void);
   void initialize_properties(Mesh&);
   
-  void boundary_condition(Element&);
-  void calc_high_order_nodes(Element&);
-  void interpolate_sp2fp(Element&);
-  void riemann_solver(Element&);
-  void interpolate_fp2sp(Element&);
-  void residue(Element&);
-  void solve(Element&);
+  void boundary_condition(std::shared_ptr<Element>&);
+  void calc_high_order_nodes(std::shared_ptr<Element>&);
+  void interpolate_sp2fp(std::shared_ptr<Element>&);
+  void riemann_solver(std::shared_ptr<Element>&);
+  void interpolate_fp2sp(std::shared_ptr<Element>&);
+  void residue(std::shared_ptr<Element>&);
+  void solve(std::shared_ptr<Element>&);
 
 private:
   void _init_dvec(std::vector<DVector>&, size_t);

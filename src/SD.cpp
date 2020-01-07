@@ -1,6 +1,8 @@
 #include <vector>
+#include <memory>
 
 #include <Dummies.h>
+#include <Poly.h>
 #include <Helpers.h>
 #include <Mesh.h>
 #include <SD.h>
@@ -255,14 +257,14 @@ void SD<Equation>::setup(Mesh& mesh)
 
 */
 template <typename Equation>
-void SD<Equation>::boundary_condition (Element& e)
+void SD<Equation>::boundary_condition (std::shared_ptr<Element>& e)
 {
   
 }
 
 // 2) INTERPOLATE FROM SOLUTION POINTS TO FLUX POINTS
 template <typename Equation>
-void SD<Equation>::interpolate_sp2fp (Element& e)
+void SD<Equation>::interpolate_sp2fp (std::shared_ptr<Element>& e)
 {
   Helpers<GL>::init();
   Helpers<GL>::setup(this->order);
@@ -312,13 +314,13 @@ void SD<Equation>::interpolate_sp2fp (Element& e)
 
 // 3) RIEMANN SOLVER
 template <>
-void SD<Euler>::riemann_solver (Element& e)
+void SD<Euler>::riemann_solver (std::shared_ptr<Element>& e)
 {
   //pass
 }
 
 template <>
-void SD<NavierStokes>::riemann_solver (Element& e)
+void SD<NavierStokes>::riemann_solver (std::shared_ptr<Element>& e)
 {
   //pass
 }
@@ -326,13 +328,13 @@ void SD<NavierStokes>::riemann_solver (Element& e)
 // 4) INTERPOLATE FROM FLUX POINTS TO SOLUTION POINTS
 // Euler
 template<>
-void SD<Euler>::interpolate_fp2sp (Element& e)
+void SD<Euler>::interpolate_fp2sp (std::shared_ptr<Element>& e)
 {
   Helpers<GLL>::init();
-  Helpers<GLL>::setup(this->order+1);
+  Helpers<GLL>::set_nodes(this->order+1);
   
   Helpers<Lagrange>::init();
-  Helpers<Lagrange>::setup(Helpers<GLL>::get_nodes());
+  Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
   
   double csi=0.0, eta=0.0;
   //double Lcsi, Leta;
@@ -357,7 +359,7 @@ void SD<Euler>::interpolate_fp2sp (Element& e)
       index++;
 
       //e.Fsp[index-1][s_index-1] = 0.0;
-      e.dFsp[index-1][s_index-1] = 0.0;
+      e.dFcsp[index-1][s_index-1] = 0.0;
   
       f_index = 0;
       for (auto& node : vec_lines)
@@ -382,13 +384,13 @@ void SD<Euler>::interpolate_fp2sp (Element& e)
 }
 
 template<>
-void SD<NavierStokes>::interpolate_fp2sp (Element& e)
+void SD<NavierStokes>::interpolate_fp2sp (std::shared_ptr<Element>& e)
 {
   Helpers<GLL>::init();
-  Helpers<GLL>::setup(this->order+1);
+  Helpers<GLL>::set_nodes(this->order+1);
   
   Helpers<Lagrange>::init();
-  Helpers<Lagrange>::setup(Helpers<GLL>::get_nodes());
+  Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
   
   double csi=0.0, eta=0.0;
   //double Lcsi, Leta;
@@ -442,7 +444,7 @@ void SD<NavierStokes>::interpolate_fp2sp (Element& e)
 // 5) RESIDUE 
 // Euler
 template <>
-void SD<Euler> ::residue(Element& e)
+void SD<Euler> ::residue(std::shared_ptr<Element>& e)
 {
   unsigned int index, s_index;
 
@@ -463,7 +465,7 @@ void SD<Euler> ::residue(Element& e)
 
 // Navier-Stokes
 template <>
-void SD<NavierStokes>::residue (Element& e)
+void SD<NavierStokes>::residue (std::shared_ptr<Element>& e)
 {
   unsigned int index, s_index;
 
@@ -484,7 +486,7 @@ void SD<NavierStokes>::residue (Element& e)
 
 // 6) SOLVE
 template <typename Equation>
-void SD<Equation>::solve (Element& e)
+void SD<Equation>::solve (std::shared_ptr<Element>& e)
 {
   this->bondary_condition(e);
   this->interpolate_sp2fp(e);
