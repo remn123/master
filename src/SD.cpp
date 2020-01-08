@@ -7,6 +7,7 @@
 #include <Mesh.h>
 #include <SD.h>
 
+#define GAMMA 1.4
 
 // Constructor for Euler Equations
 template <>
@@ -312,7 +313,158 @@ void SD<Equation>::interpolate_sp2fp (std::shared_ptr<Element>& e)
   Helpers<GL>::delete_nodes();
 }
 
-// 3) RIEMANN SOLVER
+// 3) Calculate Fluxes
+// 3.1) Calculate Fluxes at SPs
+// Euler
+template <>
+void SD<Euler>::calculate_fluxes_sp (std::shared_ptr<Element>& e)
+{
+  double q1, q2, q3, q4, q5;
+  unsigned int s_index;
+  
+  s_index = 0;
+  // for each solution point, calculate the flux vector
+  for (auto& node : this->snodes)
+  {
+    s_index++;
+
+    q1 = e->Qsp[s_index-1][0];
+    q2 = e->Qsp[s_index-1][1];
+    q3 = e->Qsp[s_index-1][2];
+    q4 = e->Qsp[s_index-1][3];
+
+    if (this->dimension+2 == 4)
+    {
+      e->Fcsp[0][s_index-1][0] = q2;
+      e->Fcsp[0][s_index-1][1] = q2*q2/q1 + (GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1);
+      e->Fcsp[0][s_index-1][2] = q2*q3/q1;
+      e->Fcsp[0][s_index-1][3] = (q2/q1)*(GAMMA*q4 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3)/q1);
+
+      e->Fcsp[1][s_index-1][0] = q3;
+      e->Fcsp[1][s_index-1][1] = q3*q2/q1;
+      e->Fcsp[1][s_index-1][2] = q3*q3/q1 + (GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1);
+      e->Fcsp[1][s_index-1][3] = (q3/q1)*(GAMMA*q4 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3)/q1);
+    }
+    else if (this->dimension+2 == 5)
+    {
+      q5 = e->Qsp[s_index-1][4];
+
+      e->Fcsp[0][s_index-1][0] = q2;
+      e->Fcsp[0][s_index-1][1] = q2*q2/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);;
+      e->Fcsp[0][s_index-1][2] = q2*q3/q1;
+      e->Fcsp[0][s_index-1][3] = q2*q4/q1;
+      e->Fcsp[0][s_index-1][4] = (q2/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+
+      e->Fcsp[1][s_index-1][0] = q3;
+      e->Fcsp[1][s_index-1][1] = q3*q2/q1;
+      e->Fcsp[1][s_index-1][2] = q3*q3/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);
+      e->Fcsp[1][s_index-1][3] = q3*q4/q1;
+      e->Fcsp[1][s_index-1][4] = (q3/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+
+      e->Fcsp[2][s_index-1][0] = q4;
+      e->Fcsp[2][s_index-1][1] = q4*q2/q1;
+      e->Fcsp[2][s_index-1][2] = q4*q3/q1;
+      e->Fcsp[2][s_index-1][3] = q4*q4/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);
+      e->Fcsp[2][s_index-1][4] = (q4/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+    }
+  }
+}
+
+// Navier-Stokes
+template <>
+void SD<NavierStokes>::calculate_fluxes_sp (std::shared_ptr<Element>& e)
+{
+  double q1, q2, q3, q4, q5;
+  double dq1, dq2, dq3, dq4, dq5;
+  unsigned int s_index;
+  
+  s_index = 0;
+  // for each solution point, calculate the flux vectors
+  for (auto& node : this->snodes)
+  {
+    s_index++;
+
+    q1  = e->Qsp[s_index-1][0];
+    q2  = e->Qsp[s_index-1][1];
+    q3  = e->Qsp[s_index-1][2];
+    q4  = e->Qsp[s_index-1][3];
+
+    dq1 = e->dQsp[s_index-1][0];
+    dq2 = e->dQsp[s_index-1][1];
+    dq3 = e->dQsp[s_index-1][2];
+    dq4 = e->dQsp[s_index-1][3];
+
+    if (this->dimension+2 == 4)
+    {
+      // Convective Flux
+      e->Fcsp[0][s_index-1][0] = q2;
+      e->Fcsp[0][s_index-1][1] = q2*q2/q1 + (GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1);
+      e->Fcsp[0][s_index-1][2] = q2*q3/q1;
+      e->Fcsp[0][s_index-1][3] = (q2/q1)*(GAMMA*q4 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3)/q1);
+
+      e->Fcsp[1][s_index-1][0] = q3;
+      e->Fcsp[1][s_index-1][1] = q3*q2/q1;
+      e->Fcsp[1][s_index-1][2] = q3*q3/q1 + (GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1);
+      e->Fcsp[1][s_index-1][3] = (q3/q1)*(GAMMA*q4 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3)/q1);
+
+      // Diffusive Flux
+      e->Fdsp[0][s_index-1][0] = ;
+      e->Fdsp[0][s_index-1][1] = ;
+      e->Fdsp[0][s_index-1][2] = ;
+      e->Fdsp[0][s_index-1][3] = ;
+
+      e->Fdsp[1][s_index-1][0] = ;
+      e->Fdsp[1][s_index-1][1] = ;
+      e->Fdsp[1][s_index-1][2] = ;
+      e->Fdsp[1][s_index-1][3] = ;
+    }
+    else if (this->dimension+2 == 5)
+    {
+      q5  = e->Qsp[s_index-1][4];
+      dq5 = e->dQsp[s_index-1][4];
+
+      // Convective Flux
+      e->Fcsp[0][s_index-1][0] = q2;
+      e->Fcsp[0][s_index-1][1] = q2*q2/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);;
+      e->Fcsp[0][s_index-1][2] = q2*q3/q1;
+      e->Fcsp[0][s_index-1][3] = q2*q4/q1;
+      e->Fcsp[0][s_index-1][4] = (q2/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+
+      e->Fcsp[1][s_index-1][0] = q3;
+      e->Fcsp[1][s_index-1][1] = q3*q2/q1;
+      e->Fcsp[1][s_index-1][2] = q3*q3/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);
+      e->Fcsp[1][s_index-1][3] = q3*q4/q1;
+      e->Fcsp[1][s_index-1][4] = (q3/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+
+      e->Fcsp[2][s_index-1][0] = q4;
+      e->Fcsp[2][s_index-1][1] = q4*q2/q1;
+      e->Fcsp[2][s_index-1][2] = q4*q3/q1;
+      e->Fcsp[2][s_index-1][3] = q4*q4/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);
+      e->Fcsp[2][s_index-1][4] = (q4/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+
+      // Diffussive Flux
+      e->Fdsp[0][s_index-1][0] = ;
+      e->Fdsp[0][s_index-1][1] = ;
+      e->Fdsp[0][s_index-1][2] = ;
+      e->Fdsp[0][s_index-1][3] = ;
+      e->Fdsp[0][s_index-1][4] = ;
+
+      e->Fdsp[1][s_index-1][0] = ;
+      e->Fdsp[1][s_index-1][1] = ;
+      e->Fdsp[1][s_index-1][2] = ;
+      e->Fdsp[1][s_index-1][3] = ;
+      e->Fdsp[1][s_index-1][4] = ;
+
+      e->Fdsp[2][s_index-1][0] = ;
+      e->Fdsp[2][s_index-1][1] = ;
+      e->Fdsp[2][s_index-1][2] = ;
+      e->Fdsp[2][s_index-1][3] = ;
+      e->Fdsp[2][s_index-1][4] = ;
+    }
+  }
+}
+
+// 4) RIEMANN SOLVER
 template <>
 void SD<Euler>::riemann_solver (std::shared_ptr<Element>& e)
 {
@@ -325,7 +477,7 @@ void SD<NavierStokes>::riemann_solver (std::shared_ptr<Element>& e)
   //pass
 }
 
-// 4) INTERPOLATE FROM FLUX POINTS TO SOLUTION POINTS
+// 5) INTERPOLATE FROM FLUX POINTS TO SOLUTION POINTS
 // Euler
 template<>
 void SD<Euler>::interpolate_fp2sp (std::shared_ptr<Element>& e)
@@ -358,8 +510,7 @@ void SD<Euler>::interpolate_fp2sp (std::shared_ptr<Element>& e)
     {
       index++;
 
-      //e.Fsp[index-1][s_index-1] = 0.0;
-      e.dFcsp[index-1][s_index-1] = 0.0;
+      e->dFcsp[index-1][s_index-1] = 0.0;
   
       f_index = 0;
       for (auto& node : vec_lines)
@@ -374,8 +525,7 @@ void SD<Euler>::interpolate_fp2sp (std::shared_ptr<Element>& e)
         dLeta = Helpers<Lagrange>::dPn(j, eta);
         
         // index-1 is related to the flux direction (x/0 or y/1)
-        //e.Fsp[index-1][s_index-1] += Lcsi*Leta*e.Ffp[index-1][f_index-1];
-        e.dFcsp[index-1][s_index-1] += (dLcsi*dLeta)*e.Fcfp[index-1][f_index-1];
+        e->dFcsp[index-1][s_index-1] += (dLcsi*dLeta)*e->Fcfp[index-1][f_index-1];
       }
     }
   }
@@ -415,8 +565,8 @@ void SD<NavierStokes>::interpolate_fp2sp (std::shared_ptr<Element>& e)
       index++;
 
       //e.Fsp[index-1][s_index-1] = 0.0;
-      e.dFcsp[index-1][s_index-1] = 0.0;
-      e.dFdsp[index-1][s_index-1] = 0.0;
+      e->dFcsp[index-1][s_index-1] = 0.0;
+      e->dFdsp[index-1][s_index-1] = 0.0;
   
       f_index = 0;
       for (auto& node : vec_lines)
@@ -432,8 +582,8 @@ void SD<NavierStokes>::interpolate_fp2sp (std::shared_ptr<Element>& e)
         
         // index-1 is related to the flux direction (x/0 or y/1)
         //e.Fsp[index-1][s_index-1] += Lcsi*Leta*e.Ffp[index-1][f_index-1];
-        e.dFcsp[index-1][s_index-1] += (dLcsi*dLeta)*e.Fcfp[index-1][f_index-1];
-        e.dFdsp[index-1][s_index-1] += (dLcsi*dLeta)*e.Fdfp[index-1][f_index-1];
+        e->dFcsp[index-1][s_index-1] += (dLcsi*dLeta)*e->Fcfp[index-1][f_index-1];
+        e->dFdsp[index-1][s_index-1] += (dLcsi*dLeta)*e->Fdfp[index-1][f_index-1];
       }
     }
   }
@@ -441,7 +591,7 @@ void SD<NavierStokes>::interpolate_fp2sp (std::shared_ptr<Element>& e)
   Helpers<GLL>::delete_nodes();
 }
 
-// 5) RESIDUE 
+// 6) RESIDUE 
 // Euler
 template <>
 void SD<Euler> ::residue(std::shared_ptr<Element>& e)
@@ -453,12 +603,12 @@ void SD<Euler> ::residue(std::shared_ptr<Element>& e)
   {
     s_index++;
 
-    e.res[s_index-1] = 0.0;
+    e->res[s_index-1] = 0.0;
     index = 0;
     for (auto& vec_lines : this->fnodes)
     {
       index++;
-      e.res[s_index-1] += -e.dFcsp[index-1][s_index-1];
+      e->res[s_index-1] += -e->dFcsp[index-1][s_index-1];
     }
   }
 }
@@ -474,17 +624,17 @@ void SD<NavierStokes>::residue (std::shared_ptr<Element>& e)
   {
     s_index++;
 
-    e.res[s_index-1] = 0.0;
+    e->res[s_index-1] = 0.0;
     index = 0;
     for (auto& vec_lines : this->fnodes)
     {
       index++;
-      e.res[s_index-1] += -e.dFcsp[index-1][s_index-1] + e.dFdsp[index-1][s_index-1];
+      e->res[s_index-1] += -e->dFcsp[index-1][s_index-1] + e->dFdsp[index-1][s_index-1];
     }
   }
 }
 
-// 6) SOLVE
+// 7) SOLVE
 template <typename Equation>
 void SD<Equation>::solve (std::shared_ptr<Element>& e)
 {

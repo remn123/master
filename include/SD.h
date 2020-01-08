@@ -26,8 +26,8 @@ public:
   void initialize_properties(Mesh&);
   
   void boundary_condition(std::shared_ptr<Element>&);
-  void calc_high_order_nodes(std::shared_ptr<Element>&);
   void interpolate_sp2fp(std::shared_ptr<Element>&);
+  void calculate_fluxes(std::shared_ptr<Element>&);
   void riemann_solver(std::shared_ptr<Element>&);
   void interpolate_fp2sp(std::shared_ptr<Element>&);
   void residue(std::shared_ptr<Element>&);
