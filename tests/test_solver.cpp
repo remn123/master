@@ -59,16 +59,14 @@ TEST_CASE("1: Test Solver - Solution Nodes 2nd Order", "[solver]")
        2.5) Interpolate Fluxes derivatives from FPs to SPs
        2.6) Calculate Residue
   */
-  for (auto& e : mesh.elems)
-  {
-    sd.solve(e);
-  }
+  double CFL = 0.1;
 
+  TD time {2, CFL};
   
-
   for (auto& e : mesh.elems)
   {
     sd.solve(e);
+    time.solve(e);
   }
   
   REQUIRE( sd.snodes[0] == Approx(-0.577350269189626).margin(1E-15));

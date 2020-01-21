@@ -116,34 +116,34 @@ public:
     At last, for the residue, it has one DVector for each
     node similar to the solution properties.
 	 */
-  
+   
   // Conservative Properties
   std::vector<DVector> Qsp;                 // Solution at Solution nodes
-	std::vector<DVector> Qfp;                 // Solution at Flux nodes
+  std::vector<DVector> Qfp;                 // Solution at Flux nodes
 
   // Convective Fluxes
   std::vector<std::vector<DVector>> Fcsp;   // Convective Flux at Solution nodes
-	std::vector<std::vector<DVector>> Fcfp;   // Convective Flux at Flux nodes 
+  std::vector<std::vector<DVector>> Fcfp;   // Convective Flux at Flux nodes 
   
   // Diffusive Fluxes
   std::vector<std::vector<DVector>> Fdsp;   // Diffusive Flux at Solution nodes
-	std::vector<std::vector<DVector>> Fdfp;   // Diffusive Flux at Flux nodes
+  std::vector<std::vector<DVector>> Fdfp;   // Diffusive Flux at Flux nodes
   
   // Gradients
   // Conservative Properties
-  std::vector<DVector> dQsp;                 // Solution Gradient at Solution nodes
-	std::vector<DVector> dQfp;                 // Solution Gradient at Flux nodes
+  std::vector<std::vector<DVector>> dQsp;   // Solution Gradient at Solution nodes
+  std::vector<std::vector<DVector>> dQfp;   // Solution Gradient at Flux nodes
 
   // Convective Fluxes
   std::vector<std::vector<DVector>> dFcsp;   // Convective Flux Gradient at Solution nodes
-	std::vector<std::vector<DVector>> dFcfp;   // Convective Flux Gradient at Flux nodes 
+  std::vector<std::vector<DVector>> dFcfp;   // Convective Flux Gradient at Flux nodes 
   
   // Diffusive Fluxes
   std::vector<std::vector<DVector>> dFdsp;   // Diffusive Flux Gradient at Solution nodes
-	std::vector<std::vector<DVector>> dFdfp;   // Diffusive Flux Gradient at Flux nodes
+  std::vector<std::vector<DVector>> dFdfp;   // Diffusive Flux Gradient at Flux nodes
   
   // Residue Vector
-	std::vector<DVector> res;
+  std::vector<DVector> res;
 
 	static std::unordered_map<std::vector<long>, std::vector<long>> faces_map;
 	static std::unordered_map<std::vector<long>, std::vector<long>> edges_map;

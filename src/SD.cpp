@@ -7,7 +7,6 @@
 #include <Mesh.h>
 #include <SD.h>
 
-#define GAMMA 1.4
 
 // Constructor for Euler Equations
 template <>
@@ -15,15 +14,22 @@ SD<Euler>::SD(int order, int dimension)
 {
   this->order = order;
   this->dimension = dimension;
+  this->MU = 0.0;
+  this->MUv = 0.0;
+
   std::cout << "Initializing Euler SD solver...\n";
 }
 
 // Constructor for Navier-Stokes Equations
 template <>
-SD<NavierStokes>::SD(int order, int dimension)
+SD<NavierStokes>::SD(int order, int dimension, double mu, double Mach, double Reynolds)
 {
   this->order = order;
   this->dimension = dimension;
+  this->M = Mach;
+  this->Re = Reynolds;
+  this->MU = mu;
+  this->MUv = (-2.0/3.0)*mu;
   std::cout << "Initializing Navier-Stokes SD solver...\n";
 }
 
@@ -335,37 +341,38 @@ void SD<Euler>::calculate_fluxes_sp (std::shared_ptr<Element>& e)
 
     if (this->dimension+2 == 4)
     {
-      e->Fcsp[0][s_index-1][0] = q2;
-      e->Fcsp[0][s_index-1][1] = q2*q2/q1 + (GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1);
-      e->Fcsp[0][s_index-1][2] = q2*q3/q1;
-      e->Fcsp[0][s_index-1][3] = (q2/q1)*(GAMMA*q4 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3)/q1);
-
-      e->Fcsp[1][s_index-1][0] = q3;
-      e->Fcsp[1][s_index-1][1] = q3*q2/q1;
-      e->Fcsp[1][s_index-1][2] = q3*q3/q1 + (GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1);
-      e->Fcsp[1][s_index-1][3] = (q3/q1)*(GAMMA*q4 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3)/q1);
+      e->Fcsp[0][s_index-1] = {q2, 
+                               q2*q2/q1 + (this->GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1),
+                               q2*q3/q1,
+                               (q2/q1)*(this->GAMMA*q4 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3)/q1)};
+      
+      e->Fcsp[1][s_index-1] = {q3, 
+                               q3*q2/q1,
+                               q3*q3/q1 + (this->GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1),
+                               (q3/q1)*(this->GAMMA*q4 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3)/q1)};
     }
     else if (this->dimension+2 == 5)
     {
       q5 = e->Qsp[s_index-1][4];
 
-      e->Fcsp[0][s_index-1][0] = q2;
-      e->Fcsp[0][s_index-1][1] = q2*q2/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);;
-      e->Fcsp[0][s_index-1][2] = q2*q3/q1;
-      e->Fcsp[0][s_index-1][3] = q2*q4/q1;
-      e->Fcsp[0][s_index-1][4] = (q2/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+      e->Fcsp[0][s_index-1] = {q2, 
+                               q2*q2/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               q2*q3/q1,
+                               q2*q4/q1,
+                               (q2/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
 
-      e->Fcsp[1][s_index-1][0] = q3;
-      e->Fcsp[1][s_index-1][1] = q3*q2/q1;
-      e->Fcsp[1][s_index-1][2] = q3*q3/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);
-      e->Fcsp[1][s_index-1][3] = q3*q4/q1;
-      e->Fcsp[1][s_index-1][4] = (q3/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+      e->Fcsp[1][s_index-1] = {q3,
+                               q3*q2/q1,
+                               q3*q3/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               q3*q4/q1,
+                               (q3/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
 
-      e->Fcsp[2][s_index-1][0] = q4;
-      e->Fcsp[2][s_index-1][1] = q4*q2/q1;
-      e->Fcsp[2][s_index-1][2] = q4*q3/q1;
-      e->Fcsp[2][s_index-1][3] = q4*q4/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);
-      e->Fcsp[2][s_index-1][4] = (q4/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
+      
+      e->Fcsp[2][s_index-1] = {q4,
+                               q4*q2/q1,
+                               q4*q3/q1,
+                               q4*q4/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               (q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
     }
   }
 }
@@ -375,7 +382,17 @@ template <>
 void SD<NavierStokes>::calculate_fluxes_sp (std::shared_ptr<Element>& e)
 {
   double q1, q2, q3, q4, q5;
-  double dq1, dq2, dq3, dq4, dq5;
+  double dq1_dx, dq2_dx, dq3_dx, dq4_dx, dq5_dx;
+  double dq1_dy, dq2_dy, dq3_dy, dq4_dy, dq5_dy;
+  double dq1_dz, dq2_dz, dq3_dz, dq4_dz, dq5_dz;
+  double dT_dx, dT_dy, dT_dz;
+  double du_dx, du_dy, du_dz;
+  double dv_dx, dv_dy, dv_dz;
+  double dw_dx, dw_dy, dw_dz;
+  double txx, txy, txz;
+  double tyx, tyy, tyz;
+  double tzx, tzy, tzz;
+
   unsigned int s_index;
   
   s_index = 0;
@@ -389,80 +406,334 @@ void SD<NavierStokes>::calculate_fluxes_sp (std::shared_ptr<Element>& e)
     q3  = e->Qsp[s_index-1][2];
     q4  = e->Qsp[s_index-1][3];
 
-    dq1 = e->dQsp[s_index-1][0];
-    dq2 = e->dQsp[s_index-1][1];
-    dq3 = e->dQsp[s_index-1][2];
-    dq4 = e->dQsp[s_index-1][3];
+    dq1_dx = e->dQsp[0][s_index-1][0];
+    dq2_dx = e->dQsp[0][s_index-1][1];
+    dq3_dx = e->dQsp[0][s_index-1][2];
+    dq4_dx = e->dQsp[0][s_index-1][3];
+
+    dq1_dy = e->dQsp[1][s_index-1][0];
+    dq2_dy = e->dQsp[1][s_index-1][1];
+    dq3_dy = e->dQsp[1][s_index-1][2];
+    dq4_dy = e->dQsp[1][s_index-1][3];
 
     if (this->dimension+2 == 4)
     {
+      du_dx = (dq2_dx/q1 - q2*dq1_dx/(q1*q1));
+      du_dy = (dq2_dy/q1 - q2*dq1_dy/(q1*q1));
+    
+      dv_dx = (dq3_dx/q1 - q2*dq1_dx/(q1*q1));
+      dv_dy = (dq3_dy/q1 - q2*dq1_dx/(q1*q1));
+
+      txx = 2.0*this->MU*du_dx + this->MUv*(du_dx + dv_dy);
+      tyy = 2.0*this->MU*dv_dy + this->MUv*(du_dx + dv_dy);
+      txy = this->MU*(dv_dx + du_dy);
+      tyx = txy;
+
       // Convective Flux
-      e->Fcsp[0][s_index-1][0] = q2;
-      e->Fcsp[0][s_index-1][1] = q2*q2/q1 + (GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1);
-      e->Fcsp[0][s_index-1][2] = q2*q3/q1;
-      e->Fcsp[0][s_index-1][3] = (q2/q1)*(GAMMA*q4 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3)/q1);
-
-      e->Fcsp[1][s_index-1][0] = q3;
-      e->Fcsp[1][s_index-1][1] = q3*q2/q1;
-      e->Fcsp[1][s_index-1][2] = q3*q3/q1 + (GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1);
-      e->Fcsp[1][s_index-1][3] = (q3/q1)*(GAMMA*q4 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3)/q1);
-
+      e->Fcsp[0][s_index-1] = {q2,
+                               q2*q2/q1 + (this->GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1),
+                               q2*q3/q1,
+                               (q2/q1)*(this->GAMMA*q4 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3)/q1)};
+      
+      e->Fcsp[1][s_index-1] = {q3,
+                               q3*q2/q1,
+                               q3*q3/q1 + (this->GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1),
+                               (q3/q1)*(this->GAMMA*q4 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3)/q1)};
+     
       // Diffusive Flux
-      e->Fdsp[0][s_index-1][0] = ;
-      e->Fdsp[0][s_index-1][1] = ;
-      e->Fdsp[0][s_index-1][2] = ;
-      e->Fdsp[0][s_index-1][3] = ;
-
-      e->Fdsp[1][s_index-1][0] = ;
-      e->Fdsp[1][s_index-1][1] = ;
-      e->Fdsp[1][s_index-1][2] = ;
-      e->Fdsp[1][s_index-1][3] = ;
+      e->Fdsp[0][s_index-1] = {0.0,
+                               txx,
+                               tyx,
+                               txx*q2/q1 + tyx*q3/q1 + this->KAPPA*dT_dx};
+      
+      e->Fdsp[1][s_index-1] = {0.0,
+                               txy,
+                               tyy,
+                               txy*q2/q1 + tyy*q3/q1 + this->KAPPA*dT_dy};
     }
     else if (this->dimension+2 == 5)
     {
       q5  = e->Qsp[s_index-1][4];
-      dq5 = e->dQsp[s_index-1][4];
+      
+      dq5_dx = e->dQsp[0][s_index-1][4];
+      
+      dq5_dy = e->dQsp[1][s_index-1][4];
+      
+      dq1_dz = e->dQsp[2][s_index-1][0];
+      dq2_dz = e->dQsp[2][s_index-1][1];
+      dq3_dz = e->dQsp[2][s_index-1][2];
+      dq4_dz = e->dQsp[2][s_index-1][3];
+      dq5_dz = e->dQsp[2][s_index-1][4];
+    
+      dw_dx = (dq4_dx/q1 - q2*dq1_dx/(q1*q1));
+      dw_dy = (dq4_dy/q1 - q2*dq1_dy/(q1*q1));
+
+      du_dz = (dq2_dz/q1 - q2*dq1_dz/(q1*q1));
+      dv_dz = (dq3_dz/q1 - q2*dq1_dz/(q1*q1));
+      dw_dz = (dq4_dz/q1 - q2*dq1_dz/(q1*q1));
+      
+      
+      txx = 2.0*this->MU*du_dx + this->MUv*(du_dx + dv_dy + dw_dz);
+      tyy = 2.0*this->MU*dv_dy + this->MUv*(du_dx + dv_dy + dw_dz);
+      tzz = 2.0*this->MU*dw_dz + this->MUv*(du_dx + dv_dy + dw_dz);
+      
+      txy = this->MU*(dv_dx + du_dy);;
+      tyx = txy;
+      
+      txz = this->MU*(dw_dx + du_dz);;
+      tzx = txy;
+      
+      tzy = this->MU*(dv_dz + dw_dy);;
+      tyz = tzy;
 
       // Convective Flux
-      e->Fcsp[0][s_index-1][0] = q2;
-      e->Fcsp[0][s_index-1][1] = q2*q2/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);;
-      e->Fcsp[0][s_index-1][2] = q2*q3/q1;
-      e->Fcsp[0][s_index-1][3] = q2*q4/q1;
-      e->Fcsp[0][s_index-1][4] = (q2/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
-
-      e->Fcsp[1][s_index-1][0] = q3;
-      e->Fcsp[1][s_index-1][1] = q3*q2/q1;
-      e->Fcsp[1][s_index-1][2] = q3*q3/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);
-      e->Fcsp[1][s_index-1][3] = q3*q4/q1;
-      e->Fcsp[1][s_index-1][4] = (q3/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
-
-      e->Fcsp[2][s_index-1][0] = q4;
-      e->Fcsp[2][s_index-1][1] = q4*q2/q1;
-      e->Fcsp[2][s_index-1][2] = q4*q3/q1;
-      e->Fcsp[2][s_index-1][3] = q4*q4/q1 + (GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1);
-      e->Fcsp[2][s_index-1][4] = (q4/q1)*(GAMMA*q5 - 0.5*(GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1);
-
+      e->Fcsp[0][s_index-1] = {q2,
+                               q2*q2/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               q2*q3/q1,
+                               q2*q4/q1,
+                               (q2/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+      
+      e->Fcsp[1][s_index-1] = {q3,
+                               q3*q2/q1,
+                               q3*q3/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               q3*q4/q1,
+                               (q3/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+      
+      e->Fcsp[2][s_index-1] = {q4,
+                               q4*q2/q1,
+                               q4*q3/q1,
+                               q4*q4/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               (q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+     
       // Diffussive Flux
-      e->Fdsp[0][s_index-1][0] = ;
-      e->Fdsp[0][s_index-1][1] = ;
-      e->Fdsp[0][s_index-1][2] = ;
-      e->Fdsp[0][s_index-1][3] = ;
-      e->Fdsp[0][s_index-1][4] = ;
+      e->Fdsp[0][s_index-1] = {0.0,
+                               txx,
+                               tyx,
+                               tzx,
+                               txx*q2/q1 + tyx*q3/q1 + tzx*q4/q1 + this->KAPPA*dT_dx};
 
-      e->Fdsp[1][s_index-1][0] = ;
-      e->Fdsp[1][s_index-1][1] = ;
-      e->Fdsp[1][s_index-1][2] = ;
-      e->Fdsp[1][s_index-1][3] = ;
-      e->Fdsp[1][s_index-1][4] = ;
+      e->Fdsp[1][s_index-1] = {0.0,
+                               txy,
+                               tyy,
+                               tzy,
+                               txy*q2/q1 + tyy*q3/q1 + tzz*q4/q1 + this->KAPPA*dT_dy};
 
-      e->Fdsp[2][s_index-1][0] = ;
-      e->Fdsp[2][s_index-1][1] = ;
-      e->Fdsp[2][s_index-1][2] = ;
-      e->Fdsp[2][s_index-1][3] = ;
-      e->Fdsp[2][s_index-1][4] = ;
+      e->Fdsp[2][s_index-1] = {0.0,
+                               txz,
+                               tyz,
+                               tzz,
+                               txz*q2/q1 + tyz*q3/q1 + tzz*q4/q1 + this->KAPPA*dT_dz};
     }
   }
 }
+
+// 3.2) Calculate Fluxes at Internal FPs
+// Euler
+template <>
+void SD<Euler>::calculate_fluxes_fp (std::shared_ptr<Element>& e)
+{
+  double q1, q2, q3, q4, q5;
+  unsigned int s_index;
+  
+  s_index = 0;
+  // for each solution point, calculate the flux vector
+  for (auto& node : this->snodes)
+  {
+    s_index++;
+
+    q1 = e->Qsp[s_index-1][0];
+    q2 = e->Qsp[s_index-1][1];
+    q3 = e->Qsp[s_index-1][2];
+    q4 = e->Qsp[s_index-1][3];
+
+    if (this->dimension+2 == 4)
+    {
+      e->Fcsp[0][s_index-1] = {q2, 
+                               q2*q2/q1 + (this->GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1),
+                               q2*q3/q1,
+                               (q2/q1)*(this->GAMMA*q4 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3)/q1)};
+      
+      e->Fcsp[1][s_index-1] = {q3, 
+                               q3*q2/q1,
+                               q3*q3/q1 + (this->GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1),
+                               (q3/q1)*(this->GAMMA*q4 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3)/q1)};
+    }
+    else if (this->dimension+2 == 5)
+    {
+      q5 = e->Qsp[s_index-1][4];
+
+      e->Fcsp[0][s_index-1] = {q2, 
+                               q2*q2/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               q2*q3/q1,
+                               q2*q4/q1,
+                               (q2/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+
+      e->Fcsp[1][s_index-1] = {q3,
+                               q3*q2/q1,
+                               q3*q3/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               q3*q4/q1,
+                               (q3/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+
+      
+      e->Fcsp[2][s_index-1] = {q4,
+                               q4*q2/q1,
+                               q4*q3/q1,
+                               q4*q4/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               (q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+    }
+  }
+}
+
+// Navier-Stokes
+template <>
+void SD<NavierStokes>::calculate_fluxes_fp (std::shared_ptr<Element>& e)
+{
+  double q1, q2, q3, q4, q5;
+  double dq1_dx, dq2_dx, dq3_dx, dq4_dx, dq5_dx;
+  double dq1_dy, dq2_dy, dq3_dy, dq4_dy, dq5_dy;
+  double dq1_dz, dq2_dz, dq3_dz, dq4_dz, dq5_dz;
+  double dT_dx, dT_dy, dT_dz;
+  double du_dx, du_dy, du_dz;
+  double dv_dx, dv_dy, dv_dz;
+  double dw_dx, dw_dy, dw_dz;
+  double txx, txy, txz;
+  double tyx, tyy, tyz;
+  double tzx, tzy, tzz;
+
+  unsigned int f_index;
+  
+  f_index = 0;
+  // for each flux point, calculate the flux vectors
+  for (auto& node : this->fnodes[0])
+  {
+    f_index++;
+
+    q1  = e->Qfp[f_index-1][0];
+    q2  = e->Qfp[f_index-1][1];
+    q3  = e->Qfp[f_index-1][2];
+    q4  = e->Qfp[f_index-1][3];
+
+    dq1_dx = e->dQfp[0][f_index-1][0];
+    dq2_dx = e->dQfp[0][f_index-1][1];
+    dq3_dx = e->dQfp[0][f_index-1][2];
+    dq4_dx = e->dQfp[0][f_index-1][3];
+
+    dq1_dy = e->dQfp[1][f_index-1][0];
+    dq2_dy = e->dQfp[1][f_index-1][1];
+    dq3_dy = e->dQfp[1][f_index-1][2];
+    dq4_dy = e->dQfp[1][f_index-1][3];
+
+    if (this->dimension+2 == 4)
+    {
+      du_dx = (dq2_dx/q1 - q2*dq1_dx/(q1*q1));
+      du_dy = (dq2_dy/q1 - q2*dq1_dy/(q1*q1));
+    
+      dv_dx = (dq3_dx/q1 - q2*dq1_dx/(q1*q1));
+      dv_dy = (dq3_dy/q1 - q2*dq1_dx/(q1*q1));
+
+      txx = 2.0*this->MU*du_dx + this->MUv*(du_dx + dv_dy);
+      tyy = 2.0*this->MU*dv_dy + this->MUv*(du_dx + dv_dy);
+      txy = this->MU*(dv_dx + du_dy);
+      tyx = txy;
+
+      // Convective Flux
+      e->Fcfp[0][f_index-1] = {q2,
+                               q2*q2/q1 + (this->GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1),
+                               q2*q3/q1,
+                               (q2/q1)*(this->GAMMA*q4 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3)/q1)};
+      
+      e->Fcfp[1][f_index-1] = {q3,
+                               q3*q2/q1,
+                               q3*q3/q1 + (this->GAMMA-1.0)*(q4 - 0.5*(q2*q2 + q3*q3)/q1),
+                               (q3/q1)*(this->GAMMA*q4 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3)/q1)};
+     
+      // Diffusive Flux
+      e->Fdfp[0][f_index-1] = {0.0,
+                               txx,
+                               tyx,
+                               txx*q2/q1 + tyx*q3/q1 + this->KAPPA*dT_dx};
+      
+      e->Fdfp[1][f_index-1] = {0.0,
+                               txy,
+                               tyy,
+                               txy*q2/q1 + tyy*q3/q1 + this->KAPPA*dT_dy};
+    }
+    else if (this->dimension+2 == 5)
+    {
+      q5  = e->Qfp[f_index-1][4];
+      
+      dq5_dx = e->dQfp[0][f_index-1][4];
+      
+      dq5_dy = e->dQfp[1][f_index-1][4];
+      
+      dq1_dz = e->dQfp[2][f_index-1][0];
+      dq2_dz = e->dQfp[2][f_index-1][1];
+      dq3_dz = e->dQfp[2][f_index-1][2];
+      dq4_dz = e->dQfp[2][f_index-1][3];
+      dq5_dz = e->dQfp[2][f_index-1][4];
+    
+      dw_dx = (dq4_dx/q1 - q2*dq1_dx/(q1*q1));
+      dw_dy = (dq4_dy/q1 - q2*dq1_dy/(q1*q1));
+
+      du_dz = (dq2_dz/q1 - q2*dq1_dz/(q1*q1));
+      dv_dz = (dq3_dz/q1 - q2*dq1_dz/(q1*q1));
+      dw_dz = (dq4_dz/q1 - q2*dq1_dz/(q1*q1));
+      
+      
+      txx = 2.0*this->MU*du_dx + this->MUv*(du_dx + dv_dy + dw_dz);
+      tyy = 2.0*this->MU*dv_dy + this->MUv*(du_dx + dv_dy + dw_dz);
+      tzz = 2.0*this->MU*dw_dz + this->MUv*(du_dx + dv_dy + dw_dz);
+      
+      txy = this->MU*(dv_dx + du_dy);;
+      tyx = txy;
+      
+      txz = this->MU*(dw_dx + du_dz);;
+      tzx = txy;
+      
+      tzy = this->MU*(dv_dz + dw_dy);;
+      tyz = tzy;
+
+      // Convective Flux
+      e->Fcfp[0][f_index-1] = {q2,
+                               q2*q2/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               q2*q3/q1,
+                               q2*q4/q1,
+                               (q2/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+      
+      e->Fcfp[1][f_index-1] = {q3,
+                               q3*q2/q1,
+                               q3*q3/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               q3*q4/q1,
+                               (q3/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+      
+      e->Fcfp[2][f_index-1] = {q4,
+                               q4*q2/q1,
+                               q4*q3/q1,
+                               q4*q4/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
+                               (q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+     
+      // Diffussive Flux
+      e->Fdfp[0][f_index-1] = {0.0,
+                               txx,
+                               tyx,
+                               tzx,
+                               txx*q2/q1 + tyx*q3/q1 + tzx*q4/q1 + this->KAPPA*dT_dx};
+
+      e->Fdfp[1][f_index-1] = {0.0,
+                               txy,
+                               tyy,
+                               tzy,
+                               txy*q2/q1 + tyy*q3/q1 + tzz*q4/q1 + this->KAPPA*dT_dy};
+
+      e->Fdfp[2][f_index-1] = {0.0,
+                               txz,
+                               tyz,
+                               tzz,
+                               txz*q2/q1 + tyz*q3/q1 + tzz*q4/q1 + this->KAPPA*dT_dz};
+    }
+  }
+}
+
 
 // 4) RIEMANN SOLVER
 template <>
@@ -629,7 +900,7 @@ void SD<NavierStokes>::residue (std::shared_ptr<Element>& e)
     for (auto& vec_lines : this->fnodes)
     {
       index++;
-      e->res[s_index-1] += -e->dFcsp[index-1][s_index-1] + e->dFdsp[index-1][s_index-1];
+      e->res[s_index-1] += -e->dFcsp[index-1][s_index-1] + (this->M/this->Re)*e->dFdsp[index-1][s_index-1];
     }
   }
 }
