@@ -1,7 +1,8 @@
+#pragma once 
+
 #include <vector>
 #include <memory>
 
-#include <DVector.h>
 #include <Mesh.h>
 
 

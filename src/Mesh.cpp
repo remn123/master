@@ -391,6 +391,12 @@ void Mesh::read_gmsh(const std::string& filename)
 						this->append_elem_to_nodes(elems.back());
 						newVec.clear();
 					}
+          /* 
+          else if (elm_type(elem_type) == elm_type::NODE2_LINE) 
+          {
+
+          }
+          */
 					parser.clear();
 				}
 				else if (line.find("$Elements") == std::string::npos && \
