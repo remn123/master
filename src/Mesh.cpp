@@ -86,11 +86,26 @@ void Mesh::update_element_neighbors(void)
 	}
 }
 
+void Mesh::calculate_jacobians(std::shared_ptr<Element>& e)
+{
+  std::vector<Node> enodes;
+  enodes.reserve(e->nodes.size());
+
+  for (auto& n_id : e->nodes) 
+  {
+    enodes.push_back(this->nodes[n_id]);
+  }
+  e->calculate_jacobian(enodes);
+  enodes.clear();
+}
+
 void Mesh::mark_boundaries(void)
 {
-	// scan all elements
+	// scan all elements and calculate jacobians
 	for (auto& e : this->elems)
 	{
+    this->calculate_jacobians(e);
+
 		e->boundary = 0;
 		// scan all elements' edges
 		for (auto& ed1 : e->edges)

@@ -153,6 +153,8 @@ Element::Element(const std::vector<std::string>& node_list)
 	this->id = num_elems;
 	this->boundary = 0;
 	this->fringe = 0;
+	this->J = 0.0; // Jacobian
+
 	//std::cout << "I am the (" << this->id << ") Element" << std::endl;
 
 	// transforming vector<string> to vector<int>
@@ -346,6 +348,27 @@ void Quadrangle::enumerate_edges(void)
 	}
 	//edges_map.clear();
 }
+
+void Quadrangle::allocate_jacobian(void)
+{
+	this->J = 0.0;
+  this->Jm = {{0.0, 0.0}, {0.0, 0.0}}; // Jacobian Matrix
+  this->Ji = {{0.0, 0.0}, {0.0, 0.0}}; // Jacobian Inverse Matrix
+}
+
+void Quadrangle::calculate_jacobian(const std::vector<Node>& enodes)
+{
+  double x1 = enodes[0].coords[0];
+  double x2 = enodes[1].coords[0];
+  double y1 = enodes[0].coords[1];
+  double y4 = enodes[3].coords[1];
+
+  this->J = 0.5*(x2-x1)*0.5*(y4-y1);
+  this->Jm = {{0.5*(x2-x1), 0.0}, {0.0, 0.5*(y4-y1)}}; // Jacobian Matrix
+  this->Ji = {{0.0, 0.0}, {0.0, 0.0}}; // Jacobian Inverse Matrix
+}
+
+
 
 void Tetrahedron::enumerate_faces(void)
 {

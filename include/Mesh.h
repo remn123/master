@@ -150,6 +150,10 @@ public:
 	long id;
 	int fringe;
 	int boundary;
+  double J; // Jacobian
+  std::vector<std::vector<double>> Jm; // Jacobian Matrix
+  std::vector<std::vector<double>> Ji; // Jacobian Inverse Matrix
+
 
 	static long num_elems;
 	static long num_faces;
@@ -163,7 +167,8 @@ public:
 	bool was_enumerated(const std::vector<long>&);
 	virtual void print_vertices(void) = 0;
 	virtual void get_vertices(void) = 0;
-
+  virtual void allocate_jacobian(void) = 0;
+  virtual void calculate_jacobian(const std::vector<Node>&) = 0;
 private:
 
 };
@@ -174,13 +179,15 @@ class Triangle : public Element
 {
 	const int NUM_FACES = 3;
 public:
-	Triangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges(); }
+	Triangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges(); this->allocate_jacobian();}
 	~Triangle(void) { /*std::cout << "Triangle has been deleted!" << std::endl; */}
 
 	void print_vertices(void);
 	void get_vertices(void);
 	void enumerate_edges(void);
-	std::vector<long> get_ordered_nodes_by_local_edge_id(long);
+	void allocate_jacobian(void);
+  void calculate_jacobian(const std::vector<Node>&);
+  std::vector<long> get_ordered_nodes_by_local_edge_id(long);
 	
 };
 
@@ -189,12 +196,14 @@ class Quadrangle : public Element
 {
 	const int NUM_FACES = 4;
 public:
-	Quadrangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges(); }
+	Quadrangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges(); this->allocate_jacobian();}
 	~Quadrangle(void) { /*std::cout << "Quadrangle has been deleted!" << std::endl; */}
 
 	void print_vertices(void);
 	void get_vertices(void);
 	void enumerate_edges(void);
+  void allocate_jacobian(void);
+  void calculate_jacobian(const std::vector<Node>&);
 	std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -308,9 +317,9 @@ public:
 	int getDimesion();
 	long get_number_nodes();
 	long get_number_elements();
-	void print_element_by_id(long elem_id);
-	void print_node_by_id(long node_id);
-	void print_node_id(long id);
+	void print_element_by_id(long);
+	void print_node_by_id(long);
+	void print_node_id(long);
 	void read_gmsh(const std::string&);
 	double get_area(const std::vector<Node>&);
 	double get_area(const std::vector<long>&, const Node&);
@@ -318,6 +327,7 @@ public:
 	void update_element_neighbors(void);
 	void mark_boundaries(void);
 	void to_vtk(const std::string&);
+  void calculate_jacobians(std::shared_ptr<Element>&);
 
 private:
 	void append_elem_to_nodes(const std::shared_ptr<Element>&);
