@@ -151,8 +151,18 @@ public:
 	int fringe;
 	int boundary;
   double J; // Jacobian
-  std::vector<std::vector<double>> Jm; // Jacobian Matrix
-  std::vector<std::vector<double>> Ji; // Jacobian Inverse Matrix
+  
+  // Jm[0][0:SPs][0:3/8]
+  // Jm[1][0:FPs][0:3/8] x
+  // Jm[2][0:FPs][0:3/8] y
+  // Jm[3][0:FPs][0:3/8] z  
+
+  // Ji[0][0:SPs][0:3/8]
+  // Ji[1][0:FPs][0:3/8] x
+  // Ji[2][0:FPs][0:3/8] y
+  // Ji[3][0:FPs][0:3/8] z
+  std::vector<std::vector<std::vector<double>>> Jm; // Jacobian Matrix
+  std::vector<std::vector<std::vector<double>>> Ji; // Jacobian Inverse Matrix
 
 
 	static long num_elems;
@@ -167,8 +177,8 @@ public:
 	bool was_enumerated(const std::vector<long>&);
 	virtual void print_vertices(void) = 0;
 	virtual void get_vertices(void) = 0;
-  virtual void allocate_jacobian(void) = 0;
-  virtual void calculate_jacobian(const std::vector<Node>&) = 0;
+  virtual void allocate_jacobian(int) = 0;
+  virtual void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&) = 0;
 private:
 
 };
@@ -179,14 +189,14 @@ class Triangle : public Element
 {
 	const int NUM_FACES = 3;
 public:
-	Triangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges(); this->allocate_jacobian();}
+	Triangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges();}
 	~Triangle(void) { /*std::cout << "Triangle has been deleted!" << std::endl; */}
 
 	void print_vertices(void);
 	void get_vertices(void);
 	void enumerate_edges(void);
-	void allocate_jacobian(void);
-  void calculate_jacobian(const std::vector<Node>&);
+	void allocate_jacobian(int);
+  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
   std::vector<long> get_ordered_nodes_by_local_edge_id(long);
 	
 };
@@ -196,15 +206,15 @@ class Quadrangle : public Element
 {
 	const int NUM_FACES = 4;
 public:
-	Quadrangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges(); this->allocate_jacobian();}
+	Quadrangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges();}
 	~Quadrangle(void) { /*std::cout << "Quadrangle has been deleted!" << std::endl; */}
 
 	void print_vertices(void);
 	void get_vertices(void);
 	void enumerate_edges(void);
-  void allocate_jacobian(void);
-  void calculate_jacobian(const std::vector<Node>&);
-	std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  void allocate_jacobian(int);
+  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
+  std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
 // Tetrahedron

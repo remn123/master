@@ -349,26 +349,118 @@ void Quadrangle::enumerate_edges(void)
 	//edges_map.clear();
 }
 
-void Quadrangle::allocate_jacobian(void)
+void Quadrangle::allocate_jacobian(int order)
 {
-	this->J = 0.0;
-  this->Jm = {{0.0, 0.0}, {0.0, 0.0}}; // Jacobian Matrix
-  this->Ji = {{0.0, 0.0}, {0.0, 0.0}}; // Jacobian Inverse Matrix
+  
+  // SPs = order*order
+  // FPs = (order+1)*order
+  // Jm[0][0:SPs][0:3]
+  // Jm[1][0:FPs][0:3] x
+  // Jm[2][0:FPs][0:3] y
+  
+  // Ji[0][0:SPs][0:3]
+  // Ji[1][0:FPs][0:3] x
+  // Ji[2][0:FPs][0:3] y
+  
+  this->Jm.reserve(3);
+  this->Jm[0].reserve(order*order);
+  this->Jm[1].reserve((order+1)*order);
+  this->Jm[2].reserve((order+1)*order);
+
+  this->Ji.reserve(3);
+  this->Ji[0].reserve(order*order);
+  this->Ji[1].reserve((order+1)*order);
+  this->Ji[2].reserve((order+1)*order);
+  
+  for (auto i=0; i<(order+1)*order;i++)
+  {
+    if (i<order*order)
+    {
+      this->Jm[0][i].reserve(4);
+      this->Ji[0][i].reserve(4);
+    }
+    this->Jm[1][i].reserve(4);
+    this->Jm[2][i].reserve(4);
+    this->Ji[1][i].reserve(4);
+    this->Ji[2][i].reserve(4);
+  }
+  
 }
 
-void Quadrangle::calculate_jacobian(const std::vector<Node>& enodes)
+void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes, const std::vector<std::vector<Node>>& fnodes, const std::vector<Node>& enodes)
 {
-  double x1 = enodes[0].coords[0];
-  double x2 = enodes[1].coords[0];
-  double y1 = enodes[0].coords[1];
-  double y4 = enodes[3].coords[1];
+  double x1 = enodes[this->nodes[0]].coords[0];
+  double x2 = enodes[this->nodes[1]].coords[0];
+  double x3 = enodes[this->nodes[2]].coords[0];
+  double x4 = enodes[this->nodes[3]].coords[0];
 
-  this->J = 0.5*(x2-x1)*0.5*(y4-y1);
-  this->Jm = {{0.5*(x2-x1), 0.0}, {0.0, 0.5*(y4-y1)}}; // Jacobian Matrix
-  this->Ji = {{0.0, 0.0}, {0.0, 0.0}}; // Jacobian Inverse Matrix
+  double y1 = enodes[this->nodes[0]].coords[1];
+  double y2 = enodes[this->nodes[1]].coords[1];
+  double y3 = enodes[this->nodes[2]].coords[1];
+  double y4 = enodes[this->nodes[3]].coords[1];
+
+  double a1, a2, b1, b2, c1, c2, csi, eta;
+
+  this->J = 0.5*(x2-x1)*0.5*(y4-y3);
+  
+  a1 =  x2-x1+x3-x4;
+  b1 = -x2-x1+x3+x4;
+  c1 = -x2+x1+x3-x4;
+  a2 =  y2-y1+y3-y4;
+  b2 = -y2-y1+y3+y4;
+  c2 = -y2+y1+y3-y4;
+
+  unsigned int index, s_index, f_index;
+  
+  index = 0;
+  s_index = 0;
+  for (auto& node: snodes)
+  {
+    f_index++;
+    // flux node coordinates
+    csi = node.coords[0]; 
+    eta = node.coords[1];
+
+    /* 
+      Jm = [dx_dcsi  dx_deta;
+            dy_dcsi  dy_deta]
+      
+      Ji = [dcsi_dx  dcsi_dy;
+            deta_dx  deta_dy]
+    */
+    this->Jm[index][s_index-1] = {0.25*(a1 + c1*eta), 0.25*(b1 + c1*csi), 
+                                  0.25*(a2 + c2*eta), 0.25*(b2 + c2*csi)};
+    this->Ji[index][s_index-1] = {+this->Jm[index][s_index-1][3], -this->Jm[index][s_index-1][1], 
+                                  -this->Jm[index][s_index-1][2], +this->Jm[index][s_index-1][0]};
+  }
+
+  
+  for (auto& vec_lines : fnodes)
+  {
+    index++;
+
+    f_index = 0;
+    for (auto& node : vec_lines) // line nodes for a specific direction (x, y)
+    {
+      f_index++;
+      // flux node coordinates
+      csi = node.coords[0]; 
+      eta = node.coords[1];
+
+      /* 
+        Jm = [dx_dcsi  dx_deta;
+              dy_dcsi  dy_deta]
+        
+        Ji = [dcsi_dx  dcsi_dy;
+              deta_dx  deta_dy]
+      */
+      this->Jm[index][f_index-1] = {0.25*(a1 + c1*eta), 0.25*(b1 + c1*csi), 
+                                    0.25*(a2 + c2*eta), 0.25*(b2 + c2*csi)};
+      this->Ji[index][f_index-1] = {+this->Jm[index][f_index-1][3], -this->Jm[index][f_index-1][1], 
+                                    -this->Jm[index][f_index-1][2], +this->Jm[index][f_index-1][0]};
+    }
+  }
 }
-
-
 
 void Tetrahedron::enumerate_faces(void)
 {
