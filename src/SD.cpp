@@ -82,7 +82,7 @@ void SD<Equation>::create_nodes(void)
   {
     for (auto n2 : nodes_gl) // y
     {
-      this->snodes.push_back(Node{n1, n2, 0.0});
+      this->snodes.emplace_back(Node{n1, n2, 0.0});
     } 
   }
 
@@ -112,10 +112,10 @@ void SD<Equation>::create_nodes(void)
     {
       for (auto n1 : nodes_gll) // x
       {
-        vecx.push_back(Node{n1, n2, 0.0});
+        vecx.emplace_back(Node{n1, n2, 0.0});
       } 
     }
-    this->fnodes.push_back(vecx);
+    this->fnodes.emplace_back(vecx);
 
     /*  
       Third Order FPs on y direction
@@ -132,10 +132,10 @@ void SD<Equation>::create_nodes(void)
     {
       for (auto n2 : nodes_gll) // y
       {
-        vecy.push_back(Node{n1, n2, 0.0});
+        vecy.emplace_back(Node{n1, n2, 0.0});
       } 
     }
-    this->fnodes.push_back(vecy);
+    this->fnodes.emplace_back(vecy);
   }
   else if (dimension==3)
   {
@@ -187,66 +187,73 @@ void SD<Equation>::_init_dvec(std::vector<std::vector<DVector>>& vec, size_t num
 
 // 0.2) Initialize property template
 template <>
-void SD<Euler>::initialize_properties(Mesh& mesh)
+void SD<Euler>::initialize_properties(std::shared_ptr<Element>& e, const std::vector<Node>& enodes)
 {
-  for (auto& e : mesh.elems)
-  {
-    // Conservative Properties
-    this->_init_dvec(e->Qsp,  this->snodes.size());
-    this->_init_dvec(e->Qfp,  this->fnodes[0].size());
+  // for (auto& e : mesh.elems)
+  // {
+  // Conservative Properties
+  this->_init_dvec(e->Qsp,  this->snodes.size());
+  this->_init_dvec(e->Qfp,  this->fnodes[0].size());
 
-    // Convective Fluxes
-    this->_init_dvec(e->Fcsp, this->snodes.size());
-    this->_init_dvec(e->Fcfp, this->fnodes[0].size());
+  // Convective Fluxes
+  this->_init_dvec(e->Fcsp, this->snodes.size());
+  this->_init_dvec(e->Fcfp, this->fnodes[0].size());
 
-    // Gradients
-    this->_init_dvec(e->dFcsp, this->snodes.size());
-    this->_init_dvec(e->dFcfp, this->fnodes[0].size());
+  // Gradients
+  // Convective Fluxes
+  this->_init_dvec(e->dFcsp, this->snodes.size());
+  this->_init_dvec(e->dFcfp, this->fnodes[0].size());
 
-    // Metric Parameters
-    e->calculate_jacobian(this->snodes, mesh.nodes);
-    e->calculate_jacobian(this->fnodes, mesh.nodes);
-  }
+  // Metric Parameters
+  e->calculate_jacobian(this->snodes, this->fnodes, enodes);
+
+  // Residue
+  this->_init_dvec(e->res, this->snodes.size());
+  // }
 }
 
 template <>
-void SD<NavierStokes>::initialize_properties(Mesh& mesh)
+void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const std::vector<Node>& enodes)
 {
-  for (auto& e : mesh.elems)
-  {
-    // Conservative Properties
-    this->_init_dvec(e->Qsp,  this->snodes.size());
-    this->_init_dvec(e->Qfp,  this->fnodes[0].size());
+  //for (auto& e : mesh.elems)
+  //{
+  // Conservative Properties
+  this->_init_dvec(e->Qsp,  this->snodes.size());
+  this->_init_dvec(e->Qfp,  this->fnodes[0].size());
 
-    // Convective Fluxes
-    this->_init_dvec(e->Fcsp, this->snodes.size());
-    this->_init_dvec(e->Fcfp, this->fnodes[0].size());
+  // Convective Fluxes
+  this->_init_dvec(e->Fcsp, this->snodes.size());
+  this->_init_dvec(e->Fcfp, this->fnodes[0].size());
 
-    // Diffusive Fluxes
-    this->_init_dvec(e->Fdsp, this->snodes.size());
-    this->_init_dvec(e->Fdfp, this->fnodes[0].size());
+  // Diffusive Fluxes
+  this->_init_dvec(e->Fdsp, this->snodes.size());
+  this->_init_dvec(e->Fdfp, this->fnodes[0].size());
 
-    // Gradients
-    // Conservative Properties
-    this->_init_dvec(e->dQsp,  this->snodes.size());
-    this->_init_dvec(e->dQfp,  this->fnodes[0].size());
+  // Gradients
+  // Conservative Properties
+  this->_init_dvec(e->dQsp,  this->snodes.size());
+  this->_init_dvec(e->dQfp,  this->fnodes[0].size());
 
-    // Convective Fluxes
-    this->_init_dvec(e->dFcsp, this->snodes.size());
-    this->_init_dvec(e->dFcfp, this->fnodes[0].size());
+  // Convective Fluxes
+  this->_init_dvec(e->dFcsp, this->snodes.size());
+  this->_init_dvec(e->dFcfp, this->fnodes[0].size());
 
-    // Diffusive Fluxes
-    this->_init_dvec(e->dFdsp, this->snodes.size());
-    this->_init_dvec(e->dFdfp, this->fnodes[0].size());
+  // Diffusive Fluxes
+  this->_init_dvec(e->dFdsp, this->snodes.size());
+  this->_init_dvec(e->dFdfp, this->fnodes[0].size());
 
-    // Residue
-    this->_init_dvec(e->res, this->snodes.size());
-  }
+  // Metric Parameters
+  e->calculate_jacobian(this->snodes, this->fnodes, enodes);
+  //e->calculate_jacobian(this->fnodes, nodes);
+
+  // Residue
+  this->_init_dvec(e->res, this->snodes.size());
+  // }
 }
 
 // 0)
 template <typename Equation>
-void SD<Equation>::setup(Mesh& mesh)
+void SD<Equation>::setup(std::shared_ptr<Mesh>& mesh)
 {
   /* 
     On setup method, all solution and flux nodes
@@ -256,7 +263,8 @@ void SD<Equation>::setup(Mesh& mesh)
     populate the mesh with an initial value
   */
   this->create_nodes();
-  this->initialize_properties(mesh);
+  for (auto& e : mesh->elems)
+    this->initialize_properties(e, &mesh->nodes);
 }
 
 
@@ -1014,14 +1022,24 @@ void SD<NavierStokes>::residue (std::shared_ptr<Element>& e)
 
 // 7) SOLVE
 template <typename Equation>
-void SD<Equation>::solve (std::shared_ptr<Element>& e)
+void SD<Equation>::solve (std::shared_ptr<Mesh>& mesh)
 {
-  this->bondary_condition(e);
-  this->interpolate_sp2fp(e);
-  this->calculate_fluxes(e);
-  this->riemann_solver(e);
-  this->interpolate_fp2sp(e);
-  this->residue(e);
+  
+  // Step 1)
+  for (auto& e : mesh->elems)
+  {
+    sd->bondary_condition(e);
+    sd->interpolate_sp2fp(e);
+    sd->calculate_fluxes(e);
+  }
+  
+  // Step 2)
+  for (auto& e : mesh->elems)
+  {
+    sd->riemann_solver(e);
+    sd->interpolate_fp2sp(e);
+    sd->residue(e);
+  }
 }
 
 

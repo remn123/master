@@ -387,7 +387,9 @@ void Quadrangle::allocate_jacobian(int order)
   
 }
 
-void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes, const std::vector<std::vector<Node>>& fnodes, const std::vector<Node>& enodes)
+void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes, 
+									const std::vector<std::vector<Node>>& fnodes, 
+									const std::vector<Node>& enodes)
 {
   double x1 = enodes[this->nodes[0]].coords[0];
   double x2 = enodes[this->nodes[1]].coords[0];

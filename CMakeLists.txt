@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.10.1)
 
-set(CMAKE_CXX_COMPILER "g++-7")
+set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_CXX_STANDARD 17)
-
 set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -lstdc++fs -g -lm")
-link_libraries(stdc++fs)
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -lstdc++fs -g -lm")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -g -lm")
+
+#link_libraries(stdc++fs)
 
 enable_language(CXX)
 

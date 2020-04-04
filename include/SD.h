@@ -29,10 +29,10 @@ public:
   SD(int, int, double, double, double);
   ~SD();
 
-  void setup(Mesh&);
+  void setup(std::shared_ptr<Mesh>&);
   void create_nodes(void);
-  void initialize_properties(Mesh&);
-  
+
+  void initialize_properties(std::shared_ptr<Element>&, const std::vector<Node>&);
   void boundary_condition(std::shared_ptr<Element>&);
   void interpolate_sp2fp(std::shared_ptr<Element>&);
   void calculate_fluxes(std::shared_ptr<Element>&);
@@ -41,7 +41,7 @@ public:
   void riemann_solver(std::shared_ptr<Element>&);
   void interpolate_fp2sp(std::shared_ptr<Element>&);
   void residue(std::shared_ptr<Element>&);
-  void solve(std::shared_ptr<Element>&);
+  void solve(std::shared_ptr<Mesh>&);
 
 private:
   void _init_dvec(std::vector<DVector>&, size_t);
