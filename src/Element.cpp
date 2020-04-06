@@ -5,7 +5,9 @@
 #include <iterator> 
 #include <algorithm>  
 
+#include <Element.h>
 #include <Mesh.h>
+#include <Node.h>
 
 // Nodes
 Node::Node(const std::vector<std::string>& coordinates)
@@ -416,6 +418,7 @@ void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes,
   
   index = 0;
   s_index = 0;
+  f_index = 0;
   for (auto& node: snodes)
   {
     f_index++;

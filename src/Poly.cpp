@@ -1,6 +1,9 @@
+#define _USE_MATH_DEFINES
+#include <math.h>
+
 #include <Helpers.h>
 #include <Poly.h>
-#include <math.h>
+
 
 // Poly.cpp
 void Poly::newton_raphson(double a, double b, unsigned int k, unsigned int n, double r)

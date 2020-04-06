@@ -1,11 +1,12 @@
-cmake_minimum_required(VERSION 3.10.1)
+cmake_minimum_required(VERSION 3.16)
 
-set(CMAKE_CXX_COMPILER "g++")
+#set(CMAKE_CXX_COMPILER "g++")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -lstdc++fs -g -lm")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -g -lm")
-
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -g -lm")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -g -lm")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -lm")
 #link_libraries(stdc++fs)
 
 enable_language(CXX)
@@ -32,18 +33,22 @@ add_library(master_lib
             #src/Posproc.cpp
             #src/Preproc.cpp
             src/Poly.cpp
-            src/SD.cpp
+            #src/SD.cpp
             #src/Solver.cpp
             include/Dict.h
             include/DVector.h
             include/Dummies.h
+            include/Edge.h
+            include/Element.h
             include/Helpers.h
             include/Mesh.h
+            include/Node.h
+            include/Property.h
             #include/Pipeline.h
             #include/Posproc.h
             #include/Preproc.h
             include/Poly.h
-            include/SD.h
+            #include/SD.h
             #include/Solver.h
 
 )
@@ -60,8 +65,6 @@ add_executable(master_test
                tests/test_helpers.cpp
                #tests/test_pipeline.cpp
                #tests/test_sd.cpp
-               
-
 
 )
 

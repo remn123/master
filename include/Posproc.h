@@ -1,3 +1,5 @@
+#pragma once
+
 #include <Dict.h>
 
 /* Posproc */
