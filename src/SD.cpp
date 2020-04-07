@@ -7,6 +7,10 @@
 #include <Mesh.h>
 #include <SD.h>
 
+// explicit instantiations
+template class SD<Euler>;
+template class SD<NavierStokes>;
+
 
 // Constructor for Euler Equations
 template <>
@@ -17,14 +21,8 @@ SD<Euler>::SD(int order, int dimension)
   this->MU = 0.0;
   this->MUv = 0.0;
 
-  this->snodes.reserve(order*order);
-  this->fnodes.reserve(dimension);
-
-  for (auto i=0; i<dimension; i++)
-  {
-    this->fnodes[i].reserve((order+1)*order);
-  }
-    
+  this->snodes = std::vector<Node>{order*order};
+  this->fnodes = std::vector<std::vector<Node>>{dimension, std::vector<Node>{(order+1)*order}};    
 
   std::cout << "Initializing Euler SD solver...\n";
 }
@@ -40,13 +38,8 @@ SD<NavierStokes>::SD(int order, int dimension, double mu, double Mach, double Re
   this->MU = mu;
   this->MUv = (-2.0/3.0)*mu;
 
-  this->snodes.reserve(order*order);
-  this->fnodes.reserve(dimension);
-
-  for (auto i=0; i<dimension; i++)
-  {
-    this->fnodes[i].reserve((order+1)*order);
-  }
+  this->snodes = std::vector<Node>{order*order};
+  this->fnodes = std::vector<std::vector<Node>>{dimension, std::vector<Node>{(order+1)*order}};
   
   std::cout << "Initializing Navier-Stokes SD solver...\n";
 }
@@ -57,13 +50,19 @@ SD<Equation>::~SD()
 
 }
 
+template <>
+SD<Euler>::~SD()
+{
+
+}
+
 // 0.1)
 template <typename Equation>
 void SD<Equation>::create_nodes(void)
 {
    // Solution Points will be located at Gauss-Legendre Nodes
   Helpers<GL>::init();
-  Helpers<GL>::setup(order);
+  Helpers<GL>::set_nodes(order);
   std::vector<double> nodes_gl = Helpers<GL>::get_nodes();
 
   Helpers<GL>::delete_nodes();
@@ -78,23 +77,27 @@ void SD<Equation>::create_nodes(void)
        |  (1)      (3)  |
        |________________|
     */
+  std::size_t s_index=0;
   for (auto n1 : nodes_gl) // x
   {
     for (auto n2 : nodes_gl) // y
-    {
-      this->snodes.emplace_back(Node{n1, n2, 0.0});
+    { 
+      this->snodes[s_index] = Node{n1, n2, 0.0};
+      s_index++;
     } 
   }
 
   // Flux Points will be located at Gauss-Legendre-Lobatto Nodes 
   Helpers<GLL>::init();
-  Helpers<GLL>::setup(order+1); // Flux must be one order higher
+  Helpers<GLL>::set_nodes(order+1); // Flux must be one order higher
   std::vector<double> nodes_gll = Helpers<GLL>::get_nodes();
   
   Helpers<GLL>::delete_nodes();
 
   std::vector<Node> vecx;
   std::vector<Node> vecy;
+
+  std::size_t f_index=0;
 
   if (dimension==2)
   {
@@ -112,10 +115,10 @@ void SD<Equation>::create_nodes(void)
     {
       for (auto n1 : nodes_gll) // x
       {
-        vecx.emplace_back(Node{n1, n2, 0.0});
+        this->fnodes[0][f_index] = Node{n1, n2, 0.0};
+        f_index++;
       } 
     }
-    this->fnodes.emplace_back(vecx);
 
     /*  
       Third Order FPs on y direction
@@ -128,14 +131,15 @@ void SD<Equation>::create_nodes(void)
        |                |
        |__(1)_____(4)___|
     */
+    f_index=0;
     for (auto n1 : nodes_gl) // x
     {
       for (auto n2 : nodes_gll) // y
       {
-        vecy.emplace_back(Node{n1, n2, 0.0});
+        this->fnodes[1][f_index] = Node{n1, n2, 0.0};
+        f_index++;
       } 
     }
-    this->fnodes.emplace_back(vecy);
   }
   else if (dimension==3)
   {
@@ -205,6 +209,7 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element>& e, const std::ve
   this->_init_dvec(e->physical->dFcfp, this->fnodes[0].size());
 
   // Metric Parameters
+  e->allocate_jacobian(this->order);
   e->calculate_jacobian(this->snodes, this->fnodes, enodes);
 
   // Conservative Properties
@@ -257,6 +262,7 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const 
   this->_init_dvec(e->physical->dFdfp, this->fnodes[0].size());
 
   // Metric Parameters
+  e->allocate_jacobian(this->order);
   e->calculate_jacobian(this->snodes, this->fnodes, enodes);
   //e->calculate_jacobian(this->fnodes, nodes);
 
@@ -303,7 +309,7 @@ void SD<Equation>::setup(std::shared_ptr<Mesh>& mesh)
   */
   this->create_nodes();
   for (auto& e : mesh->elems)
-    this->initialize_properties(e, &mesh->nodes);
+    this->initialize_properties(e, mesh->nodes);
 }
 
 
@@ -343,10 +349,10 @@ template <typename Equation>
 void SD<Equation>::interpolate_sp2fp (std::shared_ptr<Element>& e)
 {
   Helpers<GL>::init();
-  Helpers<GL>::setup(this->order);
+  Helpers<GL>::set_nodes(this->order);
   
   Helpers<Lagrange>::init();
-  Helpers<Lagrange>::setup(Helpers<GL>::get_nodes());
+  Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
   
   double csi=0.0, eta=0.0;
   double Lcsi, Leta;
@@ -367,7 +373,8 @@ void SD<Equation>::interpolate_sp2fp (std::shared_ptr<Element>& e)
       eta = node.coords[1];
 
       // initialize flux nodes solution
-      e->Qfp[index-1][f_index-1] = 0.0;
+      e->computational->Qfp[f_index-1] = 0.0;
+      e->physical->Qfp[f_index-1] = 0.0;
 
       s_index = 0;
       for (auto& n : this->snodes)
@@ -380,7 +387,8 @@ void SD<Equation>::interpolate_sp2fp (std::shared_ptr<Element>& e)
 
         Lcsi = Helpers<Lagrange>::Pn(i, csi);
         Leta = Helpers<Lagrange>::Pn(j, eta);
-        e->Qfp[index-1][f_index-1] += (Lcsi*Leta)*e->Qsp[s_index-1];
+        e->computational->Qfp[f_index-1] += ((Lcsi*Leta)*e->computational->Qsp[s_index-1]);
+        e->physical->Qfp[f_index-1] += ((Lcsi*Leta)*e->physical->Qsp[s_index-1]);
       }
     }
   }
@@ -949,7 +957,8 @@ void SD<Euler>::interpolate_fp2sp (std::shared_ptr<Element>& e)
         dLeta = Helpers<Lagrange>::dPn(j, eta);
         
         // index-1 is related to the flux direction (x/0 or y/1)
-        e->computational->dFcsp[index-1][s_index-1] += (dLcsi*dLeta)*e->computational->Fcfp[index-1][f_index-1];
+        e->computational->dFcsp[index-1][s_index-1] += ((dLcsi*dLeta)*e->computational->Fcfp[index-1][f_index-1]);
+        e->physical->dFcsp[index-1][s_index-1] += ((dLcsi*dLeta)*e->physical->Fcfp[index-1][f_index-1]);
       }
     }
   }
@@ -1006,8 +1015,8 @@ void SD<NavierStokes>::interpolate_fp2sp (std::shared_ptr<Element>& e)
         
         // index-1 is related to the flux direction (x/0 or y/1)
         //e.Fsp[index-1][s_index-1] += Lcsi*Leta*e.Ffp[index-1][f_index-1];
-        e->computational->dFcsp[index-1][s_index-1] += (dLcsi*dLeta)*e->computational->Fcfp[index-1][f_index-1];
-        e->computational->dFdsp[index-1][s_index-1] += (dLcsi*dLeta)*e->computational->Fdfp[index-1][f_index-1];
+        e->computational->dFcsp[index-1][s_index-1] += ((dLcsi*dLeta)*e->computational->Fcfp[index-1][f_index-1]);
+        e->physical->dFdsp[index-1][s_index-1] += ((dLcsi*dLeta)*e->physical->Fdfp[index-1][f_index-1]);
       }
     }
   }
@@ -1032,7 +1041,7 @@ void SD<Euler> ::residue(std::shared_ptr<Element>& e)
     for (auto& vec_lines : this->fnodes)
     {
       index++;
-      e->computational->res[s_index-1] += -e->computational->dFcsp[index-1][s_index-1];
+      e->computational->res[s_index-1] += (-e->computational->dFcsp[index-1][s_index-1]);
     }
   }
 }
@@ -1053,7 +1062,7 @@ void SD<NavierStokes>::residue (std::shared_ptr<Element>& e)
     for (auto& vec_lines : this->fnodes)
     {
       index++;
-      e->computational->res[s_index-1] += -e->computational->dFcsp[index-1][s_index-1] + (this->M/this->Re)*e->computational->dFdsp[index-1][s_index-1];
+      e->computational->res[s_index-1] += (-e->computational->dFcsp[index-1][s_index-1] + (this->M/this->Re)*e->computational->dFdsp[index-1][s_index-1]);
     }
   }
 }
@@ -1066,17 +1075,18 @@ void SD<Equation>::solve (std::shared_ptr<Mesh>& mesh)
   // Step 1)
   for (auto& e : mesh->elems)
   {
-    sd->bondary_condition(e);
-    sd->interpolate_sp2fp(e);
-    sd->calculate_fluxes(e);
+    this->boundary_condition(e);
+    this->interpolate_sp2fp(e);
+    this->calculate_fluxes_sp(e);
+    this->calculate_fluxes_fp(e);
   }
   
   // Step 2)
   for (auto& e : mesh->elems)
   {
-    sd->riemann_solver(e);
-    sd->interpolate_fp2sp(e);
-    sd->residue(e);
+    this->riemann_solver(e);
+    this->interpolate_fp2sp(e);
+    this->residue(e);
   }
 }
 

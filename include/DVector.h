@@ -112,6 +112,7 @@ public:
 
     return *this;
   }
+  
 
   // -=
   DVector& operator -= (const DVector& rhs)

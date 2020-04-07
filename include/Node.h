@@ -19,6 +19,7 @@ public:
 public:
 	Node(const std::vector<std::string>&);
 	Node(double, double, double);
+	Node();
 	~Node();
 
 	void print_coords(void);

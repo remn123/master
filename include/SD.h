@@ -3,7 +3,10 @@
 #include <vector>
 #include <memory>
 
+#include <Dummies.h>
+#include <Element.h>
 #include <Mesh.h>
+#include <Node.h>
 
 
 template <typename Equation>

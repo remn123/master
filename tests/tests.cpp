@@ -1,6 +1,8 @@
 // 020-TestCase-2.cpp
 
 // main() provided by Catch in file 020-TestCase-1.cpp.
+#pragma once
+
 #include <iostream>
 #include <filesystem>
 #include <string>
@@ -39,17 +41,17 @@ TEST_CASE( "2: Check nodes' id of an Element Object", "[multi-file:2]" )
     long n3 = mesh1.elems[0]->nodes[3];
 
     SECTION( "Check Element nodes component" ) {
-        REQUIRE( n0 == 23);
-        REQUIRE( n1 == 30);
-        REQUIRE( n2 == 34);
-        REQUIRE( n3 == 29);
+        REQUIRE( n0 == 701);
+        REQUIRE( n1 == 620);
+        REQUIRE( n2 == 627);
+        REQUIRE( n3 == 686);
     }
 
     SECTION( "Check Mesh nodes id" ) {
-        REQUIRE( mesh1.nodes[n0].id == 23);
-        REQUIRE( mesh1.nodes[n1].id == 30);
-        REQUIRE( mesh1.nodes[n2].id == 34);
-        REQUIRE( mesh1.nodes[n3].id == 29);
+        REQUIRE( mesh1.nodes[n0].id == 701);
+        REQUIRE( mesh1.nodes[n1].id == 620);
+        REQUIRE( mesh1.nodes[n2].id == 627);
+        REQUIRE( mesh1.nodes[n3].id == 686);
     }
 }
 
@@ -63,11 +65,18 @@ TEST_CASE( "3: Check coordinates of a Node Object", "[multi-file:2]" )
 	
     long n = mesh1.elems[0]->nodes[0];
 
-    REQUIRE( mesh1.nodes[n].coords[0] == 0.1993431831898038);
-    REQUIRE( mesh1.nodes[n].coords[1] == 0.1984796180731428);
+    REQUIRE( mesh1.nodes[n].coords[0] == 0.7241379310348262);
+    REQUIRE( mesh1.nodes[n].coords[1] == 0.7241379310346457);
     REQUIRE( mesh1.nodes[n].coords[2] == 0.0);
+    // for (auto& node: mesh1.elems[0]->nodes)
+    //     std::cout << "Element[0]->Node[" << node << "]: (" 
+    //               << mesh1.nodes[node].coords[0] << ", "
+    //               << mesh1.nodes[node].coords[1] << ", "
+    //               << mesh1.nodes[node].coords[2] << ")\n";
 }
 
+// 0.2758620689659038
+// 0.7586206896550877
 //TEST_CASE( "4: Test Pipeline", "[multi-file:2]" ) 
 //{
 //    fs::path cur_path = fs::current_path();

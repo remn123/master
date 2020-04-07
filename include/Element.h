@@ -107,7 +107,7 @@ public:
   void enumerate_faces(void);
   void allocate_jacobian(int);
   void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
-  std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
 
@@ -123,7 +123,7 @@ public:
   void enumerate_faces(void);
   void allocate_jacobian(int);
   void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
-  std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
 // Prism
@@ -138,7 +138,7 @@ public:
   void enumerate_faces(void);
   void allocate_jacobian(int);
   void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
-  std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 
 };
 
@@ -155,7 +155,7 @@ public:
   void enumerate_faces(void);
   void allocate_jacobian(int);
   void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
-  std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
 

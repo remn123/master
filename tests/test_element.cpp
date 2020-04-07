@@ -4,17 +4,23 @@
 
 #include <catch/catch.hpp>
 #include <Dummies.h>
+#include <Element.h>
 #include <Mesh.h>
+#include <Node.h>
 #include <SD.h>
 
 using namespace Catch::literals;
 
+// explicit instantiations
+template class SD<Euler>;
+template class SD<NavierStokes>;
+
 // CONSTRUCTORS
 TEST_CASE("1: Test Quadrangle - constructor", "[elems]")
 {
-  auto q = std::make_shared<Quadrangle>(std::vector<std::string>{"1 2 3 4"});
+  auto q = std::make_shared<Quadrangle>(std::vector<std::string>{"1","2","3","4"});
 
-  REQUIRE(q->id == 1);
+  REQUIRE(q->id == 0);
   REQUIRE(q->boundary == 0);
   REQUIRE(q->fringe == 0);
   REQUIRE(q->J == 0.0);
@@ -27,13 +33,31 @@ TEST_CASE("1: Test Quadrangle - constructor", "[elems]")
 
 TEST_CASE("2: Test Quadrangle - calculate_jacobian", "[elems]")
 {
-  auto q = std::make_shared<Quadrangle>(std::vector<std::string>{"1 2 3 4"});
+  auto q = std::make_shared<Quadrangle>(std::vector<std::string>{"1","2","3","4"});
+  std::vector<Node> enodes = {{0.724138, 0.724138, 0.0},
+                              {0.758621, 0.724138, 0.0},
+                              {0.758621, 0.758621, 0.0},
+                              {0.724138, 0.758621, 0.0}};
+  
+  REQUIRE(enodes[0].coords[0] == Approx(0.724138).margin(1E-15));
+  REQUIRE(enodes[0].coords[1] == Approx(0.724138).margin(1E-15));
 
-  int order=2; // second order
-  auto  sd = std::make_shared<SD<Euler>>(2, 2); // (int order, int dimension)
+  REQUIRE(enodes[1].coords[0] == Approx(0.758621).margin(1E-15));
+  REQUIRE(enodes[1].coords[1] == Approx(0.724138).margin(1E-15));
 
-  std::vector<Node> enodes = {};
+  REQUIRE(enodes[2].coords[0] == Approx(0.758621).margin(1E-15));
+  REQUIRE(enodes[2].coords[1] == Approx(0.758621).margin(1E-15));
 
+  REQUIRE(enodes[3].coords[0] == Approx(0.724138).margin(1E-15));
+  REQUIRE(enodes[3].coords[1] == Approx(0.758621).margin(1E-15));
+
+  int order=2;     // second order
+  int dimension=2; // 2D
+  auto sd = std::make_shared<SD<Euler>>(order, dimension); // (int order, int dimension)
+  sd->create_nodes();
+  std::cout << "Allocating Metrics\n";
+  q->allocate_jacobian(order);
+  std::cout << "Calculating Metrics\n";
   q->calculate_jacobian(sd->snodes, sd->fnodes, enodes);
 
   REQUIRE(q->J == 0.0); // Jacobian
