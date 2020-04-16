@@ -8,21 +8,22 @@
 #include <functional>
 
 #include <DVector.h>
-#include <Node.h>
 #include <Element.h>
-
+#include <Ghost.h>
+#include <Node.h> // Vertice
 
 // MESH CLASS
 class Mesh
 {
 protected:
 	int id, dimension;
-	long N, Nel;
 
 public:
+	long N, Nel, Ngh, Ned;
 	static int number_meshes;
 	std::vector<std::shared_ptr<Element>> elems;
-	std::vector<Node> nodes;
+	std::vector<Ghost> ghosts;
+	std::vector<Vertice> nodes;
 public:
 	Mesh(int);
 	virtual ~Mesh();
@@ -35,9 +36,9 @@ public:
 	void print_node_by_id(long);
 	void print_node_id(long);
 	void read_gmsh(const std::string&);
-	double get_area(const std::vector<Node>&);
-	double get_area(const std::vector<long>&, const Node&);
-	double get_volume(const std::vector<Node>&);
+	double get_area(const std::vector<Vertice>&);
+	double get_area(const std::vector<long>&, const Vertice&);
+	double get_volume(const std::vector<Vertice>&);
 	void update_element_neighbors(void);
 	void mark_boundaries(void);
 	void to_vtk(const std::string&);
@@ -61,18 +62,18 @@ public:
 	void createKDtree(void);	
 	void build_kdtree(long&, std::vector<long>&, long);
 	void get_pivot(long&, const std::vector<long>&);
-	long mark_fringes(const Node&);
+	long mark_fringes(const Vertice&);
 	void to_graphviz(void);
 	void print_tree(long&, long&, std::string, int&);
 	
 
 private:
 	//long _search(const Node&, long&, int&, long&);
-	long _search(const Node&, long&, int, double, long);
-	long _find_element(const Node&, std::vector<long>&);
+	long _search(const Vertice&, long&, int, double, long);
+	long _find_element(const Vertice&, std::vector<long>&);
 	void _get_kneighbors(long&, std::vector<long>&);
-	long _get_closest(const Node&, std::vector<long>&);
-	double _get_distance(const Node&, const Node&);
+	long _get_closest(const Vertice&, std::vector<long>&);
+	double _get_distance(const Vertice&, const Vertice&);
 };
 
 // STATUS CLASS

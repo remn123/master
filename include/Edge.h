@@ -4,15 +4,20 @@
 #include <string>
 #include <vector>
 
+#include <Property.h>
 
-// Edge CLASS
 class Edge
 {
 public:
+  std::shared_ptr<Property> physical;
   std::vector<long> nodes;
+  
   long left;
   long right;
   long id;
+  long ghost;
+  int type;
+  int group;
   int boundary;
 public:
   Edge(const std::vector<long>&, const long&, const long&, const long&);

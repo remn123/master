@@ -18,6 +18,7 @@ public:
   std::vector<long> nodes;
   std::vector<Edge> edges;
   std::vector<Edge> faces;
+  std::vector<double> metrics;
   
   std::shared_ptr<Property> physical;
   std::shared_ptr<Property> computational;
@@ -52,10 +53,12 @@ public:
   void print_nodes(void);
   void get_nodes(void);
   bool was_enumerated(const std::vector<long>&);
+  virtual Node transform(const Node&, bool) = 0;
+  virtual DVector transform(const DVector&, bool) = 0;
   virtual void print_vertices(void) = 0;
   virtual void get_vertices(void) = 0;
   virtual void allocate_jacobian(int) = 0;
-  virtual void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&) = 0;
+  virtual void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Vertice>&) = 0;
 private:
 
 };
@@ -69,11 +72,13 @@ public:
   Triangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges();}
   ~Triangle(void) { /*std::cout << "Triangle has been deleted!" << std::endl; */}
 
+  Node transform(const Node&, bool);
+  DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_edges(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
+  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Vertice>&);
   std::vector<long> get_ordered_nodes_by_local_edge_id(long);
   
 };
@@ -86,11 +91,13 @@ public:
   Quadrangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges();}
   ~Quadrangle(void) { /*std::cout << "Quadrangle has been deleted!" << std::endl; */}
 
+  Node transform(const Node&, bool);
+  DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_edges(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
+  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Vertice>&);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -102,11 +109,13 @@ public:
   Tetrahedron(const std::vector<std::string>& node_list) : Element(node_list) {}
   ~Tetrahedron(void) { std::cout << "Tetrahedron has been deleted!" << std::endl; }
 
+  Node transform(const Node&, bool);
+  DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_faces(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
+  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Vertice>&);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -118,11 +127,13 @@ public:
   Hexahedron(const std::vector<std::string>& node_list) : Element(node_list) {}
   ~Hexahedron(void) { std::cout << "Hexahedron has been deleted!" << std::endl; }
 
+  Node transform(const Node&, bool);
+  DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_faces(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
+  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Vertice>&);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -133,11 +144,13 @@ public:
   Prism(const std::vector<std::string>& node_list) : Element(node_list) {}
   ~Prism(void) { std::cout << "Prism has been deleted!" << std::endl; }
 
+  Node transform(const Node&, bool);
+  DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_faces(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
+  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Vertice>&);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 
 };
@@ -150,11 +163,13 @@ public:
   Pyramid(const std::vector<std::string>& node_list) : Element(node_list) {}
   ~Pyramid(void) { std::cout << "Pyramid has been deleted!" << std::endl; }
 
+  Node transform(const Node&, bool);
+  DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_faces(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Node>&);
+  void calculate_jacobian(const std::vector<Node>&, const std::vector<std::vector<Node>>&, const std::vector<Vertice>&);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 

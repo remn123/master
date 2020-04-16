@@ -34,10 +34,10 @@ TEST_CASE("1: Test Quadrangle - constructor", "[elems]")
 TEST_CASE("2: Test Quadrangle - calculate_jacobian", "[elems]")
 {
   auto q = std::make_shared<Quadrangle>(std::vector<std::string>{"1","2","3","4"});
-  std::vector<Node> enodes = {{0.724138, 0.724138, 0.0},
-                              {0.758621, 0.724138, 0.0},
-                              {0.758621, 0.758621, 0.0},
-                              {0.724138, 0.758621, 0.0}};
+  std::vector<Vertice> enodes = {{0.724138, 0.724138, 0.0},
+                                {0.758621, 0.724138, 0.0},
+                                {0.758621, 0.758621, 0.0},
+                                {0.724138, 0.758621, 0.0}};
   
   REQUIRE(enodes[0].coords[0] == Approx(0.724138).margin(1E-15));
   REQUIRE(enodes[0].coords[1] == Approx(0.724138).margin(1E-15));
@@ -55,12 +55,10 @@ TEST_CASE("2: Test Quadrangle - calculate_jacobian", "[elems]")
   int dimension=2; // 2D
   auto sd = std::make_shared<SD<Euler>>(order, dimension); // (int order, int dimension)
   sd->create_nodes();
-  std::cout << "Allocating Metrics\n";
   q->allocate_jacobian(order);
-  std::cout << "Calculating Metrics\n";
   q->calculate_jacobian(sd->snodes, sd->fnodes, enodes);
 
-  REQUIRE(q->J == 0.0); // Jacobian
+  REQUIRE(q->J > 0.0); // Jacobian
   
   /* *************** SP ****************** */
   // SP 1

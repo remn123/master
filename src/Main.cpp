@@ -40,14 +40,14 @@ int main()
     {
       for (auto& ed : e->edges)
       {
-	if(ed.boundary==1)
+        if(ed.boundary==1)
         {
-	  for (auto& n : ed.nodes)
-	  {
-	    elm_id = mesh1.mark_fringes(mesh2.nodes[n]);
-	    //std::cout << "Element " << elm_id << " is a fringe!" << std::endl;
-	  }
-	}
+          for (auto& n : ed.nodes)
+          {
+            elm_id = mesh1.mark_fringes(mesh2.nodes[n]);
+            //std::cout << "Element " << elm_id << " is a fringe!" << std::endl;
+          }
+        }
       }
     }
   }

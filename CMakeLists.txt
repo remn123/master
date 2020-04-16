@@ -28,7 +28,9 @@ target_link_libraries(master_exe
 
 add_library(master_lib
             src/Element.cpp
+            src/Ghost.cpp
             src/Mesh.cpp
+            src/Node.cpp
             #src/Pipeline.cpp
             #src/Posproc.cpp
             #src/Preproc.cpp
@@ -40,6 +42,7 @@ add_library(master_lib
             include/Dummies.h
             include/Edge.h
             include/Element.h
+            include/Ghost.h
             include/Helpers.h
             include/Mesh.h
             include/Node.h

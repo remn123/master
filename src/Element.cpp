@@ -9,90 +9,7 @@
 #include <Mesh.h>
 #include <Node.h>
 
-// Nodes
-Node::Node(const std::vector<std::string>& coordinates)
-{
-  num_nodes++;
-  this->id = num_nodes;
 
-  // transforming vector<string> to vector<double> using lambda
-  std::transform(coordinates.begin(), coordinates.end(), std::back_inserter((this->coords)),
-    [](const std::string& str) { return std::stod(str); });
-
-  this->left = -1;
-  this->right = -1;
-
-  //std::cout << "Node(" << this->id << ") has been created with coords: ";
-  //for (const auto& v : (this->coords))
-  //	std::cout << v << " ";
-  //std::cout << std::endl;
-
-  //std::cout << "Node has been created!" << std::endl;
-}
-
-Node::Node(double x, double y, double z)
-{
-  this->id = -1;
-  this->coords.resize(3);
-
-  this->coords[0] = x;
-  this->coords[1] = y;
-  this->coords[2] = z;
-
-  this->left = -1;
-  this->right = -1;
-
-  //std::cout << "Test Node(" << this->id << ") has been created with coords: ";
-  //for (const auto& v : (this->coords))
-  //	std::cout << v << " ";
-  //std::cout << std::endl;
-
-  //std::cout << "Test Node has been created!" << std::endl;
-}
-
-Node::Node()
-{
-  this->id = -1;
-  this->coords.resize(3);
-
-  this->coords[0] = 0.0;
-  this->coords[1] = 0.0;
-  this->coords[2] = 0.0;
-
-  this->left = -1;
-  this->right = -1;
-
-  //std::cout << "Test Node(" << this->id << ") has been created with coords: ";
-  //for (const auto& v : (this->coords))
-  //	std::cout << v << " ";
-  //std::cout << std::endl;
-
-  //std::cout << "Test Node has been created!" << std::endl;
-}
-
-Node::~Node(void)
-{
-  //std::cin.get();
-  //std::cout << "Node(" << this->id << ") has been deleted!" << std::endl;
-  //std::cin.get();
-  
-}
-
-void Node::print_coords(void)
-{
-  std::cout << "Node(" << this->id << "): ";
-  for (const auto& v : (this->coords))
-    std::cout << v << " ";
-  std::cout << std::endl;
-}
-
-void Node::print_elements(void)
-{
-  std::cout << "Node(" << this->id << ").elements: ";
-  for (const auto& e : (this->elems))
-    std::cout << e << " ";
-  std::cout << std::endl;
-}
 
 // ------------------------------------------------------------------------ //
 
@@ -391,7 +308,7 @@ void Quadrangle::allocate_jacobian(int order)
 
 void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes, 
                                     const std::vector<std::vector<Node>>& fnodes, 
-                                    const std::vector<Node>& enodes)
+                                    const std::vector<Vertice>& enodes)
 {
   double x1 = enodes[this->nodes[0]].coords[0];
   double x2 = enodes[this->nodes[1]].coords[0];
@@ -406,7 +323,7 @@ void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes,
 
   double a1, a2, b1, b2, c1, c2, csi, eta;
 
-  this->J = 0.5*(x2-x1)*0.5*(y4-y3);
+  this->J = 0.5*(x2-x1)+0.5*(y4-y3);
   
   a1 =  x2-x1+x3-x4;
   b1 = -x2-x1+x3+x4;
@@ -414,6 +331,8 @@ void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes,
   a2 =  y2-y1+y3-y4;
   b2 = -y2-y1+y3+y4;
   c2 = -y2+y1+y3-y4;
+
+  this->metrics = {a1,b1,c1, a2,b2,c2};
 
   std::size_t index=0, s_index=0, f_index=0;
   
@@ -466,6 +385,39 @@ void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes,
   }
 }
 
+Node Quadrangle::transform(const Node& n, bool inverse=false)
+{ 
+  double x=0.0, y=0.0, z=0.0;
+  double csi=0.0, eta=0.0, zeta=0.0;
+  double dx_dcsi=0.0, dx_deta=0.0, dy_dcsi=0.0, dy_deta=0.0;
+  double dcsi_dx=0.0, deta_dx=0.0, dcsi_dy=0.0, deta_dy=0.0;
+
+  dx_dcsi = 0.25*(this->metrics[0] + this->metrics[2]*eta);
+  dx_deta = 0.25*(this->metrics[1] + this->metrics[2]*csi);
+  dy_dcsi = 0.25*(this->metrics[3] + this->metrics[5]*eta);
+  dy_deta = 0.25*(this->metrics[4] + this->metrics[5]*csi);
+
+
+
+  if (inverse)
+  {
+
+    return Node{x, y, z};
+  }
+  // Physical to Computational
+  x = n.coords[0];
+  y = n.coords[1];
+
+  
+  
+  return Node{csi, eta, zeta};
+}
+
+DVector Quadrangle::transform(const DVector& dvec, bool reverse)
+{
+}
+
+
 
 void Triangle::allocate_jacobian(int order)
 {
@@ -491,31 +443,72 @@ void Pyramid::allocate_jacobian(int order)
 
 void Triangle::calculate_jacobian(const std::vector<Node>& snodes, 
                   const std::vector<std::vector<Node>>& fnodes, 
-                  const std::vector<Node>& enodes)
+                  const std::vector<Vertice>& enodes)
 {
 }
 
 void Tetrahedron::calculate_jacobian(const std::vector<Node>& snodes, 
                    const std::vector<std::vector<Node>>& fnodes, 
-                   const std::vector<Node>& enodes)
+                   const std::vector<Vertice>& enodes)
 {
 }
 
 void Hexahedron::calculate_jacobian(const std::vector<Node>& snodes, 
                   const std::vector<std::vector<Node>>& fnodes, 
-                  const std::vector<Node>& enodes)
+                  const std::vector<Vertice>& enodes)
 {
 }
 
 void Prism::calculate_jacobian(const std::vector<Node>& snodes, 
                  const std::vector<std::vector<Node>>& fnodes, 
-                 const std::vector<Node>& enodes)
+                 const std::vector<Vertice>& enodes)
 {
 }
 
 void Pyramid::calculate_jacobian(const std::vector<Node>& snodes, 
                  const std::vector<std::vector<Node>>& fnodes, 
-                 const std::vector<Node>& enodes)
+                 const std::vector<Vertice>& enodes)
+{
+}
+
+Node Triangle::transform(const Node& n, bool reverse)
+{ 
+}
+
+DVector Triangle::transform(const DVector& dvec, bool reverse)
+{
+}
+
+Node Tetrahedron::transform(const Node& n, bool reverse)
+{ 
+}
+
+DVector Tetrahedron::transform(const DVector& dvec, bool reverse)
+{
+}
+
+
+Node Hexahedron::transform(const Node& n, bool reverse)
+{ 
+}
+
+DVector Hexahedron::transform(const DVector& dvec, bool reverse)
+{
+}
+
+Node Prism::transform(const Node& n, bool reverse)
+{ 
+}
+
+DVector Prism::transform(const DVector& dvec, bool reverse)
+{
+}
+
+Node Pyramid::transform(const Node& n, bool reverse)
+{ 
+}
+
+DVector Pyramid::transform(const DVector& dvec, bool reverse)
 {
 }
 

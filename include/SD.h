@@ -5,6 +5,7 @@
 
 #include <Dummies.h>
 #include <Element.h>
+#include <Ghost.h>
 #include <Mesh.h>
 #include <Node.h>
 
@@ -35,10 +36,16 @@ public:
   void setup(std::shared_ptr<Mesh>&);
   void create_nodes(void);
 
-  void initialize_properties(std::shared_ptr<Element>&, const std::vector<Node>&);
-  void boundary_condition(std::shared_ptr<Element>&);
+  void initialize_properties(std::shared_ptr<Element>&, 
+                             const std::vector<Vertice>&);
+  void initialize_properties(Ghost&);
+  void boundary_condition(Ghost&, 
+                          const std::vector<std::shared_ptr<Element>>&);
   void interpolate_sp2fp(std::shared_ptr<Element>&);
   void calculate_fluxes(std::shared_ptr<Element>&);
+  void calculate_interface_fluxes(std::shared_ptr<Element>&, 
+                                  const std::vector<std::shared_ptr<Element>>&, 
+                                  const std::vector<Ghost>&);
   void calculate_fluxes_sp(std::shared_ptr<Element>&);
   void calculate_fluxes_fp(std::shared_ptr<Element>&);
   void riemann_solver(std::shared_ptr<Element>&);

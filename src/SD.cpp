@@ -20,9 +20,12 @@ SD<Euler>::SD(int order, int dimension)
   this->dimension = dimension;
   this->MU = 0.0;
   this->MUv = 0.0;
+  std::size_t snodes_size = order*order;
+  std::size_t fnodes_size = (order+1)*order;
+  std::size_t dim = dimension;
 
-  this->snodes = std::vector<Node>{order*order};
-  this->fnodes = std::vector<std::vector<Node>>{dimension, std::vector<Node>{(order+1)*order}};    
+  this->snodes = std::vector<Node>{snodes_size};
+  this->fnodes = std::vector<std::vector<Node>>{dim, std::vector<Node>{fnodes_size}};    
 
   std::cout << "Initializing Euler SD solver...\n";
 }
@@ -37,9 +40,12 @@ SD<NavierStokes>::SD(int order, int dimension, double mu, double Mach, double Re
   this->Re = Reynolds;
   this->MU = mu;
   this->MUv = (-2.0/3.0)*mu;
+  std::size_t snodes_size = order*order;
+  std::size_t fnodes_size = (order+1)*order;
+  std::size_t dim = dimension;
 
-  this->snodes = std::vector<Node>{order*order};
-  this->fnodes = std::vector<std::vector<Node>>{dimension, std::vector<Node>{(order+1)*order}};
+  this->snodes = std::vector<Node>{snodes_size};
+  this->fnodes = std::vector<std::vector<Node>>{dim, std::vector<Node>{fnodes_size}};
   
   std::cout << "Initializing Navier-Stokes SD solver...\n";
 }
@@ -190,15 +196,112 @@ void SD<Equation>::_init_dvec(std::vector<std::vector<DVector>>& vec, size_t num
 }
 
 // 0.2) Initialize property template
+// INITIALIZE GHOST PROPERTIES
 template <>
-void SD<Euler>::initialize_properties(std::shared_ptr<Element>& e, const std::vector<Node>& enodes)
+void SD<Euler>::initialize_properties(Ghost& g)
 {
-  // for (auto& e : mesh.elems)
-  // {
+  // PHYSICAL
+  // Conservative Properties
+  this->_init_dvec(g.physical->Qsp,  this->snodes.size());
+  this->_init_dvec(g.physical->Qfp,  this->fnodes[0].size());
+
+  // Convective Fluxes
+  this->_init_dvec(g.physical->Fcsp, this->snodes.size());
+  this->_init_dvec(g.physical->Fcfp, this->fnodes[0].size());
+
+  // Gradients
+  // Convective Fluxes
+  this->_init_dvec(g.physical->dFcsp, this->snodes.size());
+  this->_init_dvec(g.physical->dFcfp, this->fnodes[0].size());
+
+  // COMPUTATIONAL
+  // Conservative Properties
+  this->_init_dvec(g.computational->Qsp, this->snodes.size());
+  this->_init_dvec(g.computational->Qfp, this->fnodes[0].size());
+
+  // Convective Fluxes
+  this->_init_dvec(g.computational->Fcsp, this->snodes.size());
+  this->_init_dvec(g.computational->Fcfp, this->fnodes[0].size());
+
+  // Gradients
+  // Convective Fluxes
+  this->_init_dvec(g.computational->dFcsp, this->snodes.size());
+  this->_init_dvec(g.computational->dFcfp, this->fnodes[0].size());
+
+
+  // Residue
+  this->_init_dvec(g.computational->res, this->snodes.size());
+}
+
+template <>
+void SD<NavierStokes>::initialize_properties(Ghost& g)
+{
+  // PHYSICAL
+  // Conservative Properties
+  this->_init_dvec(g.physical->Qsp,  this->snodes.size());
+  this->_init_dvec(g.physical->Qfp,  this->fnodes[0].size());
+
+  // Convective Fluxes
+  this->_init_dvec(g.physical->Fcsp, this->snodes.size());
+  this->_init_dvec(g.physical->Fcfp, this->fnodes[0].size());
+
+  // Diffusive Fluxes
+  this->_init_dvec(g.physical->Fdsp, this->snodes.size());
+  this->_init_dvec(g.physical->Fdfp, this->fnodes[0].size());
+
+  // Gradients
+  // Conservative Properties
+  this->_init_dvec(g.physical->dQsp,  this->snodes.size());
+  this->_init_dvec(g.physical->dQfp,  this->fnodes[0].size());
+
+  // Convective Fluxes
+  this->_init_dvec(g.physical->dFcsp, this->snodes.size());
+  this->_init_dvec(g.physical->dFcfp, this->fnodes[0].size());
+
+  // Diffusive Fluxes
+  this->_init_dvec(g.physical->dFdsp, this->snodes.size());
+  this->_init_dvec(g.physical->dFdfp, this->fnodes[0].size());
+
+  // COMPUTATIONAL
+  // Conservative Properties
+  this->_init_dvec(g.computational->Qsp, this->snodes.size());
+  this->_init_dvec(g.computational->Qfp, this->fnodes[0].size());
+
+  // Convective Fluxes
+  this->_init_dvec(g.computational->Fcsp, this->snodes.size());
+  this->_init_dvec(g.computational->Fcfp, this->fnodes[0].size());
+
+  // Diffusive Fluxes
+  this->_init_dvec(g.computational->Fdsp, this->snodes.size());
+  this->_init_dvec(g.computational->Fdfp, this->fnodes[0].size());
+
+  // Gradients
+  // Conservative Properties
+  this->_init_dvec(g.computational->dQsp, this->snodes.size());
+  this->_init_dvec(g.computational->dQfp, this->fnodes[0].size());
+
+  // Convective Fluxes
+  this->_init_dvec(g.computational->dFcsp, this->snodes.size());
+  this->_init_dvec(g.computational->dFcfp, this->fnodes[0].size());
+
+  // Diffusive Fluxes
+  this->_init_dvec(g.computational->dFdsp, this->snodes.size());
+  this->_init_dvec(g.computational->dFdfp, this->fnodes[0].size());
+
+  // Residue
+  this->_init_dvec(g.computational->res, this->snodes.size());
+}
+
+
+// INITIALIZE ELEMENTS PROPERTIES
+template <>
+void SD<Euler>::initialize_properties(std::shared_ptr<Element>& e, const std::vector<Vertice>& enodes)
+{
+  // PHYSICAL
   // Conservative Properties
   this->_init_dvec(e->physical->Qsp,  this->snodes.size());
   this->_init_dvec(e->physical->Qfp,  this->fnodes[0].size());
-
+  
   // Convective Fluxes
   this->_init_dvec(e->physical->Fcsp, this->snodes.size());
   this->_init_dvec(e->physical->Fcfp, this->fnodes[0].size());
@@ -208,10 +311,18 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element>& e, const std::ve
   this->_init_dvec(e->physical->dFcsp, this->snodes.size());
   this->_init_dvec(e->physical->dFcfp, this->fnodes[0].size());
 
-  // Metric Parameters
+  for (auto& ed: e->edges)
+  {
+    this->_init_dvec(ed.physical->Qfp,   this->order);
+    this->_init_dvec(ed.physical->Fcfp,  this->order);
+    this->_init_dvec(ed.physical->dFcfp, this->order);
+  }
+
+  // Metrics 
   e->allocate_jacobian(this->order);
   e->calculate_jacobian(this->snodes, this->fnodes, enodes);
 
+  // COMPUTATIONAL
   // Conservative Properties
   this->_init_dvec(e->computational->Qsp, this->snodes.size());
   this->_init_dvec(e->computational->Qfp, this->fnodes[0].size());
@@ -228,14 +339,12 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element>& e, const std::ve
 
   // Residue
   this->_init_dvec(e->computational->res, this->snodes.size());
-  // }
 }
 
 template <>
-void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const std::vector<Node>& enodes)
+void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const std::vector<Vertice>& enodes)
 {
-  //for (auto& e : mesh.elems)
-  //{
+  // PHYSICAL
   // Conservative Properties
   this->_init_dvec(e->physical->Qsp,  this->snodes.size());
   this->_init_dvec(e->physical->Qfp,  this->fnodes[0].size());
@@ -261,11 +370,21 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const 
   this->_init_dvec(e->physical->dFdsp, this->snodes.size());
   this->_init_dvec(e->physical->dFdfp, this->fnodes[0].size());
 
-  // Metric Parameters
+  // Metrics 
   e->allocate_jacobian(this->order);
   e->calculate_jacobian(this->snodes, this->fnodes, enodes);
-  //e->calculate_jacobian(this->fnodes, nodes);
 
+  for (auto& ed: e->edges)
+  {
+    this->_init_dvec(ed.physical->Qfp,   this->order);
+    this->_init_dvec(ed.physical->dQfp,  this->order);
+    this->_init_dvec(ed.physical->Fcfp,  this->order);
+    this->_init_dvec(ed.physical->dFcfp, this->order);
+    this->_init_dvec(ed.physical->Fdfp,  this->order);
+    this->_init_dvec(ed.physical->dFdfp, this->order);
+  }
+
+  // COMPUTATIONAL
   // Conservative Properties
   this->_init_dvec(e->computational->Qsp, this->snodes.size());
   this->_init_dvec(e->computational->Qfp, this->fnodes[0].size());
@@ -293,7 +412,6 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const 
 
   // Residue
   this->_init_dvec(e->computational->res, this->snodes.size());
-  // }
 }
 
 // 0)
@@ -310,6 +428,8 @@ void SD<Equation>::setup(std::shared_ptr<Mesh>& mesh)
   this->create_nodes();
   for (auto& e : mesh->elems)
     this->initialize_properties(e, mesh->nodes);
+  for (auto& g : mesh->ghosts)
+    this->initialize_properties(g);
 }
 
 
@@ -320,29 +440,128 @@ void SD<Equation>::setup(std::shared_ptr<Mesh>& mesh)
     - Neumann BC
 
   Boundary Conditions:
-    - Solid Inviscid Wall (Euler):
+    - Solid Inviscid Wall (Euler) [TYPE 0]:
         Un - Uwall,n = (U-Uwall).n = 0
         Uwall,t = some value (SLIP - there's no boundary layer here)
 
-    - Solid Viscous Wall (NavierStokes):
+    - Solid Viscous Wall (NavierStokes) [TYPE 4]:
         Un - Uwall,n = (U-Uwall).n = 0
         Uwall,t = 0 (NO-SLIP - there's a boundary layer)
 
-    - Inlet:
+    - Inlet [TYPE 1]:
         Q = constant at specific place
 
-    - Outlet (non-reflexive):
+    - Outlet (non-reflexive) [TYPE 2]:
         Q_L = Q_R
 
-    - Periodic:
+    - Periodic [TYPE 3]:
         Q_inflow = Q_outflow
 
 */
 template <typename Equation>
-void SD<Equation>::boundary_condition (std::shared_ptr<Element>& e)
+void SD<Equation>::boundary_condition (Ghost& g)
 {
-  
+  // switch (g.type)
+  // {
+  //   //- Solid Inviscid Wall (Euler) [TYPE 0]:
+  //   case 0:
+  //     //  Un - Uwall,n = (U-Uwall).n = 0
+  //     g.physical->Qfp[0]
+  //     //  Uwall,t = some value (SLIP - there's no boundary layer here)
+
+
+  // }
 }
+
+// Interpolation from:
+template <typename Equation>
+void SD<Equation>::interpolate_interface (Mesh& mesh, std::shared_ptr<Element>& e)
+{
+  Helpers<GL>::init();
+  Helpers<GL>::set_nodes(this->order);
+  
+  Helpers<Lagrange>::init();
+  Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
+
+  double x=0.0, y=0.0; 
+  double csi=0.0, eta=0.0;
+  double Lcsi, Leta;
+  unsigned int i, j;
+  unsigned int index, s_index, f_index;
+  
+  // node coordinates
+  
+  for (auto& ed: e->edges)
+  {
+    for ()
+    {
+
+    }
+    x = node.coords[0]; 
+    y = node.coords[1];
+  }
+
+
+  // initialize flux nodes solution
+  e->computational->Qfp[f_index-1] = 0.0;
+  e->physical->Qfp[f_index-1] = 0.0;
+
+  s_index = 0;
+  for (auto& n : this->snodes)
+  {
+    s_index++;
+    // s_index = (j+1) + this->order*i;
+
+    i = (int) s_index / this->order;
+    j = s_index % this->order;
+
+    Lcsi = Helpers<Lagrange>::Pn(i, csi);
+    Leta = Helpers<Lagrange>::Pn(j, eta);
+    e->computational->Qfp[f_index-1] += ((Lcsi*Leta)*e->computational->Qsp[s_index-1]);
+    e->physical->Qfp[f_index-1] += ((Lcsi*Leta)*e->physical->Qsp[s_index-1]);
+  } 
+
+
+  index = 0;
+  for (auto& vec_lines : this->fnodes)
+  {
+    index++;
+
+    f_index = 0;
+    for (auto& node : vec_lines) // line nodes for a specific direction (x, y)
+    {
+      f_index++;
+      // flux node coordinates
+      csi = node.coords[0]; 
+      eta = node.coords[1];
+
+      // initialize flux nodes solution
+      e->computational->Qfp[f_index-1] = 0.0;
+      e->physical->Qfp[f_index-1] = 0.0;
+
+      s_index = 0;
+      for (auto& n : this->snodes)
+      {
+        s_index++;
+        // s_index = (j+1) + this->order*i;
+
+        i = (int) s_index / this->order;
+        j = s_index % this->order;
+
+        Lcsi = Helpers<Lagrange>::Pn(i, csi);
+        Leta = Helpers<Lagrange>::Pn(j, eta);
+        e->computational->Qfp[f_index-1] += ((Lcsi*Leta)*e->computational->Qsp[s_index-1]);
+        e->physical->Qfp[f_index-1] += ((Lcsi*Leta)*e->physical->Qsp[s_index-1]);
+      }
+    }
+  }
+  Helpers<Lagrange>::delete_nodes();
+  Helpers<GL>::delete_nodes();
+}
+
+// ---------------------- //
+
+
 
 // 2) INTERPOLATE FROM SOLUTION POINTS TO FLUX POINTS
 template <typename Equation>
@@ -1072,18 +1291,24 @@ template <typename Equation>
 void SD<Equation>::solve (std::shared_ptr<Mesh>& mesh)
 {
   
+  // Step 0)
+  for (auto& g : mesh->ghosts)
+  {
+    this->boundary_condition(g, mesh->elems);
+  }
+  
   // Step 1)
   for (auto& e : mesh->elems)
   {
-    this->boundary_condition(e);
     this->interpolate_sp2fp(e);
-    this->calculate_fluxes_sp(e);
+    //this->calculate_fluxes_sp(e);
     this->calculate_fluxes_fp(e);
   }
   
   // Step 2)
   for (auto& e : mesh->elems)
   {
+    this->calculate_interface_fluxes(e, mesh->elems, mesh->ghosts);
     this->riemann_solver(e);
     this->interpolate_fp2sp(e);
     this->residue(e);
