@@ -28,6 +28,14 @@ Node::Node(double x, double y, double z)
   this->coords[2] = z;
 }
 
+Node::Node(const Node& n)
+{
+  this->id = n.id;
+  this->coords[0] = n.coords[0];
+  this->coords[1] = n.coords[1];
+  this->coords[2] = n.coords[2];
+}
+
 Node::Node()
 {
   this->id = -1;
@@ -86,4 +94,42 @@ void Vertice::print_elements(void)
   for (const auto& e : (this->elems))
     std::cout << e << " ";
   std::cout << std::endl;
+}
+
+
+// fNodes
+fNode::fNode(const std::vector<std::string>& coordinates) : Node(coordinates)
+{
+  num_nodes++;
+  this->id = num_nodes;
+  
+  this->right = -1;
+}
+
+fNode::fNode(double x, double y, double z) : Node(x, y, z)
+{
+  this->id = -1;
+  this->right = -1;
+}
+
+fNode::fNode(long id, long local, const Node& n)
+{
+  this->id = id;
+  this->local = local;
+  this->right = -1;
+
+  this->coords[0] = n.coords[0];
+  this->coords[1] = n.coords[1];
+  this->coords[2] = n.coords[2];
+}
+
+fNode::fNode() : Node()
+{
+  this->id = -1;
+  this->right = -1;
+}
+
+fNode::~fNode(void)
+{
+
 }

@@ -321,18 +321,20 @@ void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes,
   double y4 = enodes[this->nodes[3]].coords[1];
 
 
-  double a1, a2, b1, b2, c1, c2, csi, eta;
+  double a1, a2, b1, b2, c1, c2, d1, d2, csi, eta;
 
   this->J = 0.5*(x2-x1)+0.5*(y4-y3);
   
   a1 =  x2-x1+x3-x4;
   b1 = -x2-x1+x3+x4;
   c1 = -x2+x1+x3-x4;
+  d1 =  x2+x1+x3+x4;
   a2 =  y2-y1+y3-y4;
   b2 = -y2-y1+y3+y4;
   c2 = -y2+y1+y3-y4;
+  d2 =  y2+y1+y3+y4;
 
-  this->metrics = {a1,b1,c1, a2,b2,c2};
+  this->metrics = {a1, b1, c1, d1, a2, b2, c2, d2};
 
   std::size_t index=0, s_index=0, f_index=0;
   
@@ -385,32 +387,18 @@ void Quadrangle::calculate_jacobian(const std::vector<Node>& snodes,
   }
 }
 
-Node Quadrangle::transform(const Node& n, bool inverse=false)
+Node Quadrangle::transform(const Node& n)
 { 
   double x=0.0, y=0.0, z=0.0;
-  double csi=0.0, eta=0.0, zeta=0.0;
-  double dx_dcsi=0.0, dx_deta=0.0, dy_dcsi=0.0, dy_deta=0.0;
-  double dcsi_dx=0.0, deta_dx=0.0, dcsi_dy=0.0, deta_dy=0.0;
+  double csi=0.0, eta=0.0;
 
-  dx_dcsi = 0.25*(this->metrics[0] + this->metrics[2]*eta);
-  dx_deta = 0.25*(this->metrics[1] + this->metrics[2]*csi);
-  dy_dcsi = 0.25*(this->metrics[3] + this->metrics[5]*eta);
-  dy_deta = 0.25*(this->metrics[4] + this->metrics[5]*csi);
-
-
-
-  if (inverse)
-  {
-
-    return Node{x, y, z};
-  }
   // Physical to Computational
-  x = n.coords[0];
-  y = n.coords[1];
+  csi = n.coords[0];
+  eta = n.coords[1];
 
-  
-  
-  return Node{csi, eta, zeta};
+  x = this->metrics[0]*csi + this->metrics[1]*eta + this->metrics[2]*csi*eta + this->metrics[3];
+  y = this->metrics[4]*csi + this->metrics[5]*eta + this->metrics[6]*csi*eta + this->metrics[7];
+  return Node{x, y, z};
 }
 
 DVector Quadrangle::transform(const DVector& dvec, bool reverse)
@@ -471,7 +459,7 @@ void Pyramid::calculate_jacobian(const std::vector<Node>& snodes,
 {
 }
 
-Node Triangle::transform(const Node& n, bool reverse)
+Node Triangle::transform(const Node& n)
 { 
 }
 
@@ -479,7 +467,7 @@ DVector Triangle::transform(const DVector& dvec, bool reverse)
 {
 }
 
-Node Tetrahedron::transform(const Node& n, bool reverse)
+Node Tetrahedron::transform(const Node& n)
 { 
 }
 
@@ -488,7 +476,7 @@ DVector Tetrahedron::transform(const DVector& dvec, bool reverse)
 }
 
 
-Node Hexahedron::transform(const Node& n, bool reverse)
+Node Hexahedron::transform(const Node& n)
 { 
 }
 
@@ -496,7 +484,7 @@ DVector Hexahedron::transform(const DVector& dvec, bool reverse)
 {
 }
 
-Node Prism::transform(const Node& n, bool reverse)
+Node Prism::transform(const Node& n)
 { 
 }
 
@@ -504,7 +492,7 @@ DVector Prism::transform(const DVector& dvec, bool reverse)
 {
 }
 
-Node Pyramid::transform(const Node& n, bool reverse)
+Node Pyramid::transform(const Node& n)
 { 
 }
 

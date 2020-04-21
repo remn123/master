@@ -53,7 +53,7 @@ public:
   void print_nodes(void);
   void get_nodes(void);
   bool was_enumerated(const std::vector<long>&);
-  virtual Node transform(const Node&, bool) = 0;
+  virtual Node transform(const Node&) = 0;
   virtual DVector transform(const DVector&, bool) = 0;
   virtual void print_vertices(void) = 0;
   virtual void get_vertices(void) = 0;
@@ -72,7 +72,7 @@ public:
   Triangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges();}
   ~Triangle(void) { /*std::cout << "Triangle has been deleted!" << std::endl; */}
 
-  Node transform(const Node&, bool);
+  Node transform(const Node&);
   DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
@@ -91,7 +91,7 @@ public:
   Quadrangle(const std::vector<std::string>& node_list) : Element(node_list) { this->enumerate_edges();}
   ~Quadrangle(void) { /*std::cout << "Quadrangle has been deleted!" << std::endl; */}
 
-  Node transform(const Node&, bool);
+  Node transform(const Node&);
   DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
@@ -109,7 +109,7 @@ public:
   Tetrahedron(const std::vector<std::string>& node_list) : Element(node_list) {}
   ~Tetrahedron(void) { std::cout << "Tetrahedron has been deleted!" << std::endl; }
 
-  Node transform(const Node&, bool);
+  Node transform(const Node&);
   DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
@@ -127,7 +127,7 @@ public:
   Hexahedron(const std::vector<std::string>& node_list) : Element(node_list) {}
   ~Hexahedron(void) { std::cout << "Hexahedron has been deleted!" << std::endl; }
 
-  Node transform(const Node&, bool);
+  Node transform(const Node&);
   DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
@@ -144,7 +144,7 @@ public:
   Prism(const std::vector<std::string>& node_list) : Element(node_list) {}
   ~Prism(void) { std::cout << "Prism has been deleted!" << std::endl; }
 
-  Node transform(const Node&, bool);
+  Node transform(const Node&);
   DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);
@@ -163,7 +163,7 @@ public:
   Pyramid(const std::vector<std::string>& node_list) : Element(node_list) {}
   ~Pyramid(void) { std::cout << "Pyramid has been deleted!" << std::endl; }
 
-  Node transform(const Node&, bool);
+  Node transform(const Node&);
   DVector transform(const DVector&, bool);
   void print_vertices(void);
   void get_vertices(void);

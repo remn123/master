@@ -39,6 +39,11 @@ public:
   void initialize_properties(std::shared_ptr<Element>&, 
                              const std::vector<Vertice>&);
   void initialize_properties(Ghost&);
+  void update_edges(std::shared_ptr<Element>&, 
+                    std::vector<std::shared_ptr<Element>>&,
+                    std::vector<Ghost>&);
+  void update_edges(Ghost&,
+                    std::vector<std::shared_ptr<Element>>&);
   void boundary_condition(Ghost&, 
                           const std::vector<std::shared_ptr<Element>>&);
   void interpolate_sp2fp(std::shared_ptr<Element>&);

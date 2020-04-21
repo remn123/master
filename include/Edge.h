@@ -5,16 +5,19 @@
 #include <vector>
 
 #include <Property.h>
+#include <Node.h>
 
 class Edge
 {
 public:
   std::shared_ptr<Property> physical;
   std::vector<long> nodes;
+  std::vector<fNode> fnodes;
   
   long left;
   long right;
   long id;
+  long neighbor;
   long ghost;
   int type;
   int group;

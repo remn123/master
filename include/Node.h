@@ -15,6 +15,7 @@ public:
 public:
   Node(const std::vector<std::string>&);
   Node(double, double, double);
+  Node(const Node&);
   Node();
   virtual ~Node();
 
@@ -40,6 +41,23 @@ public:
   ~Vertice();
 
   void print_elements(void);
+  
+private:
+
+};
+
+class fNode : public Node
+{
+public:
+  static long num_nodes;
+  long right;
+  long local;
+public:
+  fNode(const std::vector<std::string>&);
+  fNode(double, double, double);
+  fNode(long, long, const Node&);
+  fNode();
+  ~fNode();
   
 private:
 

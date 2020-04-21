@@ -2,10 +2,12 @@
 #include <memory>
 
 #include <Dummies.h>
-#include <Poly.h>
 #include <Helpers.h>
 #include <Mesh.h>
+#include <Node.h>
+#include <Poly.h>
 #include <SD.h>
+
 
 // explicit instantiations
 template class SD<Euler>;
@@ -311,16 +313,39 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element>& e, const std::ve
   this->_init_dvec(e->physical->dFcsp, this->snodes.size());
   this->_init_dvec(e->physical->dFcfp, this->fnodes[0].size());
 
+  // Metrics 
+  e->allocate_jacobian(this->order);
+  e->calculate_jacobian(this->snodes, this->fnodes, enodes);
+  
+  std::size_t global_fn = 0;
+  std::size_t local_face = 0;
+  std::size_t dir=0;
+  std::vector<fNode> fn;
+  
+  Node n;
   for (auto& ed: e->edges)
   {
     this->_init_dvec(ed.physical->Qfp,   this->order);
     this->_init_dvec(ed.physical->Fcfp,  this->order);
     this->_init_dvec(ed.physical->dFcfp, this->order);
-  }
+    
+    fn.reserve(this->order);
+    if (local_face == 0 || local_face == 3) dir=0;
+    else dir=1;
 
-  // Metrics 
-  e->allocate_jacobian(this->order);
-  e->calculate_jacobian(this->snodes, this->fnodes, enodes);
+    for (size_t idx=0; idx<this->order; idx++) 
+    {
+      global_fn = this->order*dir + (this->order+1)*idx;
+      // Project node from computation to physical space
+      n = e->transform(this->fnodes[dir][global_fn]); // need copy constructor
+      fn.push_back(fNode{idx, global_fn, n});
+    }
+    
+    ed.fnodes = fn;
+
+    local_face++;
+    fn.clear();
+  }
 
   // COMPUTATIONAL
   // Conservative Properties
@@ -374,6 +399,12 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const 
   e->allocate_jacobian(this->order);
   e->calculate_jacobian(this->snodes, this->fnodes, enodes);
 
+  std::size_t global_fn = 0;
+  std::size_t local_face = 0;
+  std::size_t dir=0;
+  std::vector<fNode> fn;
+  
+  Node n;
   for (auto& ed: e->edges)
   {
     this->_init_dvec(ed.physical->Qfp,   this->order);
@@ -382,7 +413,25 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const 
     this->_init_dvec(ed.physical->dFcfp, this->order);
     this->_init_dvec(ed.physical->Fdfp,  this->order);
     this->_init_dvec(ed.physical->dFdfp, this->order);
+
+    fn.reserve(this->order);
+    if (local_face == 0 || local_face == 3) dir=0;
+    else dir=1;
+
+    for (size_t idx=0; idx<this->order; idx++) 
+    {
+      global_fn = this->order*dir + (this->order+1)*idx;
+      // Project node from computation to physical space
+      n = e->transform(this->fnodes[dir][global_fn]); // need copy constructor
+      fn.push_back(fNode{idx, global_fn, n});
+    }
+    
+    ed.fnodes = fn;
+
+    local_face++;
+    fn.clear();
   }
+
 
   // COMPUTATIONAL
   // Conservative Properties
@@ -414,6 +463,57 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element>& e, const 
   this->_init_dvec(e->computational->res, this->snodes.size());
 }
 
+// UPDATE EDGES
+template <typename Equation>
+void SD<Equation>::update_edges(std::shared_ptr<Element>& e, std::vector<std::shared_ptr<Element>>& elems, std::vector<Ghost>& ghosts)
+{
+  long neighbor=0;  
+  long local_ed1=0, local_ed2=0;
+  for (auto& ed: e->edges)
+  {
+    neighbor = ed.right;
+    if (neighbor > -1 ) // cell
+    {
+      // for each fnode in edge ed
+      for (auto& fn1: ed.fnodes)
+      {
+        if (fn1.right != -1) break; // already uptaded
+
+        local_ed2=0;
+        // search through all neighbor's edges 
+        for (auto& ed2: elems[neighbor]->edges)
+        {
+          // and look for the flux node which has the "same" physical coordinates
+          for (auto& fn2: ed2.fnodes)
+          {
+            if(fn1.coords[0] == fn2.coords[0] &&
+               fn1.coords[1] == fn2.coords[1] &&
+               fn1.coords[2] == fn2.coords[2])
+            {
+              fn1.right = fn2.local;
+              fn2.right = fn1.local;
+              break;
+            }
+          }
+
+          if (fn1.right != -1) 
+          {
+            ed1.neighbor = local_ed2;
+            ed2.neighbor = local_ed1;
+            break; // just uptaded
+          }
+          local_ed2++;
+        }
+      }
+    }
+    local_ed1++;
+  }
+  else // ghost cells
+  {
+    
+  }
+}
+
 // 0)
 template <typename Equation>
 void SD<Equation>::setup(std::shared_ptr<Mesh>& mesh)
@@ -430,6 +530,12 @@ void SD<Equation>::setup(std::shared_ptr<Mesh>& mesh)
     this->initialize_properties(e, mesh->nodes);
   for (auto& g : mesh->ghosts)
     this->initialize_properties(g);
+  
+  // Update edge communication 
+  for (auto& e : mesh->elems)
+    this->update_edges(e, mesh->elems);
+  for (auto& g : mesh->ghosts)
+    this->update_edges(g, mesh->elems);
 }
 
 
