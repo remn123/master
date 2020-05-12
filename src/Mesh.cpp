@@ -452,7 +452,7 @@ int Mesh::get_id(void)
 
 int Mesh::get_dimension(void)
 {
-  return this->dimension;
+  return dimension;
 }
 
 long Mesh::get_number_nodes(void)

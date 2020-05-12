@@ -48,10 +48,10 @@ public:
 	Mesh(int);
 	virtual ~Mesh();
 
-	int get_id();
-	int get_dimesion();
-	long get_number_nodes();
-	long get_number_elements();
+	int get_id(void);
+	int get_dimension(void);
+	long get_number_nodes(void);
+	long get_number_elements(void);
 	void print_element_by_id(long);
 	void print_node_by_id(long);
 	void print_node_id(long);
