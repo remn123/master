@@ -123,6 +123,17 @@ fNode::fNode(long id, long local, const Node& n)
   this->coords[2] = n.coords[2];
 }
 
+fNode::fNode(long id, long local, long right, const std::vector<double>& coords)
+{
+  this->id = id;
+  this->local = local;
+  this->right = right;
+
+  this->coords[0] = coords[0];
+  this->coords[1] = coords[1];
+  this->coords[2] = coords[2];
+}
+
 fNode::fNode() : Node()
 {
   this->id = -1;

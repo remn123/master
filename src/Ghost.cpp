@@ -9,7 +9,7 @@ Ghost::Ghost(const long element_id, const long edge_id, const int local_id, cons
   
   this->elm_id = element_id;
   this->edg_id = edge_id;
-  this->local_edg_id = local_id;
+  this->lr_edge = local_id;
   this->type = type;
   this->group = group;
 }

@@ -20,7 +20,12 @@ public:
   }
 
   /* Access ith element operator */
-  double operator [](const unsigned int& i)
+  double operator [](const unsigned int& i) const
+  {
+    return this->q[i];
+  }
+
+  double& operator [](const unsigned int& i)
   {
     return this->q[i];
   }

@@ -42,18 +42,19 @@ public:
   void update_edges(std::shared_ptr<Element>&, 
                     std::vector<std::shared_ptr<Element>>&,
                     std::vector<Ghost>&);
-  void update_edges(Ghost&,
-                    std::vector<std::shared_ptr<Element>>&);
+
   void boundary_condition(Ghost&, 
                           const std::vector<std::shared_ptr<Element>>&);
+  void interpolate_interface (Mesh&, std::shared_ptr<Element>&);
   void interpolate_sp2fp(std::shared_ptr<Element>&);
-  void calculate_fluxes(std::shared_ptr<Element>&);
-  void calculate_interface_fluxes(std::shared_ptr<Element>&, 
-                                  const std::vector<std::shared_ptr<Element>>&, 
-                                  const std::vector<Ghost>&);
+  //void calculate_fluxes(std::shared_ptr<Element>&);
+  // void calculate_interface_fluxes(std::shared_ptr<Element>&, 
+  //                                 const std::vector<std::shared_ptr<Element>>&, 
+  //                                 const std::vector<Ghost>&);
   void calculate_fluxes_sp(std::shared_ptr<Element>&);
   void calculate_fluxes_fp(std::shared_ptr<Element>&);
-  void riemann_solver(std::shared_ptr<Element>&);
+  void calculate_fluxes_fp (Ghost&, const std::vector<std::shared_ptr<Element>>&);
+  void riemann_solver(std::shared_ptr<Element>&, const std::vector<std::shared_ptr<Element>>&, const std::vector<Ghost>&);
   void interpolate_fp2sp(std::shared_ptr<Element>&);
   void residue(std::shared_ptr<Element>&);
   void solve(std::shared_ptr<Mesh>&);

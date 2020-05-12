@@ -56,6 +56,7 @@ public:
   fNode(const std::vector<std::string>&);
   fNode(double, double, double);
   fNode(long, long, const Node&);
+  fNode(long, long, long, const std::vector<double>&);
   fNode();
   ~fNode();
   

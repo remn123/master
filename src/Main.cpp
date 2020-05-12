@@ -22,7 +22,7 @@ int main()
   mesh1.print_element_by_id(1);
   //mesh1.print_element_by_id(80);
   // Creating kd-tree
-  mesh1.createKDtree();
+  mesh1.create_kdtree();
   mesh1.to_graphviz();
 	
   // Instantiating a new node

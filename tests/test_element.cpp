@@ -35,9 +35,9 @@ TEST_CASE("2: Test Quadrangle - calculate_jacobian", "[elems]")
 {
   auto q = std::make_shared<Quadrangle>(std::vector<std::string>{"1","2","3","4"});
   std::vector<Vertice> enodes = {{0.724138, 0.724138, 0.0},
-                                {0.758621, 0.724138, 0.0},
-                                {0.758621, 0.758621, 0.0},
-                                {0.724138, 0.758621, 0.0}};
+                                 {0.758621, 0.724138, 0.0},
+                                 {0.758621, 0.758621, 0.0},
+                                 {0.724138, 0.758621, 0.0}};
   
   REQUIRE(enodes[0].coords[0] == Approx(0.724138).margin(1E-15));
   REQUIRE(enodes[0].coords[1] == Approx(0.724138).margin(1E-15));

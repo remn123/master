@@ -17,7 +17,7 @@ public:
   long left;
   long right;
   long id;
-  long neighbor;
+  long lr_edge;
   long ghost;
   int type;
   int group;
