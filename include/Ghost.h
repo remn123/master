@@ -16,7 +16,7 @@ public:
 
   inline static std::unordered_map<int, std::vector<double>> Qbnds = {};
   inline static std::unordered_map<int, std::vector<double>> dQbnds = {};
-  inline static long num_ghosts = 0;
+  inline static long num_ghosts = -1;
   long id;
   long elm_id;
   long edg_id;

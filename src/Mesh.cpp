@@ -85,6 +85,41 @@ void Mesh::update_element_neighbors(void)
   }
 }
 
+std::istream &Mesh::get_line(std::istream &is, std::string &t)
+{
+  t.clear();
+
+  // The characters in the stream are read one-by-one using a std::streambuf.
+  // That is faster than reading them one-by-one using the std::istream.
+  // Code that uses streambuf this way must be guarded by a sentry object.
+  // The sentry object performs various tasks,
+  // such as thread synchronization and updating the stream state.
+
+  std::istream::sentry se(is, true);
+  std::streambuf *sb = is.rdbuf();
+
+  for (;;)
+  {
+    int c = sb->sbumpc();
+    switch (c)
+    {
+    case '\n':
+      return is;
+    case '\r':
+      if (sb->sgetc() == '\n')
+        sb->sbumpc();
+      return is;
+    case std::streambuf::traits_type::eof():
+      // Also handle the case when the last line has no line ending
+      if (t.empty())
+        is.setstate(std::ios::eofbit);
+      return is;
+    default:
+      t += (char)c;
+    }
+  }
+}
+
 //void Mesh::calculate_jacobians(std::shared_ptr<Element>& e)
 //{
 //  std::vector<Node> enodes;
@@ -116,7 +151,7 @@ void Mesh::mark_boundaries(void)
         e->boundary = 1;
         this->ghosts.emplace_back(Ghost{e->id, ed.id, local_id, ed.type, ed.group});
         ed.ghost = Ghost::num_ghosts;
-        this->Ngh = Ghost::num_ghosts;
+        this->Ngh = Ghost::num_ghosts + 1;
         //break;
       }
       local_id++;
@@ -226,7 +261,8 @@ void Mesh::read_gmsh(const std::string &filename)
 
     while (!gmshFile.eof())
     {
-      std::getline(gmshFile, line);
+      //std::getline(gmshFile, line); // this does not lead with different platform files
+      this->get_line(gmshFile, line); // this one does!
 
       auto search = blck_map.find(line);
       //auto search2 = blck_map.find("$MeshFormat\n");
@@ -244,7 +280,7 @@ void Mesh::read_gmsh(const std::string &filename)
         _BLOCK_ = search->second;
       }
       // std::cin.get();
-      std::istringstream check1(line);
+      std::istringstream check_(line);
 
       //std::vector<std::string> parser;
       std::string value;
@@ -252,7 +288,7 @@ void Mesh::read_gmsh(const std::string &filename)
       // Getting into the Node Block
       if (_BLOCK_ == blocks::NODES)
       {
-        std::vector<std::string> parser(std::istream_iterator<std::string>{check1},
+        std::vector<std::string> parser(std::istream_iterator<std::string>{check_},
                                         std::istream_iterator<std::string>());
 
         if (parser.size() > 2)
@@ -300,7 +336,7 @@ void Mesh::read_gmsh(const std::string &filename)
       // Getting into the Element Block
       else if (_BLOCK_ == blocks::ELEMENTS)
       {
-        std::vector<std::string> parser(std::istream_iterator<std::string>{check1},
+        std::vector<std::string> parser(std::istream_iterator<std::string>{check_},
                                         std::istream_iterator<std::string>());
 
         if (parser.size() > 2)
@@ -434,12 +470,12 @@ void Mesh::read_gmsh(const std::string &filename)
     this->Ned = Element::num_edges + 1;
     this->update_element_neighbors();
     this->mark_boundaries();
-    this->Ngh = Ghost::num_ghosts;
+    this->Ngh = Ghost::num_ghosts + 1;
     // reset num_elems, num_edges and num_ghosts
     Element::num_elems = -1;
     Element::num_faces = -1;
     Element::num_edges = -1;
-    Ghost::num_ghosts = 0;
+    Ghost::num_ghosts = -1;
     Vertice::num_nodes = -1;
     Element::edges_map.clear();
 

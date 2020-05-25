@@ -67,6 +67,7 @@ public:
 private:
 	void append_elem_to_nodes(const std::shared_ptr<Element> &);
 	void append_boundary_face(const int, const std::vector<std::string> &);
+	std::istream &get_line(std::istream &, std::string &);
 };
 
 // STATIC_MESH CLASS
