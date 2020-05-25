@@ -20,7 +20,7 @@ long Element::num_faces = -1;
 long Element::num_edges = -1;
 std::unordered_map<std::vector<long>, std::vector<long>> Element::faces_map{};
 std::unordered_map<std::vector<long>, std::vector<long>> Element::edges_map{};
-long Vertice::num_nodes = -1;
+//long Vertice::num_nodes = -1;
 
 //Mesh
 Mesh::Mesh(int d)
@@ -116,7 +116,7 @@ void Mesh::mark_boundaries(void)
         e->boundary = 1;
         this->ghosts.emplace_back(Ghost{e->id, ed.id, local_id, ed.type, ed.group});
         ed.ghost = Ghost::num_ghosts;
-        this->Ngh = Ghost::num_ghosts + 1;
+        this->Ngh = Ghost::num_ghosts;
         //break;
       }
       local_id++;
@@ -233,7 +233,7 @@ void Mesh::read_gmsh(const std::string &filename)
 
       // std::cout << "line.length = " << line.length() << std::endl;
       // std::cout << "line= " << line << std::endl;
-      // for (auto& a: line)
+      // for (auto &a : line)
       //   std::cout << a << "\n";
       // std::cout << "FIM\n";
       // std::cout << "search->first.length() = " << search->first.length() << std::endl;
@@ -259,8 +259,8 @@ void Mesh::read_gmsh(const std::string &filename)
         {
           // std::cout << "[Nodes]: " << line << std::endl;
           // std::cout << "That's the parser, dude: " << std::endl;
-          // for (const auto& v : parser)
-          // 	std::cout << v << ", ";
+          // for (const auto &v : parser)
+          //   std::cout << v << ", ";
           // std::cout << std::endl;
 
           // [0] node_ID
@@ -272,22 +272,28 @@ void Mesh::read_gmsh(const std::string &filename)
           auto first = parser.begin() + 1;
           auto last = parser.end();
 
-          std::vector<std::string> newVec(first, last);
-          //std::cout << "Creating mesh vertice..." << std::endl;
+          std::vector<std::string> newVec{first, last};
+          // std::cout << "Creating mesh vertice..." << std::endl;
+          // for (auto &n : newVec)
+          //   std::cout << n << " ";
+          // std::cout << std::endl;
+          // std::cout << "N Nodes = " << this->N << " - this->nodes.size = " << this->nodes.size() << std::endl;
           this->nodes.emplace_back(Vertice{newVec});
-          //std::cout << "Created mesh vertice..." << std::endl;
+          //std::cout << "Created mesh vertice!" << std::endl;
 
-          /*for (auto& n : this->nodes)
-          std::cout << n.id << " ";
-          std::cout << std::endl;*/
+          // for (auto &n : this->nodes)
+          //   std::cout << n.id << " ";
+          // std::cout << std::endl;
           //newVec.clear();
           //parser.clear();
         }
         else if (line.find("$Nodes") == std::string::npos &&
                  line.find("$EndNodes") == std::string::npos)
         {
+          //std::cout << "Reserving N Nodes..." << std::endl;
           this->N = std::stol(parser[0]);
           this->nodes.reserve(this->N);
+          //std::cout << "N Nodes = " << this->N << " - this->nodes.size = " << this->nodes.size() << std::endl;
           // this->nodes.resize(this->N);
         }
       }
@@ -433,7 +439,7 @@ void Mesh::read_gmsh(const std::string &filename)
     Element::num_elems = -1;
     Element::num_faces = -1;
     Element::num_edges = -1;
-    Ghost::num_ghosts = -1;
+    Ghost::num_ghosts = 0;
     Vertice::num_nodes = -1;
     Element::edges_map.clear();
 

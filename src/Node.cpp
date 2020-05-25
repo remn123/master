@@ -8,14 +8,17 @@
 #include <Node.h>
 
 // Nodes
-Node::Node(const std::vector<std::string>& coordinates)
+Node::Node(const std::vector<std::string> &coordinates)
 {
   this->id = -1;
 
   // transforming vector<string> to vector<double> using lambda
   std::transform(coordinates.begin(), coordinates.end(), std::back_inserter((this->coords)),
-    [](const std::string& str) { return std::stod(str); });
+                 [](const std::string &str) { return std::stod(str); });
 
+  // for (auto &n : this->coords)
+  //   std::cout << n << " ";
+  // std::cout << std::endl;
 }
 
 Node::Node(double x, double y, double z)
@@ -28,9 +31,11 @@ Node::Node(double x, double y, double z)
   this->coords[2] = z;
 }
 
-Node::Node(const Node& n)
+Node::Node(const Node &n)
 {
   this->id = n.id;
+  this->coords.resize(3);
+
   this->coords[0] = n.coords[0];
   this->coords[1] = n.coords[1];
   this->coords[2] = n.coords[2];
@@ -48,25 +53,25 @@ Node::Node()
 
 Node::~Node(void)
 {
-  
 }
 
 void Node::print_coords(void)
 {
   std::cout << "Node(" << this->id << "): ";
-  for (const auto& v : (this->coords))
+  for (const auto &v : (this->coords))
     std::cout << v << " ";
   std::cout << std::endl;
 }
 
 // Vertices
-Vertice::Vertice(const std::vector<std::string>& coordinates) : Node(coordinates)
+Vertice::Vertice(const std::vector<std::string> &coordinates) : Node(coordinates)
 {
   num_nodes++;
   this->id = num_nodes;
-  
+
   this->left = -1;
   this->right = -1;
+  // std::cout << "Create: " << this->id << std::endl;
 }
 
 Vertice::Vertice(double x, double y, double z) : Node(x, y, z)
@@ -85,24 +90,22 @@ Vertice::Vertice() : Node()
 
 Vertice::~Vertice(void)
 {
-
 }
 
 void Vertice::print_elements(void)
 {
   std::cout << "Vertice(" << this->id << ").elements: ";
-  for (const auto& e : (this->elems))
+  for (const auto &e : (this->elems))
     std::cout << e << " ";
   std::cout << std::endl;
 }
 
-
 // fNodes
-fNode::fNode(const std::vector<std::string>& coordinates) : Node(coordinates)
+fNode::fNode(const std::vector<std::string> &coordinates) : Node(coordinates)
 {
   num_nodes++;
   this->id = num_nodes;
-  
+
   this->right = -1;
 }
 
@@ -112,7 +115,7 @@ fNode::fNode(double x, double y, double z) : Node(x, y, z)
   this->right = -1;
 }
 
-fNode::fNode(long id, long local, const Node& n)
+fNode::fNode(long id, long local, const Node &n)
 {
   this->id = id;
   this->local = local;
@@ -123,7 +126,7 @@ fNode::fNode(long id, long local, const Node& n)
   this->coords[2] = n.coords[2];
 }
 
-fNode::fNode(long id, long local, long right, const std::vector<double>& coords)
+fNode::fNode(long id, long local, long right, const std::vector<double> &coords)
 {
   this->id = id;
   this->local = local;
@@ -142,5 +145,4 @@ fNode::fNode() : Node()
 
 fNode::~fNode(void)
 {
-
 }
