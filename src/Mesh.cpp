@@ -87,6 +87,7 @@ void Mesh::update_element_neighbors(void)
 
 std::istream &Mesh::get_line(std::istream &is, std::string &t)
 {
+  // https://stackoverflow.com/questions/6089231/getting-std-ifstream-to-handle-lf-cr-and-crlf
   t.clear();
 
   // The characters in the stream are read one-by-one using a std::streambuf.
@@ -149,11 +150,30 @@ void Mesh::mark_boundaries(void)
       {
         ed.boundary = 1;
         e->boundary = 1;
+
+        auto first = ed.nodes.begin();
+        auto last = ed.nodes.end();
+
+        std::vector<long> ordered_vertices(first, last);
+        std::sort(ordered_vertices.begin(), ordered_vertices.end());
+
+        auto search = this->bc_map.find(ordered_vertices);
+        auto physical_tag = search->second[0];
+        auto entity_tag = search->second[1];
+        ed.type = physical_tag; // boundary type
+        ed.group = entity_tag;  // boundary group
+
         this->ghosts.emplace_back(Ghost{e->id, ed.id, local_id, ed.type, ed.group});
         ed.ghost = Ghost::num_ghosts;
         this->Ngh = Ghost::num_ghosts + 1;
         //break;
       }
+      else
+      {
+        ed.group = -1; // FLUID - NO BOUNDARY
+        ed.type = -1;  // FLUID - NO BOUNDARY
+      }
+
       local_id++;
     }
   }
@@ -357,7 +377,7 @@ void Mesh::read_gmsh(const std::string &filename)
           int elem_type = std::stoi(parser[1]);
           int num_tags = std::stoi(parser[2]);
           int physical_tag = std::stoi(parser[3]);
-          int elementary_tag = std::stoi(parser[4]);
+          int entity_tag = std::stoi(parser[4]);
           auto first = parser.begin() + 2 + num_tags + 1;
           auto last = parser.end();
           std::vector<std::string> newVec(first, last);
@@ -452,7 +472,7 @@ void Mesh::read_gmsh(const std::string &filename)
           }
           else if (elm_type(elem_type) == elm_type::NODE2_LINE)
           {
-            this->append_boundary_face(physical_tag, newVec);
+            this->append_boundary_face(entity_tag, physical_tag, newVec);
           }
 
           parser.clear();
@@ -465,6 +485,7 @@ void Mesh::read_gmsh(const std::string &filename)
         }
       }
     }
+    // All mesh has been read!
     gmshFile.close();
     this->Nel = Element::num_elems + 1;
     this->Ned = Element::num_edges + 1;
@@ -605,7 +626,7 @@ void Mesh::append_elem_to_nodes(const std::shared_ptr<Element> &e)
   //std::cout << "Appending done!" << std::endl;
 }
 
-void Mesh::append_boundary_face(const int physical_tag, const std::vector<std::string> &node_list)
+void Mesh::append_boundary_face(const int entity_tag, const int physical_tag, const std::vector<std::string> &node_list)
 {
   std::vector<long> edges_nodes = {};
   edges_nodes.reserve(2);
@@ -620,7 +641,7 @@ void Mesh::append_boundary_face(const int physical_tag, const std::vector<std::s
   std::sort(edges_nodes.begin(), edges_nodes.end());
 
   // Add new boundary edge to the map
-  this->bc_map.emplace(std::make_pair(edges_nodes, physical_tag));
+  this->bc_map.emplace(std::make_pair(edges_nodes, std::vector<int>{physical_tag, entity_tag}));
 }
 
 // ------------------------------------------------------------------------ //

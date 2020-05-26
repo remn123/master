@@ -35,7 +35,6 @@ class Mesh
 {
 protected:
 	int id, dimension;
-	std::unordered_map<std::vector<long>, long> bc_map;
 
 public:
 	long N, Nel, Ngh, Ned;
@@ -43,6 +42,7 @@ public:
 	std::vector<std::shared_ptr<Element>> elems;
 	std::vector<Ghost> ghosts;
 	std::vector<Vertice> nodes;
+	std::unordered_map<std::vector<long>, std::vector<int>> bc_map;
 
 public:
 	Mesh(int);
@@ -66,7 +66,7 @@ public:
 
 private:
 	void append_elem_to_nodes(const std::shared_ptr<Element> &);
-	void append_boundary_face(const int, const std::vector<std::string> &);
+	void append_boundary_face(const int, const int, const std::vector<std::string> &);
 	std::istream &get_line(std::istream &, std::string &);
 };
 

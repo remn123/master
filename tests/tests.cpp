@@ -208,9 +208,83 @@ TEST_CASE("4: Check edges of a Mesh Object", "[mesh2]")
     REQUIRE(n == 8);
   }
 
-  // SECTION("Check edge map boundary conditions")
-  // {
-  // }
+  SECTION("Check edge map boundary conditions")
+  {
+    /*
+    $PhysicalNames
+      4
+      1 2 "WALL"
+      1 3 "INLET"
+      1 4 "OUTLET"
+      2 1 "FLUID"
+    $EndPhysicalNames
+
+      Solid Inviscid Wall (Euler):
+        Physical Line("WALL") = {1, 3};
+      
+      Supersonic Inlet BC or Far Field (Dirichlet BC) 
+        Physical Line("INLET") = {4}; 
+      
+      Supersonic Outlet BC (Neumann BC)
+        Physical Line("OUTLET") = {2}; // 
+    */
+    std::vector<std::vector<long>> edges = {{3, 7}, {0, 7}, {0, 4}, {1, 4}, {1, 5}, {2, 5}, {3, 6}, {2, 6}};
+    std::vector<int> physical_tags = {3, 3, 2, 2, 4, 4, 2, 2};
+    std::vector<int> entity_tags = {4, 4, 1, 1, 2, 2, 3, 3};
+
+    long count = 0;
+    for (auto &ed : edges)
+    {
+      auto search = mesh1.bc_map.find(ed);
+      auto physical_tag = search->second[0];
+      auto entity_tag = search->second[1];
+      REQUIRE(physical_tag == physical_tags[count]);
+      REQUIRE(entity_tag == entity_tags[count]);
+      count++;
+    }
+  }
+
+  SECTION("Check edges boundary conditions")
+  {
+    for (auto &e : mesh1.elems)
+    {
+      for (auto &ed : e->edges)
+      {
+        if (ed.boundary == 1)
+        {
+          auto nodes = ed.nodes;
+          std::sort(nodes.begin(), nodes.end());
+
+          auto search = mesh1.bc_map.find(nodes);
+          auto physical_tag = search->second[0];
+          auto entity_tag = search->second[1];
+          REQUIRE(physical_tag == ed.type);
+          REQUIRE(entity_tag == ed.group);
+        }
+      }
+    }
+  }
+
+  SECTION("Check edges' neighbors boundary conditions")
+  {
+    auto count = 0;
+    for (auto &e : mesh1.elems)
+    {
+      for (auto &ed : e->edges)
+      {
+        if (ed.boundary == 1)
+        {
+          auto ghost = mesh1.ghosts[ed.ghost];
+
+          REQUIRE(ghost.type == ed.type);
+          REQUIRE(ghost.group == ed.group);
+          count++;
+        }
+      }
+    }
+
+    REQUIRE(count == 8);
+  }
 
   // int local=0;
   // for (auto& e: mesh1.elems)
