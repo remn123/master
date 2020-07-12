@@ -3,11 +3,11 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include <DVector.h>
 
-
-class Property 
+class Property
 {
 public:
   /* 
@@ -28,37 +28,51 @@ public:
    */
 
   // Conservative Properties
-  std::vector<DVector> Qsp;                 // Solution at Solution nodes
-  std::vector<DVector> Qfp;                 // Solution at Flux nodes
+  std::vector<DVector> Qsp; // Solution at Solution nodes
+  std::vector<DVector> Qfp; // Solution at Flux nodes
 
   // Convective Fluxes
-  std::vector<std::vector<DVector>> Fcsp;   // Convective Flux at Solution nodes
-  std::vector<std::vector<DVector>> Fcfp;   // Convective Flux at Flux nodes 
-  
+  std::vector<std::vector<DVector>> Fcsp; // Convective Flux at Solution nodes
+  std::vector<std::vector<DVector>> Fcfp; // Convective Flux at Flux nodes
+
   // Diffusive Fluxes
-  std::vector<std::vector<DVector>> Fdsp;   // Diffusive Flux at Solution nodes
-  std::vector<std::vector<DVector>> Fdfp;   // Diffusive Flux at Flux nodes
-  
+  std::vector<std::vector<DVector>> Fdsp; // Diffusive Flux at Solution nodes
+  std::vector<std::vector<DVector>> Fdfp; // Diffusive Flux at Flux nodes
+
   // Gradients
   // Conservative Properties
-  std::vector<std::vector<DVector>> dQsp;   // Solution Gradient at Solution nodes
-  std::vector<std::vector<DVector>> dQfp;   // Solution Gradient at Flux nodes
+  std::vector<std::vector<DVector>> dQsp; // Solution Gradient at Solution nodes
+  std::vector<std::vector<DVector>> dQfp; // Solution Gradient at Flux nodes
 
   // Convective Fluxes
-  std::vector<std::vector<DVector>> dFcsp;   // Convective Flux Gradient at Solution nodes
-  std::vector<std::vector<DVector>> dFcfp;   // Convective Flux Gradient at Flux nodes 
-  
+  std::vector<std::vector<DVector>> dFcsp; // Convective Flux Gradient at Solution nodes
+  std::vector<std::vector<DVector>> dFcfp; // Convective Flux Gradient at Flux nodes
+
   // Diffusive Fluxes
-  std::vector<std::vector<DVector>> dFdsp;   // Diffusive Flux Gradient at Solution nodes
-  std::vector<std::vector<DVector>> dFdfp;   // Diffusive Flux Gradient at Flux nodes
-  
+  std::vector<std::vector<DVector>> dFdsp; // Diffusive Flux Gradient at Solution nodes
+  std::vector<std::vector<DVector>> dFdfp; // Diffusive Flux Gradient at Flux nodes
+
   // Residue Vector
   std::vector<DVector> res;
 
 public:
-  Property();
-  ~Property();
+  Property()
+  {
+    this->Qsp.reserve(1);
+    this->Qfp.reserve(1);
+    this->res.reserve(1);
+    this->Fcsp.reserve(1);
+    this->Fcfp.reserve(1);
+    this->Fdsp.reserve(1);
+    this->Fdfp.reserve(1);
+    this->dQsp.reserve(1);
+    this->dQfp.reserve(1);
+    this->dFcsp.reserve(1);
+    this->dFcfp.reserve(1);
+    this->dFdsp.reserve(1);
+    this->dFdfp.reserve(1);
 
+    std::cout << "Property has been created!" << std::endl;
+  };
+  ~Property() { std::cout << "Property has been deleted!" << std::endl; };
 };
-
-

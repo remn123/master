@@ -62,11 +62,13 @@ public:
 	void update_element_neighbors(void);
 	void mark_boundaries(void);
 	void to_vtk(const std::string &);
+	long get_closest(const Node &, std::vector<long> &);
 	//void calculate_jacobians(std::shared_ptr<Element>&);
 
 private:
 	void append_elem_to_nodes(const std::shared_ptr<Element> &);
 	void append_boundary_face(const int, const int, const std::vector<std::string> &);
+
 	std::istream &get_line(std::istream &, std::string &);
 };
 
@@ -93,7 +95,6 @@ private:
 	long _search(const Vertice &, long &, int, double, long);
 	long _find_element(const Vertice &, std::vector<long> &);
 	void _get_kneighbors(long &, std::vector<long> &);
-	long _get_closest(const Vertice &, std::vector<long> &);
 	double _get_distance(const Vertice &, const Vertice &);
 };
 

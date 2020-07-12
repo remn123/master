@@ -25,6 +25,13 @@ Edge::Edge(const std::vector<long> &e_nodes, const long &edge_id, const long &le
   this->left = left;
   this->right = right;
 
+  this->physical = std::make_shared<Property>();
+
+  this->group = -1;
+  this->type = -1;
+  this->ghost = -1;
+  this->lr_edge = -1;
+
   //if (right < 0)
   //{
   //	this->boundary = 1;
@@ -88,7 +95,8 @@ Element::Element(const std::vector<std::string> &node_list)
   this->boundary = 0;
   this->fringe = 0;
   this->J = 0.0; // Jacobian
-
+  this->physical = std::make_shared<Property>();
+  this->computational = std::make_shared<Property>();
   //std::cout << "I am the (" << this->id << ") Element" << std::endl;
 
   // transforming vector<string> to vector<int>
@@ -373,6 +381,9 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
 
 Node Quadrangle::transform(const Node &n)
 {
+  /* 
+    Apply mapping from csi, eta (computational) -> x, y (physical)
+   */
   double x = 0.0, y = 0.0, z = 0.0;
   double csi = 0.0, eta = 0.0;
 
@@ -380,8 +391,8 @@ Node Quadrangle::transform(const Node &n)
   csi = n.coords[0];
   eta = n.coords[1];
 
-  x = this->metrics[0] * csi + this->metrics[1] * eta + this->metrics[2] * csi * eta + this->metrics[3];
-  y = this->metrics[4] * csi + this->metrics[5] * eta + this->metrics[6] * csi * eta + this->metrics[7];
+  x = 0.25 * (this->metrics[0] * csi + this->metrics[1] * eta + this->metrics[2] * csi * eta + this->metrics[3]);
+  y = 0.25 * (this->metrics[4] * csi + this->metrics[5] * eta + this->metrics[6] * csi * eta + this->metrics[7]);
   return Node{x, y, z};
 }
 

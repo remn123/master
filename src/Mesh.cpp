@@ -168,11 +168,6 @@ void Mesh::mark_boundaries(void)
         this->Ngh = Ghost::num_ghosts + 1;
         //break;
       }
-      else
-      {
-        ed.group = -1; // FLUID - NO BOUNDARY
-        ed.type = -1;  // FLUID - NO BOUNDARY
-      }
 
       local_id++;
     }
@@ -191,7 +186,7 @@ void Mesh::to_vtk(const std::string &filename)
   output << "POINTS " << this->N << " float" << std::endl;
   //output << "POINT_DATA " << this->N << std::endl;
 
-  // writing nodes
+  // writing vertices
   for (auto &n : this->nodes)
   {
     //output << n.id+1 << " " << n.coords[0] << " " << n.coords[1] << " " << n.coords[2];
@@ -249,6 +244,7 @@ void Mesh::to_vtk(const std::string &filename)
   {
     output << e->fringe << std::endl;
   }
+
   output.close();
 }
 
@@ -644,6 +640,35 @@ void Mesh::append_boundary_face(const int entity_tag, const int physical_tag, co
   this->bc_map.emplace(std::make_pair(edges_nodes, std::vector<int>{physical_tag, entity_tag}));
 }
 
+long Mesh::get_closest(const Node &n2, std::vector<long> &kneighbors)
+{
+  double min_dist = -1.0, dist = 0.0;
+  double x1, y1, z1;
+  double x2, y2, z2;
+  long closest;
+
+  x2 = n2.coords[0];
+  y2 = n2.coords[1];
+  z2 = n2.coords[2];
+
+  for (auto &n : kneighbors)
+  {
+    x1 = this->nodes[n].coords[0];
+    y1 = this->nodes[n].coords[1];
+    z1 = this->nodes[n].coords[2];
+
+    dist = sqrt(pow((x1 - x2), 2.0) + pow((y1 - y2), 2.0) + pow((z1 - z2), 2.0));
+
+    if (min_dist > dist || min_dist < 0)
+    {
+      min_dist = dist;
+      closest = n;
+    }
+  }
+
+  return closest;
+}
+
 // ------------------------------------------------------------------------ //
 
 // Static Mesh
@@ -831,35 +856,6 @@ void Static_Mesh::_get_kneighbors(long &sroot, std::vector<long> &kneighbors)
     this->_get_kneighbors(this->nodes[sroot].left, kneighbors);
     this->_get_kneighbors(this->nodes[sroot].right, kneighbors);
   }
-}
-
-long Static_Mesh::_get_closest(const Vertice &n2, std::vector<long> &kneighbors)
-{
-  double min_dist = -1.0, dist = 0.0;
-  double x1, y1, z1;
-  double x2, y2, z2;
-  long closest;
-
-  x2 = n2.coords[0];
-  y2 = n2.coords[1];
-  z2 = n2.coords[2];
-
-  for (auto &n : kneighbors)
-  {
-    x1 = this->nodes[n].coords[0];
-    y1 = this->nodes[n].coords[1];
-    z1 = this->nodes[n].coords[2];
-
-    dist = sqrt(pow((x1 - x2), 2.0) + pow((y1 - y2), 2.0) + pow((z1 - z2), 2.0));
-
-    if (min_dist > dist || min_dist < 0)
-    {
-      min_dist = dist;
-      closest = n;
-    }
-  }
-
-  return closest;
 }
 
 double Static_Mesh::_get_distance(const Vertice &n1, const Vertice &n2)

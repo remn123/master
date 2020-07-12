@@ -68,6 +68,7 @@ add_executable(master_test
                tests/test_element.cpp
                tests/test_helpers.cpp
                tests/test_sd.cpp
+               tests/test_posproc.cpp
                #tests/test_pipeline.cpp
                #tests/test_sd.cpp
 

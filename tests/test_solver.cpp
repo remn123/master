@@ -38,12 +38,12 @@ namespace fs = std::filesystem;
 TEST_CASE("1: Test Solver - Solution Nodes 2nd Order", "[solver]")
 {
   fs::path cur_path = fs::current_path();
-	auto mesh = std::make_shared<Mesh>(2);
+  auto mesh = std::make_shared<Mesh>(2);
 
-	mesh->read_gmsh((cur_path.parent_path() / ".." /"resources" / "mesh1.msh").string());
-	
-  int order=2;
-  auto  sd = std::make_shared<SD<Euler>>(2, 2);
+  mesh->read_gmsh((cur_path.parent_path() / ".." / "resources" / "mesh1.msh").string());
+
+  int order = 2;
+  auto sd = std::make_shared<SD<Euler>>(2, 2);
   /*
     1) Setup (all element in Mesh)
       1.1) Calculate solution and fluxes points
@@ -60,15 +60,22 @@ TEST_CASE("1: Test Solver - Solution Nodes 2nd Order", "[solver]")
        2.5) Interpolate Fluxes derivatives from FPs to SPs
        2.6) Calculate Residue
   */
-  double CFL = 0.1;
-  auto time = std::make_shared<TD>(2, CFL);
 
   sd->solve(mesh);
 
-  for (auto& e : mesh->elems)
-  {
-    time->solve(e);
-  }  
+  /*
+    3) Time Marching Loop
+       3.1) Apply Boundary Conditions on interfaces (flux points)
+      
+  */
+  double CFL = 0.1;
+  auto time = std::make_shared<TD>(2, CFL);
+
+  time->setup();
+
+  time->update(mesh, sd);
+
+  time->save(mesh, sd);
   // REQUIRE( sd.snodes[0] == Approx(-0.577350269189626).margin(1E-15));
   // REQUIRE( sd.snodes[1] == Approx(0.577350269189626).margin(1E-15));
 }

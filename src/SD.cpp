@@ -1,5 +1,13 @@
-#include <vector>
+#pragma once
+
+#include <algorithm>
+#include <fstream>
 #include <memory>
+#include <string>
+#include <sstream>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 #include <Dummies.h>
 #include <Helpers.h>
@@ -8,7 +16,7 @@
 #include <Poly.h>
 #include <SD.h>
 
-// explicit instantiations
+// explicit instances
 template class SD<Euler>;
 template class SD<NavierStokes>;
 
@@ -313,7 +321,7 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element> &e, const std::ve
 
   std::size_t global_fn = 0;
   std::size_t local_face = 0;
-  std::size_t dir = 0;
+  std::size_t dir = 0, indice = 0;
   std::vector<fNode> fn;
 
   Node n;
@@ -324,14 +332,19 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element> &e, const std::ve
     this->_init_dvec(ed.physical->dFcfp, this->order);
 
     fn.reserve(this->order);
-    if (local_face == 0 || local_face == 3)
-      dir = 0;
-    else
+    if (local_face == 0 || local_face == 2)
       dir = 1;
+    else
+      dir = 0;
+
+    if (local_face == 0 || local_face == 3)
+      indice = 0;
+    else
+      indice = 1;
 
     for (size_t idx = 0; idx < this->order; idx++)
     {
-      global_fn = this->order * dir + (this->order + 1) * idx;
+      global_fn = this->order * indice + (this->order + 1) * idx;
       // Project node from computation to physical space
       n = e->transform(this->fnodes[dir][global_fn]); // need copy constructor
       fn.push_back(fNode{idx, global_fn, n});
@@ -396,7 +409,7 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element> &e, const 
 
   std::size_t global_fn = 0;
   std::size_t local_face = 0;
-  std::size_t dir = 0;
+  std::size_t dir = 0, indice = 0;
   std::vector<fNode> fn;
 
   Node n;
@@ -410,15 +423,20 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element> &e, const 
     this->_init_dvec(ed.physical->dFdfp, this->order);
 
     fn.reserve(this->order);
-    if (local_face == 0 || local_face == 3)
-      dir = 0;
-    else
+    if (local_face == 0 || local_face == 2)
       dir = 1;
+    else
+      dir = 0;
+
+    if (local_face == 0 || local_face == 3)
+      indice = 0;
+    else
+      indice = 1;
 
     for (size_t idx = 0; idx < this->order; idx++)
     {
-      global_fn = this->order * dir + (this->order + 1) * idx;
-      // Project node from computation to physical space
+      global_fn = this->order * indice + (this->order + 1) * idx;
+      // Project node from computational to physical space
       n = e->transform(this->fnodes[dir][global_fn]); // need copy constructor
       fn.push_back(fNode{idx, global_fn, n});
     }
@@ -485,13 +503,20 @@ void SD<Equation>::update_edges(std::shared_ptr<Element> &e, std::vector<std::sh
         // search through all neighbor's edges
         for (auto &ed2 : elems[neighbor]->edges)
         {
+          std::cout << "Element " << e->id << ", Edge " << ed1.id << ", Neighbor " << neighbor << ", Edge " << ed2.id << std::endl;
+          std::cout << "Edge " << ed1.id << " -> nodes: {" << ed1.nodes[0] << ", " << ed1.nodes[1] << "}" << std::endl;
+          std::cout << "Edge " << ed2.id << " -> nodes: {" << ed2.nodes[0] << ", " << ed2.nodes[1] << "}" << std::endl;
           // and look for the flux node which has the "same" physical coordinates
           for (auto &fn2 : ed2.fnodes)
           {
-            if (fn1.coords[0] == fn2.coords[0] &&
-                fn1.coords[1] == fn2.coords[1] &&
-                fn1.coords[2] == fn2.coords[2])
+            std::cout << "fn1 " << fn1.id << ", local " << fn1.local << ", right " << fn1.right << ", x " << fn1.coords[0] << ", y " << fn1.coords[1] << std::endl;
+            std::cout << "fn2 " << fn2.id << ", local " << fn2.local << ", right " << fn2.right << ", x " << fn2.coords[0] << ", y " << fn2.coords[1] << std::endl;
+
+            if (abs(fn1.coords[0] - fn2.coords[0]) <= 1E-7 &&
+                abs(fn1.coords[1] - fn2.coords[1]) <= 1E-7 &&
+                abs(fn1.coords[2] - fn2.coords[2]) <= 1E-7)
             {
+              std::cout << "Found it!" << std::endl;
               fn1.right = fn2.local;
               fn2.right = fn1.local;
               break;
@@ -508,6 +533,7 @@ void SD<Equation>::update_edges(std::shared_ptr<Element> &e, std::vector<std::sh
         }
         if (fn1.right == -1)
         {
+          std::cout << "Not Found!" << std::endl;
           throw "Flux Node " +
               std::to_string(fn1.id) +
               " at Edge " +
@@ -1811,6 +1837,362 @@ void SD<Equation>::solve(std::shared_ptr<Mesh> &mesh)
     this->interpolate_fp2sp(e);
     this->residue(e);
   }
+}
+
+// 8) SAVE SOLUTION INTO A VTK FILE
+template <typename Equation>
+void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &filename)
+{
+  std::ofstream output;
+  output.open(filename);
+
+  // std::unordered_set<long> visited;
+  // std::unordered_map<long, long> fp_dict;
+  std::vector<std::string> header, points, point_data, cells, cells_header, cells_types;
+  // long neighbor, global_ind = -1, local_ind = -1;
+  long num_elems = 0, num_vertices = 0, sp = 0, num_cpoints = 0;
+  long n1, n2, n3, n4, n5, n6, n7, n8;
+  // double q1, q2, q3, q4, q5, q6, q7, q8;
+
+  auto nverts = mesh->N;                                      // total number of vertices
+  auto nsps = mesh->Nel * (this->order * this->order);        // total number of solution points
+  auto nxfps = mesh->Nel * (this->order * (this->order + 1)); // total number of x-flux points (global)
+  auto nyfps = nxfps;                                         // total number of y-flux points (global)
+
+  header.push_back("# vtk DataFile Version 3.0");
+  header.push_back("PosProc Mesh");
+  header.push_back("ASCII");
+  header.push_back("DATASET UNSTRUCTURED_GRID");
+  header.push_back(std::string{"POINTS "} + std::to_string(mesh->N + mesh->Nel * ((this->order * this->order) + 2 * (this->order * (this->order + 1)))) + std::string{" float"});
+
+  /*
+    0) Writing all vertices:
+      0.1) All current vertices in the current order
+           [0:mesh->N-1] x y z
+    
+      0.2) Looping through all elements:
+        0.2.1) Print all solution nodes (id based on local enumeration
+                                        and the current total number of vertices)
+              [mesh->N + e.id*(this->order*this->order)+0 : mesh->N + (mesh->Nel-1)*(this->order*this->order)] x y z
+                                        
+        0.2.2) Print all x-flux nodes (id based on local enumeration
+                                       and the current total number of vertices)
+              [mesh->N + (mesh->Nel-1)*(this->order*this->order) + e.id*(this->order*(this->order+1)) : mesh->N + (mesh->Nel-1)*(this->order*this->order) ]
+
+        0.2.3) Print all y-flux nodes (id based on local enumeration
+                                       and the current total number of vertices)
+              [mesh->N + (mesh->Nel-1)*(this->order*this->order) + e.id*(this->order*(this->order+1)) : mesh->N + (mesh->Nel-1)*(this->order*this->order) + (mesh->Nel-1)*(this->order*(this->order+1)) ]
+  */
+
+  /*
+   0.1) All current vertices in the current order
+*/
+  for (auto &n : mesh->nodes)
+  {
+    points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
+                     std::to_string(n.coords[1]) + std::string(" ") +
+                     std::to_string(n.coords[2]));
+  }
+
+  /* 0.2) Looping through all elements */
+  for (auto &e : mesh->elems)
+  {
+    // Mark element as visited
+    // visited.insert(e->id);
+
+    /*  0.2.1) Print all solution nodes (id based on local enumeration
+                                     and the current total number of vertices)
+      [mesh->N + e.id*(this->order*this->order)+0 : mesh->N + (mesh->Nel-1)*(this->order*this->order)] x y z */
+    auto s_index = 0;
+    while (s_index < this->order * this->order)
+    {
+      auto n = e->transform(this->snodes[s_index]);
+      points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
+                       std::to_string(n.coords[1]) + std::string(" ") +
+                       std::to_string(n.coords[2]));
+      s_index++;
+    }
+  }
+  /* 0.2.2) Print all x-flux nodes (id based on local enumeration
+                                      and the current total number of vertices)
+              [mesh->N + (mesh->Nel-1)*(this->order*this->order) + e.id*(this->order*(this->order+1)) : mesh->N + (mesh->Nel-1)*(this->order*this->order) ] */
+
+  // Add the cell into the set
+
+  // for (auto &ed : e->edges)
+  // {
+  //   /*
+  //     Given a flux point:
+  //     - Check if the flux point is an interface FP
+  //     - if it is an interface:
+  //       - Get the neighbor cell id
+  //       - Check if the neighbor cell is inside the set of visited
+  //       - if it is inside, it has been visited
+  //         - So look up for its sibling FP id at the unordered_map of FPs
+  //       - else
+  //         - fp_counter ++;
+  //         - Add the new fp to the unordered_map of FPs
+  //         - add
+  //     - else
+  //       - fp_counter ++;
+  //         - flux point id = fp_counter;
+  //   */
+
+  //   dir
+  //       global_ind++;
+  //   neighbor = ed.right;
+  //   if (visited.find(neighbor) != visited.end())
+  //   {
+
+  //     local_ind = fp_dict.find(global_ind).second();
+  //     auto n = e->transform(this->fnodes[dir][f_index]);
+  //     points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
+  //                      std::to_string(n.coords[1]) + std::string(" ") +
+  //                      std::to_string(n.coords[2]));
+  //   }
+  //   else
+  //   {
+  //     fp_counter++;
+  //   }
+  // }
+  for (auto &e : mesh->elems)
+  {
+    auto f_index = 0;
+    while (f_index < this->order * (this->order + 1))
+    {
+      auto n = e->transform(this->fnodes[0][f_index]);
+      points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
+                       std::to_string(n.coords[1]) + std::string(" ") +
+                       std::to_string(n.coords[2]));
+      f_index++;
+    }
+  }
+
+  for (auto &e : mesh->elems)
+  {
+    /* 0.2.3) Print all y-flux nodes (id based on local enumeration
+                                       and the current total number of vertices)
+              [mesh->N + (mesh->Nel-1)*(this->order*this->order) + e.id*(this->order*(this->order+1)) : mesh->N + (mesh->Nel-1)*(this->order*this->order) + (mesh->Nel-1)*(this->order*(this->order+1)) ] */
+    auto f_index = 0;
+    while (f_index < this->order * (this->order + 1))
+    {
+      auto n = e->transform(this->fnodes[1][f_index]);
+      points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
+                       std::to_string(n.coords[1]) + std::string(" ") +
+                       std::to_string(n.coords[2]));
+      f_index++;
+    }
+  }
+
+  cells_types.push_back(std::string{"CELL_TYPES "} + std::to_string((this->order + 1) * (this->order + 1) * mesh->Nel));
+
+  for (auto &e : mesh->elems)
+  {
+    // 1) define new elements
+    // 1.1) First row:
+    //      - Quad 1:
+    n1 = mesh->get_closest(e->transform(this->fnodes[1][0]), e->nodes);         // nearest vertice from 0 y-FP
+    n2 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + 0; // y-FP
+    n3 = nverts + e->id * (this->order * this->order) + 0;                      // SP
+    n4 = nverts + nsps + e->id * (this->order * (this->order + 1)) + 0;         // x-FP
+
+    cells.push_back(std::string{"4 "} +
+                    std::to_string(n1) + std::string{" "} +
+                    std::to_string(n2) + std::string{" "} +
+                    std::to_string(n3) + std::string{" "} +
+                    std::to_string(n4));
+    cells_types.push_back("9");
+    num_cpoints += 5; // 4 points + 1 indice
+
+    //      - Pentagon k:
+    for (auto k = 0; k < this->order - 1; k++)
+    {
+      n1 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + k * (this->order + 1);       // y-FP
+      n2 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + (k + 1) * (this->order + 1); // y-FP
+      n3 = nverts + e->id * (this->order * this->order) + (k + 1) * this->order;                            // SP
+      n4 = nverts + nsps + e->id * (this->order * (this->order + 1)) + k + 1;                               // x-FP
+      n5 = nverts + e->id * (this->order * this->order) + k * this->order;                                  // SP
+
+      cells.push_back(std::string{"5 "} +
+                      std::to_string(n1) + std::string{" "} +
+                      std::to_string(n2) + std::string{" "} +
+                      std::to_string(n3) + std::string{" "} +
+                      std::to_string(n4) + std::string{" "} +
+                      std::to_string(n5));
+      cells_types.push_back("7");
+      num_cpoints += 6; // 5 points + 1 indice
+    }
+
+    //      - Quad 2:
+    n1 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + ((this->order + 1) * (this->order - 1)); // y-FP
+    n2 = mesh->get_closest(e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)]), e->nodes);           // nearest vertice from 0 y-FP
+    n3 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order;                                     // x-FP
+    n4 = nverts + e->id * (this->order * this->order) + this->order * (this->order - 1);                              // SP
+
+    cells.push_back(std::string{"4 "} +
+                    std::to_string(n1) + std::string{" "} +
+                    std::to_string(n2) + std::string{" "} +
+                    std::to_string(n3) + std::string{" "} +
+                    std::to_string(n4));
+    cells_types.push_back("9");
+    num_cpoints += 5; // 4 points + 1 indice
+
+    // 1.2) Mid rows:
+    for (auto m = 0; m < this->order - 1; m++)
+    {
+      //      - Pentagon m (1):
+      n1 = nverts + nsps + e->id * (this->order * (this->order + 1)) + m * (this->order + 1);       // x-FP
+      n2 = nverts + e->id * (this->order * this->order) + m;                                        // SP
+      n3 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + m + 1;               // y-FP
+      n4 = nverts + e->id * (this->order * this->order) + m + 1;                                    // SP
+      n5 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1); // x-FP
+
+      cells.push_back(std::string{"5 "} +
+                      std::to_string(n1) + std::string{" "} +
+                      std::to_string(n2) + std::string{" "} +
+                      std::to_string(n3) + std::string{" "} +
+                      std::to_string(n4) + std::string{" "} +
+                      std::to_string(n5));
+      cells_types.push_back("7");
+      num_cpoints += 6; // 5 points + 1 indice
+
+      for (auto k = 0; k < this->order - 1; k++)
+      {
+        //      - Octogon m-k:
+        n1 = nverts + e->id * (this->order * this->order) + (m + k * this->order);                                    // SP
+        n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + m * (this->order + 1) + k + 1;               // x-FP
+        n3 = nverts + e->id * (this->order * this->order) + (m + (k + 1) * this->order);                              // SP
+        n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + m + 1 + (k + 1) * (this->order + 1); // y-FP
+        n5 = nverts + e->id * (this->order * this->order) + m + 1 + (k + 1) * this->order;                            // SP
+        n6 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1) + k + 1;         // x-FP
+        n7 = nverts + e->id * (this->order * this->order) + m + 1 + k * this->order;                                  // SP
+        n8 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + m + 1 + k * (this->order + 1);       // y-FP
+
+        cells.push_back(std::string{"8 "} +
+                        std::to_string(n1) + std::string{" "} +
+                        std::to_string(n2) + std::string{" "} +
+                        std::to_string(n3) + std::string{" "} +
+                        std::to_string(n4) + std::string{" "} +
+                        std::to_string(n5) + std::string{" "} +
+                        std::to_string(n6) + std::string{" "} +
+                        std::to_string(n7) + std::string{" "} +
+                        std::to_string(n8));
+        cells_types.push_back("7");
+        num_cpoints += 9; // 8 points + 1 indice
+      }
+
+      //      - Pentagon m (2):
+      n1 = nverts + e->id * (this->order * this->order) + (this->order * this->order - this->order + m);                          // SP
+      n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + m * (this->order + 1) + this->order;                       // x-FP
+      n3 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1) + this->order;                 // x-FP
+      n4 = nverts + e->id * (this->order * this->order) + (this->order * this->order - this->order + m + 1);                      // SP
+      n5 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + (this->order + 1) * this->order - this->order + m; // y-FP
+
+      cells.push_back(std::string{"5 "} +
+                      std::to_string(n1) + std::string{" "} +
+                      std::to_string(n2) + std::string{" "} +
+                      std::to_string(n3) + std::string{" "} +
+                      std::to_string(n4) + std::string{" "} +
+                      std::to_string(n5));
+      cells_types.push_back("7");
+      num_cpoints += 6; // 5 points + 1 indice
+    }
+
+    // 1.3) High row:
+    //      - Quad 1:
+    n1 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (this->order + 1) * (this->order - 1); // x-FP
+    n2 = nverts + e->id * (this->order * this->order) + (this->order - 1);                                  // SP
+    n3 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order;                   // y-FP
+    n4 = mesh->get_closest(e->transform(this->fnodes[1][this->order]), e->nodes);                           // nearest vertice from n y-FP
+
+    cells.push_back(std::string{"4 "} +
+                    std::to_string(n1) + std::string{" "} +
+                    std::to_string(n2) + std::string{" "} +
+                    std::to_string(n3) + std::string{" "} +
+                    std::to_string(n4));
+    cells_types.push_back("9");
+    num_cpoints += 5; // 4 points + 1 indice
+    //      - Pentagon k:
+    for (auto k = 0; k < this->order - 1; k++)
+    {
+      n1 = nverts + e->id * (this->order * this->order) + (k + 1) * this->order - 1;                                    // SP
+      n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (k + 1) + (this->order - 1) * (this->order + 1); // x-FP
+      n3 = nverts + e->id * (this->order * this->order) + (k + 2) * this->order - 1;                                    // SP
+      n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + (k + 2) * (this->order + 1) - 1;         // y-FP
+      n5 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + (k + 1) * (this->order + 1) - 1;         // y-FP
+
+      cells.push_back(std::string{"5 "} +
+                      std::to_string(n1) + std::string{" "} +
+                      std::to_string(n2) + std::string{" "} +
+                      std::to_string(n3) + std::string{" "} +
+                      std::to_string(n4) + std::string{" "} +
+                      std::to_string(n5));
+      cells_types.push_back("7");
+      num_cpoints += 6; // 5 points + 1 indice
+    }
+
+    //      - Quad 2:
+    n1 = nverts + e->id * (this->order * this->order) + this->order * this->order - 1;                            // SP
+    n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1;         // x-FP
+    n3 = mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1]), e->nodes);         // nearest vertice from n*(n+1)-1 x-FP
+    n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1; // y-FP
+
+    cells.push_back(std::string{"4 "} +
+                    std::to_string(n1) + std::string{" "} +
+                    std::to_string(n2) + std::string{" "} +
+                    std::to_string(n3) + std::string{" "} +
+                    std::to_string(n4));
+    cells_types.push_back("9");
+    num_cpoints += 5; // 4 points + 1 indice
+  }
+
+  cells_header.push_back(std::string{"CELLS "} +
+                         std::to_string((this->order + 1) * (this->order + 1) * mesh->Nel) +
+                         std::string{" "} +
+                         std::to_string(num_cpoints));
+
+  // header, points, point_data, cells, cells_header
+  // HEADER
+  for (auto &h : header)
+  {
+    output << h << std::endl;
+  }
+
+  // POINTS
+  for (auto &p : points)
+  {
+    output << p << std::endl;
+  }
+
+  // POINT DATA
+  // for (auto & pd : point_data)
+  // {
+  //   output << pd << std::endl;
+  // }
+
+  // CELLS HEADER
+  for (auto &ch : cells_header)
+  {
+    output << ch << std::endl;
+  }
+
+  // CELLS
+  for (auto &c : cells)
+  {
+    output << c << std::endl;
+  }
+
+  // CELL_TYPES
+  for (auto &ct : cells_types)
+  {
+    output << ct << std::endl;
+  }
+
+  // CELL_DATA 841
+  // SCALARS boundary int 1
+  // LOOKUP_TABLE default
+
+  output.close();
 }
 
 /*
