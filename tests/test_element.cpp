@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -12,8 +13,8 @@
 using namespace Catch::literals;
 
 // explicit instances
-template class SD<Euler>;
-template class SD<NavierStokes>;
+// template class SD<Euler>;
+// template class SD<NavierStokes>;
 
 // CONSTRUCTORS
 TEST_CASE("1: Test Quadrangle - constructor", "[elems]")

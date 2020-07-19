@@ -10,7 +10,7 @@ class NavierStokes
 
 namespace Explicit
 {
-  class RungeKutta4th
+  class SSPRungeKutta
   {
   };
   class Euler
