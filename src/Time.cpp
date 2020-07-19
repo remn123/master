@@ -83,7 +83,7 @@ void Time<Method>::write_into_mesh(std::shared_ptr<Mesh>& mesh, ublas::vector<do
 
   for (auto& e : mesh->elems)
   {
-    for (auto& q : e->computational->r)
+    for (auto& q : e->computational->Qsp)
     {
       for (auto& val : q)
       {
