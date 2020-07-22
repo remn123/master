@@ -711,7 +711,7 @@ void SD<NavierStokes>::boundary_condition(Ghost &g, const std::vector<std::share
       g.computational->Qfp[fn.local][2] = -elems[g.elm_id]->computational->Qfp[fn.right][2]; // rho*v
       g.computational->Qfp[fn.local][3] = elems[g.elm_id]->computational->Qfp[fn.right][3];  // E
     }
-
+    break;
   // Supersonic Inlet BC or Far Field (Dirichlet BC)
   case 1:
     for (auto &fn : g.fnodes)
@@ -725,7 +725,7 @@ void SD<NavierStokes>::boundary_condition(Ghost &g, const std::vector<std::share
       g.computational->Qfp[fn.local] = 2.0 * Qbnd - Qint;
       g.computational->dQfp[fn.local] = dQint;
     }
-
+    break;
   // Supersonic Outlet BC (Neumann BC)
   case 2:
     for (auto &fn : g.fnodes)
@@ -737,6 +737,7 @@ void SD<NavierStokes>::boundary_condition(Ghost &g, const std::vector<std::share
       g.computational->Qfp[fn.local] = Qint;
       // g.computational->dQfp[fn.local] = dQint + 2.0*();
     }
+    break;
   }
 }
 
