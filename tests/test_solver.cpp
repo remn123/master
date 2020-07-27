@@ -11,6 +11,7 @@
 #include <Poly.h>
 #include <Mesh.h>
 #include <SD.h>
+#include <Time.h>
 
 using namespace Catch::literals;
 
@@ -65,17 +66,14 @@ TEST_CASE("1: Test Solver - Solution Nodes 2nd Order", "[solver]")
 
   /*
     3) Time Marching Loop
-       3.1) Apply Boundary Conditions on interfaces (flux points)
-      
+      3.1) Calculate residue norm
+      3.2) Check if it's already converged
+      3.3) (if not) Apply time iteration then go to (2)
   */
   double CFL = 0.1;
-  auto time = std::make_shared<TD>(2, CFL);
+  auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>(params...); // TO DO
 
-  time->setup();
+  time->update(mesh, sd->solve);
 
-  time->update(mesh, sd);
-
-  time->save(mesh, sd);
-  // REQUIRE( sd.snodes[0] == Approx(-0.577350269189626).margin(1E-15));
-  // REQUIRE( sd.snodes[1] == Approx(0.577350269189626).margin(1E-15));
+  time->save(mesh, sd->to_vtk);
 }

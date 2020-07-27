@@ -176,6 +176,9 @@ void Triangle::enumerate_edges(void)
   //}
 }
 
+/* ------------------------------ */
+/*            QUADRANGLE          */
+/* ------------------------------ */
 std::vector<long> Quadrangle::get_nodes_by_local_edge_id(long edge_id, bool sorted)
 {
   //auto num_nodes = nodes.size();
@@ -396,8 +399,180 @@ Node Quadrangle::transform(const Node &n)
   return Node{x, y, z};
 }
 
-DVector Quadrangle::transform(const DVector &dvec, bool reverse)
+/* ------------------------------ */
+/*     QUADRANGLE 25-Nodes        */
+/* ------------------------------ */
+std::vector<long> Quadrangle25::get_nodes_by_local_edge_id(long edge_id, bool sorted)
 {
+  // This functions returns a vector of vertices ids
+  // of a required local edge.
+  // First it gets the vertice at the edge_id position
+  // Then validates if it's
+  // Example:
+  //   cell.nodes = {5, 12, 4, 0, ....} // only the first NUM_VERTICES are vertices
+
+  std::vector<long> edge_vertices;
+  edge_vertices.push_back(this->nodes[edge_id]);
+  edge_vertices.push_back(this->nodes[(edge_id == NUM_VERTICES - 1) ? 0 : edge_id + 1]);
+  if (sorted)
+  {
+    std::sort(edge_vertices.begin(), edge_vertices.end());
+  }
+  return edge_vertices;
+}
+
+void Quadrangle25::enumerate_edges(void)
+{
+  // 2D Quad with 25 nodes
+  // vertices: 0 1 2 3 4 ... 24
+  // edges:
+  //		  (0) 0-1
+  //		  (1) 1-2
+  //		  (2) 2-3
+  //		  (3) 3-0
+  //      (4) ...
+  //std::cout << "Enumerating edges of a Quadrangle25" << std::endl;
+
+  long local_id = 0;
+  while (local_id < NUM_FACES)
+  {
+    std::vector<long> ordered_vertices(this->get_nodes_by_local_edge_id(local_id, true));    // true returns sorted vector
+    std::vector<long> unordered_vertices(this->get_nodes_by_local_edge_id(local_id, false)); // false returns unsorted vector
+
+    if (!was_enumerated(ordered_vertices))
+    {
+      this->num_edges++;
+      long edge_id = this->num_edges;
+      // if edge does not exist yet
+      edges_map.emplace(std::make_pair(ordered_vertices, std::vector<long>{edge_id, this->id, -1}));
+
+      this->edges.emplace_back(Edge{unordered_vertices, edge_id, this->id, -1});
+    }
+    else // if the edge exist, find its id
+    {
+      long edge_id = edges_map.find(ordered_vertices)->second[0];
+      long neighbor_id = edges_map.find(ordered_vertices)->second[1];
+
+      this->edges.emplace_back(Edge{unordered_vertices, edge_id, this->id, neighbor_id});
+    }
+    ordered_vertices.clear();
+    unordered_vertices.clear();
+    local_id++;
+  }
+  //edges_map.clear();
+}
+
+void Quadrangle25::allocate_jacobian(int order)
+{
+
+  // SPs = order*order
+  // FPs = (order+1)*order
+  // Jm[0][0:SPs][0:3]
+  // Jm[1][0:FPs][0:3] x
+  // Jm[2][0:FPs][0:3] y
+
+  // Ji[0][0:SPs][0:3]
+  // Ji[1][0:FPs][0:3] x
+  // Ji[2][0:FPs][0:3] y
+
+  this->Jm = std::vector<std::vector<std::vector<double>>>{3, std::vector<std::vector<double>>{(order + 1) * order, std::vector<double>{4}}};
+  this->Ji = std::vector<std::vector<std::vector<double>>>{3, std::vector<std::vector<double>>{(order + 1) * order, std::vector<double>{4}}};
+}
+
+void Quadrangle25::calculate_jacobian(const std::vector<Node> &snodes,
+                                      const std::vector<std::vector<Node>> &fnodes,
+                                      const std::vector<Vertice> &enodes)
+{
+  std::vector<double> x, y;
+  x.reserve(NUM_NODES);
+  y.reserve(NUM_NODES);
+
+  for (size_t i = 0; i <= NUM_NODES; i++)
+  {
+    x.push_back(enodes[this->nodes[i]].coords[0]);
+    y.push_back(enodes[this->nodes[i]].coords[1]);
+  }
+  double a1, a2, b1, b2, c1, c2, d1, d2, csi, eta;
+
+  // this->J = 0.5 * (x2 - x1) + 0.5 * (y4 - y3);
+
+  // a1 = x2 - x1 + x3 - x4;    - + + -
+  // b1 = -x2 - x1 + x3 + x4;   - - + +
+  // c1 = -x2 + x1 + x3 - x4;   + - + -
+  // d1 = x2 + x1 + x3 + x4;    + + + +
+  // a2 = y2 - y1 + y3 - y4;
+  // b2 = -y2 - y1 + y3 + y4;
+  // c2 = -y2 + y1 + y3 - y4;
+  // d2 = y2 + y1 + y3 + y4;
+
+  this->metrics = {a1, b1, c1, d1, a2, b2, c2, d2};
+
+  std::size_t index = 0, s_index = 0, f_index = 0;
+
+  for (auto &node : snodes)
+  {
+    s_index++;
+    // flux node coordinates
+    csi = node.coords[0];
+    eta = node.coords[1];
+
+    /* 
+      Jm = [dx_dcsi  dx_deta;
+            dy_dcsi  dy_deta]
+      
+      Ji = [dcsi_dx  dcsi_dy;
+            deta_dx  deta_dy]
+    */
+
+    this->Jm[index][s_index - 1] = {0.25 * (a1 + c1 * eta), 0.25 * (b1 + c1 * csi),
+                                    0.25 * (a2 + c2 * eta), 0.25 * (b2 + c2 * csi)};
+    this->Ji[index][s_index - 1] = {+this->Jm[index][s_index - 1][3], -this->Jm[index][s_index - 1][1],
+                                    -this->Jm[index][s_index - 1][2], +this->Jm[index][s_index - 1][0]};
+  }
+
+  index = 0;
+  for (auto &vec_lines : fnodes)
+  {
+    index++;
+
+    f_index = 0;
+    for (auto &node : vec_lines) // line nodes for a specific direction (x, y)
+    {
+      f_index++;
+      // flux node coordinates
+      csi = node.coords[0];
+      eta = node.coords[1];
+
+      /* 
+        Jm = [dx_dcsi  dx_deta;
+              dy_dcsi  dy_deta]
+        
+        Ji = [dcsi_dx  dcsi_dy;
+              deta_dx  deta_dy]
+      */
+      this->Jm[index][f_index - 1] = {0.25 * (a1 + c1 * eta), 0.25 * (b1 + c1 * csi),
+                                      0.25 * (a2 + c2 * eta), 0.25 * (b2 + c2 * csi)};
+      this->Ji[index][f_index - 1] = {+this->Jm[index][f_index - 1][3], -this->Jm[index][f_index - 1][1],
+                                      -this->Jm[index][f_index - 1][2], +this->Jm[index][f_index - 1][0]};
+    }
+  }
+}
+
+Node Quadrangle25::transform(const Node &n)
+{
+  /* 
+    Apply mapping from csi, eta (computational) -> x, y (physical)
+   */
+  double x = 0.0, y = 0.0, z = 0.0;
+  double csi = 0.0, eta = 0.0;
+
+  // Physical to Computational
+  csi = n.coords[0];
+  eta = n.coords[1];
+
+  x = 0.25 * (this->metrics[0] * csi + this->metrics[1] * eta + this->metrics[2] * csi * eta + this->metrics[3]);
+  y = 0.25 * (this->metrics[4] * csi + this->metrics[5] * eta + this->metrics[6] * csi * eta + this->metrics[7]);
+  return Node{x, y, z};
 }
 
 void Triangle::allocate_jacobian(int order)
@@ -454,15 +629,7 @@ Node Triangle::transform(const Node &n)
 {
 }
 
-DVector Triangle::transform(const DVector &dvec, bool reverse)
-{
-}
-
 Node Tetrahedron::transform(const Node &n)
-{
-}
-
-DVector Tetrahedron::transform(const DVector &dvec, bool reverse)
 {
 }
 
@@ -470,23 +637,11 @@ Node Hexahedron::transform(const Node &n)
 {
 }
 
-DVector Hexahedron::transform(const DVector &dvec, bool reverse)
-{
-}
-
 Node Prism::transform(const Node &n)
 {
 }
 
-DVector Prism::transform(const DVector &dvec, bool reverse)
-{
-}
-
 Node Pyramid::transform(const Node &n)
-{
-}
-
-DVector Pyramid::transform(const DVector &dvec, bool reverse)
 {
 }
 
@@ -552,6 +707,11 @@ void Quadrangle::print_vertices(void)
   std::cout << "I am a Quadrangle" << std::endl;
 }
 
+void Quadrangle25::print_vertices(void)
+{
+  std::cout << "I am a Quadrangle with 25-nodes" << std::endl;
+}
+
 void Tetrahedron::print_vertices(void)
 {
   std::cout << "I am a Tetrahedron" << std::endl;
@@ -581,6 +741,11 @@ void Triangle::get_vertices(void)
 void Quadrangle::get_vertices(void)
 {
   std::cout << "I am a Quadrangle" << std::endl;
+}
+
+void Quadrangle25::get_vertices(void)
+{
+  std::cout << "I am a Quadrangle with 25-nodes" << std::endl;
 }
 
 void Tetrahedron::get_vertices(void)

@@ -54,7 +54,6 @@ public:
   void get_nodes(void);
   bool was_enumerated(const std::vector<long> &);
   virtual Node transform(const Node &) = 0;
-  virtual DVector transform(const DVector &, bool) = 0;
   virtual void print_vertices(void) = 0;
   virtual void get_vertices(void) = 0;
   virtual void allocate_jacobian(int) = 0;
@@ -76,7 +75,6 @@ public:
   }
 
   Node transform(const Node &);
-  DVector transform(const DVector &, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_edges(void);
@@ -97,7 +95,28 @@ public:
   }
 
   Node transform(const Node &);
-  DVector transform(const DVector &, bool);
+  void print_vertices(void);
+  void get_vertices(void);
+  void enumerate_edges(void);
+  void allocate_jacobian(int);
+  void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &);
+  std::vector<long> get_nodes_by_local_edge_id(long, bool);
+};
+
+// Quadrangle 25-Nodes (4th Order)
+class Quadrangle25 : public Element
+{
+  const int NUM_FACES = 4;
+  const size_t NUM_VERTICES = 4;
+  const size_t NUM_NODES = 25;
+
+public:
+  Quadrangle25(const std::vector<std::string> &node_list) : Element(node_list) { this->enumerate_edges(); }
+  ~Quadrangle25(void)
+  { /*std::cout << "Quadrangle25 has been deleted!" << std::endl; */
+  }
+
+  Node transform(const Node &);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_edges(void);
@@ -115,7 +134,6 @@ public:
   ~Tetrahedron(void) { std::cout << "Tetrahedron has been deleted!" << std::endl; }
 
   Node transform(const Node &);
-  DVector transform(const DVector &, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_faces(void);
@@ -132,7 +150,6 @@ public:
   ~Hexahedron(void) { std::cout << "Hexahedron has been deleted!" << std::endl; }
 
   Node transform(const Node &);
-  DVector transform(const DVector &, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_faces(void);
@@ -149,7 +166,6 @@ public:
   ~Prism(void) { std::cout << "Prism has been deleted!" << std::endl; }
 
   Node transform(const Node &);
-  DVector transform(const DVector &, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_faces(void);
@@ -167,7 +183,6 @@ public:
   ~Pyramid(void) { std::cout << "Pyramid has been deleted!" << std::endl; }
 
   Node transform(const Node &);
-  DVector transform(const DVector &, bool);
   void print_vertices(void);
   void get_vertices(void);
   void enumerate_faces(void);
