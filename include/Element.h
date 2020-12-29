@@ -28,7 +28,7 @@ public:
   long id;
   int fringe;
   int boundary;
-  double J; // Jacobian
+  //double J; // Jacobian
 
   // Jm[0][0:SPs][0:3/8]
   // Jm[1][0:FPs][0:3/8] x
@@ -39,6 +39,7 @@ public:
   // Ji[1][0:FPs][0:3/8] x
   // Ji[2][0:FPs][0:3/8] y
   // Ji[3][0:FPs][0:3/8] z
+  std::vector<std::vector<double>> J;               // Jacobian
   std::vector<std::vector<std::vector<double>>> Jm; // Jacobian Matrix
   std::vector<std::vector<std::vector<double>>> Ji; // Jacobian Inverse Matrix
 
@@ -57,7 +58,9 @@ public:
   virtual void print_vertices(void) = 0;
   virtual void get_vertices(void) = 0;
   virtual void allocate_jacobian(int) = 0;
-  virtual void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &) = 0;
+  virtual void calculate_jacobian(const std::vector<Node> &,
+                                  const std::vector<std::vector<Node>> &,
+                                  const std::vector<Vertice> &) = 0;
 
 private:
 };
@@ -69,7 +72,10 @@ class Triangle : public Element
   const int NUM_FACES = 3;
 
 public:
-  Triangle(const std::vector<std::string> &node_list) : Element(node_list) { this->enumerate_edges(); }
+  Triangle(const std::vector<std::string> &node_list) : Element(node_list)
+  {
+    this->enumerate_edges();
+  }
   ~Triangle(void)
   { /*std::cout << "Triangle has been deleted!" << std::endl; */
   }
@@ -79,7 +85,9 @@ public:
   void get_vertices(void);
   void enumerate_edges(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &);
+  void calculate_jacobian(const std::vector<Node> &,
+                          const std::vector<std::vector<Node>> &,
+                          const std::vector<Vertice> &);
   std::vector<long> get_ordered_nodes_by_local_edge_id(long);
 };
 
@@ -89,7 +97,10 @@ class Quadrangle : public Element
   const int NUM_FACES = 4;
 
 public:
-  Quadrangle(const std::vector<std::string> &node_list) : Element(node_list) { this->enumerate_edges(); }
+  Quadrangle(const std::vector<std::string> &node_list) : Element(node_list)
+  {
+    this->enumerate_edges();
+  }
   ~Quadrangle(void)
   { /*std::cout << "Quadrangle has been deleted!" << std::endl; */
   }
@@ -99,21 +110,29 @@ public:
   void get_vertices(void);
   void enumerate_edges(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &);
+  void calculate_jacobian(const std::vector<Node> &,
+                          const std::vector<std::vector<Node>> &,
+                          const std::vector<Vertice> &);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
-// Quadrangle 25-Nodes (4th Order)
-class Quadrangle25 : public Element
+// Quadrangle High-Order
+class QuadrangleHO : public Element
 {
   const int NUM_FACES = 4;
   const size_t NUM_VERTICES = 4;
-  const size_t NUM_NODES = 25;
+  size_t NUM_NODES = 0;
+  int ORDER;
+  std::vector<double> ce_space;
+  std::unordered_map<int, std::vector<int>> computational_map;
 
 public:
-  Quadrangle25(const std::vector<std::string> &node_list) : Element(node_list) { this->enumerate_edges(); }
-  ~Quadrangle25(void)
-  { /*std::cout << "Quadrangle25 has been deleted!" << std::endl; */
+  QuadrangleHO(const std::vector<std::string> &node_list) : Element(node_list)
+  {
+    this->enumerate_edges();
+  }
+  ~QuadrangleHO(void)
+  { /*std::cout << "QuadrangleHO has been deleted!" << std::endl; */
   }
 
   Node transform(const Node &);
@@ -121,8 +140,14 @@ public:
   void get_vertices(void);
   void enumerate_edges(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &);
+  void calculate_jacobian(const std::vector<Node> &,
+                          const std::vector<std::vector<Node>> &,
+                          const std::vector<Vertice> &);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
+
+private:
+  void calculate_computational_map(void);
+  void recursive_computational_map(std::vector<int>, int, int);
 };
 
 // Tetrahedron
@@ -138,7 +163,9 @@ public:
   void get_vertices(void);
   void enumerate_faces(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &);
+  void calculate_jacobian(const std::vector<Node> &,
+                          const std::vector<std::vector<Node>> &,
+                          const std::vector<Vertice> &);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -154,7 +181,9 @@ public:
   void get_vertices(void);
   void enumerate_faces(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &);
+  void calculate_jacobian(const std::vector<Node> &,
+                          const std::vector<std::vector<Node>> &,
+                          const std::vector<Vertice> &);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -170,7 +199,9 @@ public:
   void get_vertices(void);
   void enumerate_faces(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &);
+  void calculate_jacobian(const std::vector<Node> &,
+                          const std::vector<std::vector<Node>> &,
+                          const std::vector<Vertice> &);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -187,10 +218,13 @@ public:
   void get_vertices(void);
   void enumerate_faces(void);
   void allocate_jacobian(int);
-  void calculate_jacobian(const std::vector<Node> &, const std::vector<std::vector<Node>> &, const std::vector<Vertice> &);
+  void calculate_jacobian(const std::vector<Node> &,
+                          const std::vector<std::vector<Node>> &,
+                          const std::vector<Vertice> &);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
+// https://gitlab.onelab.info/gmsh/gmsh/-/blob/gmsh_4_5_6/Common/GmshDefines.h
 enum class elm_type
 {
   NODE2_LINE = 1,
@@ -223,6 +257,25 @@ enum class elm_type
   NODE6_O5_EDG,
   NODE20_O3_TETRA,
   NODE35_O4_TETRA,
-  NODE56_O5_TETRA
-
+  NODE56_O5_TETRA,
+  NODE22_TETRA,
+  NODE28_TETRA,
+  NODE_POLYG,
+  NODE_POLYH,
+  NODE16_O3_QUAD,
+  NODE25_O4_QUAD,
+  NODE36_O5_QUAD,
+  NODE12_O3_QUAD,
+  NODE16I_O3_QUAD,
+  NODE20_O4_QUAD,
+  NODE_TRI_28,
+  NODE_TRI_36,
+  NODE_TRI_45,
+  NODE_TRI_55,
+  NODE_TRI_66,
+  NODE49_O6_QUAD,
+  NODE64_O7_QUAD,
+  NODE81_O8_QUAD,
+  NODE100_O9_QUAD,
+  NODE121_O10_QUAD,
 };

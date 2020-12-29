@@ -82,7 +82,7 @@ if (Boost_FOUND)
                 tests/test_posproc.cpp
                 #tests/test_pipeline.cpp
                 #tests/test_sd.cpp
-                tests/test_ublas.cpp
+                #tests/test_ublas.cpp
 
     )
 

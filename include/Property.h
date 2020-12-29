@@ -29,7 +29,7 @@ public:
 
   // Conservative Properties
   std::vector<DVector> Qsp; // Solution at Solution nodes
-  std::vector<DVector> Qfp; // Solution at Flux nodes
+  std::vector<std::vector<DVector>> Qfp; // Solution at Flux nodes
 
   // Convective Fluxes
   std::vector<std::vector<DVector>> Fcsp; // Convective Flux at Solution nodes

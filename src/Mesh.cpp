@@ -385,88 +385,91 @@ void Mesh::read_gmsh(const std::string &filename)
               elm_type(elem_type) != elm_type::NODE5_O4_EDG &&
               elm_type(elem_type) != elm_type::NODE6_O5_EDG)
           {
-            switch (elem_type)
+            switch (elm_type(elem_type))
             {
-            case 2:
+            case elm_type::NODE3_TRI:
               elems.emplace_back((std::make_shared<Triangle>(newVec)));
               break;
-            case 3:
-              elems.emplace_back((std::make_shared<Quadrangle>(newVec)));
-              break;
-            case 4:
+            case elm_type::NODE4_TETRA:
               elems.emplace_back((std::make_shared<Tetrahedron>(newVec)));
               break;
-            case 5:
+            case elm_type::NODE8_HEXA:
               elems.emplace_back((std::make_shared<Hexahedron>(newVec)));
               break;
-            case 6:
+            case elm_type::NODE6_PRIS:
               elems.emplace_back((std::make_shared<Prism>(newVec)));
               break;
-            case 7:
+            case elm_type::NODE5_PYR:
               elems.emplace_back((std::make_shared<Pyramid>(newVec)));
               break;
-            case 9:
+            case elm_type::NODE6_O2_TRI:
               elems.emplace_back((std::make_shared<Triangle>(newVec)));
               break;
-            case 10:
+            case elm_type::NODE4_QUAD:
               elems.emplace_back((std::make_shared<Quadrangle>(newVec)));
               break;
-            case 11:
-              elems.emplace_back((std::make_shared<Tetrahedron>(newVec)));
+            case elm_type::NODE9_O2_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 12:
-              elems.emplace_back((std::make_shared<Hexahedron>(newVec)));
+            case elm_type::NODE16_O3_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 13:
-              elems.emplace_back((std::make_shared<Prism>(newVec)));
+            case elm_type::NODE25_O4_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 14:
-              elems.emplace_back((std::make_shared<Pyramid>(newVec)));
+            case elm_type::NODE36_O5_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 16:
-              elems.emplace_back((std::make_shared<Quadrangle>(newVec)));
+            case elm_type::NODE49_O6_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 17:
-              elems.emplace_back((std::make_shared<Hexahedron>(newVec)));
+            case elm_type::NODE64_O7_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 18:
-              elems.emplace_back((std::make_shared<Prism>(newVec)));
+            case elm_type::NODE81_O8_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 19:
-              elems.emplace_back((std::make_shared<Pyramid>(newVec)));
+            case elm_type::NODE100_O9_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 20:
-              elems.emplace_back((std::make_shared<Triangle>(newVec)));
+            case elm_type::NODE121_O10_QUAD:
+              elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-            case 21:
-              elems.emplace_back((std::make_shared<Triangle>(newVec)));
-              break;
-            case 22:
-              elems.emplace_back((std::make_shared<Triangle>(newVec)));
-              break;
-            case 23:
-              elems.emplace_back((std::make_shared<Triangle>(newVec)));
-              break;
-            case 24:
-              elems.emplace_back((std::make_shared<Triangle>(newVec)));
-              break;
-            case 25:
-              elems.emplace_back((std::make_shared<Triangle>(newVec)));
-              break;
-            case 29:
-              elems.emplace_back((std::make_shared<Tetrahedron>(newVec)));
-              break;
-            case 30:
-              elems.emplace_back((std::make_shared<Tetrahedron>(newVec)));
-              break;
-            case 31:
-              elems.emplace_back((std::make_shared<Tetrahedron>(newVec)));
-              break;
+
+              // case elm_type::NODE10_O2_TETRA:
+              //   elems.emplace_back((std::make_shared<Tetrahedron>(newVec)));
+              //   break;
+              // case elm_type::NODE27_O2_HEXA:
+              //   elems.emplace_back((std::make_shared<Hexahedron>(newVec)));
+              //   break;
+              // case elm_type::NODE18_O2_PRIS:
+              //   elems.emplace_back((std::make_shared<Prism>(newVec)));
+              //   break;
+              // case elm_type::NODE14_O2_PYR:
+              //   elems.emplace_back((std::make_shared<Pyramid>(newVec)));
+              //   break;
+              // Serendipity
+              // case 16:
+              //   elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
+              //   break;
+              // case elm_type::NODE20_O2_HEXA:
+              //   elems.emplace_back((std::make_shared<Hexahedron>(newVec)));
+              //   break;
+              // case elm_type::NODE15_O2_PRIS:
+              //   elems.emplace_back((std::make_shared<Prism>(newVec)));
+              //   break;
+              // case elm_type::NODE13_O2_PYR:
+              //   elems.emplace_back((std::make_shared<Pyramid>(newVec)));
+              //   break;
             }
             this->append_elem_to_nodes(elems.back());
             newVec.clear();
           }
-          else if (elm_type(elem_type) == elm_type::NODE2_LINE)
+          else if (elm_type(elem_type) == elm_type::NODE2_LINE ||
+                   elm_type(elem_type) == elm_type::NODE3_O2_LINE ||
+                   elm_type(elem_type) == elm_type::NODE4_O3_EDG ||
+                   elm_type(elem_type) == elm_type::NODE5_O4_EDG ||
+                   elm_type(elem_type) == elm_type::NODE6_O5_EDG)
           {
             this->append_boundary_face(entity_tag, physical_tag, newVec);
           }
@@ -624,13 +627,15 @@ void Mesh::append_elem_to_nodes(const std::shared_ptr<Element> &e)
 
 void Mesh::append_boundary_face(const int entity_tag, const int physical_tag, const std::vector<std::string> &node_list)
 {
+  // Consider only the first and last nodes (the vertices) to create an edge
+  std::vector<std::string> vertices_list = {node_list[0], node_list.back()};
   std::vector<long> edges_nodes = {};
   edges_nodes.reserve(2);
 
   // transforming vector<string> to vector<int>
   // subtract 1 from the node_id because the first id for GMSH is 1, but as I am using the node id to consult it on a vector
   // I need it to be 0-started.
-  std::transform(node_list.begin(), node_list.end(), std::back_inserter(edges_nodes),
+  std::transform(vertices_list.begin(), vertices_list.end(), std::back_inserter(edges_nodes),
                  [](const std::string &str) { return std::stol(str) - 1; });
 
   // Sort vector so when we search for this edge, we have an easy match
