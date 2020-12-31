@@ -63,6 +63,7 @@ public:
 	void mark_boundaries(void);
 	void to_vtk(const std::string &);
 	long get_closest(const Node &, std::vector<long> &);
+	double get_residue_norm(int);
 	//void calculate_jacobians(std::shared_ptr<Element>&);
 
 private:

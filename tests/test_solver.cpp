@@ -70,10 +70,20 @@ TEST_CASE("1: Test Solver - Solution Nodes 2nd Order", "[solver]")
       3.2) Check if it's already converged
       3.3) (if not) Apply time iteration then go to (2)
   */
-  double CFL = 0.1;
+  double CFL = 0.1, Linf = 0.0;
   auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>(params...); // TO DO
+  long MAX_ITER = 1E+3;
+  long iter = 0;
+  while (iter <= MAX_ITER)
+  {
+    time->update(mesh, sd->solve);
 
-  time->update(mesh, sd->solve);
+    //L1 = mesh->get_residue_norm(0); // L1-norm
+    //L2 = mesh->get_residue_norm(1); // L2-norm
+    Linf = mesh->get_residue_norm(2); // Linf-norm
+    iter++;
+    std::cout << "Iter[" << iter << "]: Residue " << log10(Linf) << std::endl;
+  }
 
   time->save(mesh, sd->to_vtk);
 }

@@ -674,6 +674,86 @@ long Mesh::get_closest(const Node &n2, std::vector<long> &kneighbors)
   return closest;
 }
 
+double Mesh::get_residue_norm(int type)
+{
+  double res_norm = 0.0, cell_res_norm = 0.0, L_norm = 0.0;
+
+  switch (type)
+  {
+  // L1-norm
+  case 1:
+    // for each cell
+    for (auto &e : this->elems)
+    {
+      cell_res_norm = 0.0;
+      // for each cell's node (solution points)
+      for (auto &node : e->computational->res)
+      {
+        res_norm = 0.0;
+        for (auto r : node)
+          res_norm += r * r;
+        res_norm = sqrt(res_norm);
+
+        if (cell_res_norm <= res_norm)
+          cell_res_norm = res_norm;
+      }
+
+      L_norm += cell_res_norm;
+    }
+    break;
+
+  // L2-norm
+  case 2:
+    // for each cell
+    for (auto &e : this->elems)
+    {
+      cell_res_norm = 0.0;
+      // for each cell's node (solution points)
+      for (auto &node : e->computational->res)
+      {
+        res_norm = 0.0;
+        for (auto k = 0; k < node.size(); k++)
+          res_norm += node[k] * node[k];
+        res_norm = sqrt(res_norm);
+
+        if (cell_res_norm <= res_norm)
+          cell_res_norm = res_norm;
+      }
+
+      L_norm += pow(cell_res_norm, 2.0);
+    }
+    L_norm = sqrt(L_norm);
+    break;
+
+  // Linf-norm
+  case 3:
+    // for each cell
+    for (auto &e : this->elems)
+    {
+      cell_res_norm = 0.0;
+      // for each cell's node (solution points)
+      for (auto &node : e->computational->res)
+      {
+        res_norm = 0.0;
+        for (auto k = 0; k < node.size(); k++)
+          res_norm += node[k] * node[k];
+        res_norm = sqrt(res_norm);
+
+        if (cell_res_norm <= res_norm)
+          cell_res_norm = res_norm;
+      }
+      if (L_norm <= cell_res_norm)
+        L_norm = cell_res_norm;
+    }
+    break;
+
+  default:
+    break;
+  }
+
+  return L_norm;
+}
+
 // ------------------------------------------------------------------------ //
 
 // Static Mesh

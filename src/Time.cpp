@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <math>
 // #include <boost/numeric/ublas/vector.hpp>
 
 #include <Dummies.h>
@@ -25,6 +26,7 @@ Time<Explicit::SSPRungeKutta>::Time(double CFL, long MAX_ITER,
   this->stages = stages;
   this->order = order;
   this->dt = -1.0;
+  this->iter = 0;
 
   // Initialize DVectors
   for (auto i = 0; i < stages; i++)
@@ -108,13 +110,16 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
                                            void (*solve)(std::shared_ptr<Mesh> &))
 {
   // Strong-Stability-Preserving Runge Kutta(s,o) s-stage, o-order
+  double Linf = 0.0;
 
   // U(0)   = U(n)
   // for i in [1, ..., s]; for k in [0, 1, ..., i-1];
   // U(i)   = U(0) + dt*SUM(cik*Residue(U(k)))
   // U(n+1) = U(s)
 
-  this->dt = CFL * dx / (U * (2.0 * p + 1.0)); // TO DO
+  //this->dt = CFL * dx / (U * (2.0 * p + 1.0)); // TO DO
+  this->dt = 0.01 * CFL;
+
   // Diferentes abordagens (preproc):
   // - const dx -> weak
   // - U = max(u) ? evolve during simulation
@@ -148,6 +153,22 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
   this->write_solution(mesh, this->stages);
   // re-calculates residue
   solve(mesh);
+  this->iter++;
+
+  //L1 = mesh->get_residue_norm(0); // L1-norm
+  //L2 = mesh->get_residue_norm(1); // L2-norm
+  Linf = mesh->get_residue_norm(2); // Linf-norm
+  if (this->iter % 100 == 0)
+    std::cout << "Iter[" << iter << "]: Residue " << log10(Linf) << std::endl;
+}
+
+// Main time step loop
+template <typename Method>
+void Time<Method>::loop(std::shared_ptr<Mesh> &mesh,
+                        void (*solve)(std::shared_ptr<Mesh> &))
+{
+  while (this->iter <= this->MAX_ITER)
+    this->update(mesh, solve);
 }
 
 template <typename Method>

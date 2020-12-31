@@ -346,7 +346,7 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element> &e, const std::ve
     {
       global_fn = this->order * indice + (this->order + 1) * idx;
       // Project node from computational to physical space
-      n = e->transform(this->fnodes[dir][global_fn]); // need copy constructor
+      n = e->transform(this->fnodes[dir][global_fn], enodes); // need copy constructor
       fn.push_back(fNode{idx, global_fn, n});
     }
 
@@ -437,7 +437,7 @@ void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element> &e, const 
     {
       global_fn = this->order * indice + (this->order + 1) * idx;
       // Project node from computational to physical space
-      n = e->transform(this->fnodes[dir][global_fn]); // need copy constructor
+      n = e->transform(this->fnodes[dir][global_fn], enodes); // need copy constructor
       fn.push_back(fNode{idx, global_fn, n});
     }
 
@@ -1943,7 +1943,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     auto s_index = 0;
     while (s_index < this->order * this->order)
     {
-      auto n = e->transform(this->snodes[s_index]);
+      auto n = e->transform(this->snodes[s_index], mesh->nodes);
       points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
                        std::to_string(n.coords[1]) + std::string(" ") +
                        std::to_string(n.coords[2]));
@@ -1997,7 +1997,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     auto f_index = 0;
     while (f_index < this->order * (this->order + 1))
     {
-      auto n = e->transform(this->fnodes[0][f_index]);
+      auto n = e->transform(this->fnodes[0][f_index], mesh->nodes);
       points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
                        std::to_string(n.coords[1]) + std::string(" ") +
                        std::to_string(n.coords[2]));
@@ -2013,7 +2013,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     auto f_index = 0;
     while (f_index < this->order * (this->order + 1))
     {
-      auto n = e->transform(this->fnodes[1][f_index]);
+      auto n = e->transform(this->fnodes[1][f_index], mesh->nodes);
       points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
                        std::to_string(n.coords[1]) + std::string(" ") +
                        std::to_string(n.coords[2]));
@@ -2028,10 +2028,10 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     // 1) define new elements
     // 1.1) First row:
     //      - Quad 1:
-    n1 = mesh->get_closest(e->transform(this->fnodes[1][0]), e->nodes);         // nearest vertice from 0 y-FP
-    n2 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + 0; // y-FP
-    n3 = nverts + e->id * (this->order * this->order) + 0;                      // SP
-    n4 = nverts + nsps + e->id * (this->order * (this->order + 1)) + 0;         // x-FP
+    n1 = mesh->get_closest(e->transform(this->fnodes[1][0], mesh->nodes), e->nodes); // nearest vertice from 0 y-FP
+    n2 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + 0;      // y-FP
+    n3 = nverts + e->id * (this->order * this->order) + 0;                           // SP
+    n4 = nverts + nsps + e->id * (this->order * (this->order + 1)) + 0;              // x-FP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2061,10 +2061,10 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     }
 
     //      - Quad 2:
-    n1 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + ((this->order + 1) * (this->order - 1)); // y-FP
-    n2 = mesh->get_closest(e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)]), e->nodes);           // nearest vertice from 0 y-FP
-    n3 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order;                                     // x-FP
-    n4 = nverts + e->id * (this->order * this->order) + this->order * (this->order - 1);                              // SP
+    n1 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + ((this->order + 1) * (this->order - 1));    // y-FP
+    n2 = mesh->get_closest(e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)], mesh->nodes), e->nodes); // nearest vertice from 0 y-FP
+    n3 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order;                                        // x-FP
+    n4 = nverts + e->id * (this->order * this->order) + this->order * (this->order - 1);                                 // SP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2140,7 +2140,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     n1 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (this->order + 1) * (this->order - 1); // x-FP
     n2 = nverts + e->id * (this->order * this->order) + (this->order - 1);                                  // SP
     n3 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order;                   // y-FP
-    n4 = mesh->get_closest(e->transform(this->fnodes[1][this->order]), e->nodes);                           // nearest vertice from n y-FP
+    n4 = mesh->get_closest(e->transform(this->fnodes[1][this->order], mesh->nodes), e->nodes);              // nearest vertice from n y-FP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2169,10 +2169,10 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     }
 
     //      - Quad 2:
-    n1 = nverts + e->id * (this->order * this->order) + this->order * this->order - 1;                            // SP
-    n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1;         // x-FP
-    n3 = mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1]), e->nodes);         // nearest vertice from n*(n+1)-1 x-FP
-    n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1; // y-FP
+    n1 = nverts + e->id * (this->order * this->order) + this->order * this->order - 1;                                 // SP
+    n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1;              // x-FP
+    n3 = mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1], mesh->nodes), e->nodes); // nearest vertice from n*(n+1)-1 x-FP
+    n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1;      // y-FP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +

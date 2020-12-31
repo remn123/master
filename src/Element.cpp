@@ -424,7 +424,7 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
   }
 }
 
-Node Quadrangle::transform(const Node &n)
+Node Quadrangle::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
   /* 
     Apply mapping from csi, eta (computational) -> x, y (physical)
@@ -591,10 +591,10 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
       dLcsi = Helpers<Lagrange>::dPn(i, csi);
       dLeta = Helpers<Lagrange>::dPn(j, eta);
 
-      dx_dcsi += dLcsi * Leta * enodes[this->nodes[i]].coords[0];
-      dx_deta += Lcsi * dLeta * enodes[this->nodes[i]].coords[0];
-      dy_dcsi += dLcsi * Leta * enodes[this->nodes[i]].coords[1];
-      dy_deta += Lcsi * dLeta * enodes[this->nodes[i]].coords[1];
+      dx_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[0];
+      dx_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[0];
+      dy_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[1];
+      dy_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[1];
     }
     this->J[index][s_index - 1] = dx_dcsi * dy_deta - dx_deta * dy_dcsi;
     this->Jm[index][s_index - 1] = {dx_dcsi, dx_deta,
@@ -633,10 +633,10 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
         dLcsi = Helpers<Lagrange>::dPn(i, csi);
         dLeta = Helpers<Lagrange>::dPn(j, eta);
 
-        dx_dcsi += dLcsi * Leta * enodes[this->nodes[i]].coords[0];
-        dx_deta += Lcsi * dLeta * enodes[this->nodes[i]].coords[0];
-        dy_dcsi += dLcsi * Leta * enodes[this->nodes[i]].coords[1];
-        dy_deta += Lcsi * dLeta * enodes[this->nodes[i]].coords[1];
+        dx_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[0];
+        dx_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[0];
+        dy_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[1];
+        dy_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[1];
       }
       /* 
         Jm = [dx_dcsi  dx_deta;
@@ -753,22 +753,37 @@ void QuadrangleHO::calculate_computational_map(void)
   this->recursive_computational_map(indices, 0, 0);
 }
 
-Node QuadrangleHO::transform(const Node &n)
+Node QuadrangleHO::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
   /* 
     Apply mapping from csi, eta (computational) -> x, y (physical)
    */
-  // double x = 0.0, y = 0.0, z = 0.0;
-  // double csi = 0.0, eta = 0.0;
+  double x = 0.0, y = 0.0, z = 0.0;
+  double csi = 0.0, eta = 0.0;
+  double Lcsi = 0.0, Leta = 0.0;
 
-  // Physical to Computational
-  // csi = n.coords[0];
-  // eta = n.coords[1];
+  Helpers<Lagrange>::init();
+  Helpers<Lagrange>::set_nodes(this->ce_space);
 
-  // x = 0.25 * (this->metrics[0] * csi + this->metrics[1] * eta + this->metrics[2] * csi * eta + this->metrics[3]);
-  // y = 0.25 * (this->metrics[4] * csi + this->metrics[5] * eta + this->metrics[6] * csi * eta + this->metrics[7]);
-  // return Node{x, y, z};
-  return Node();
+  csi = n.coords[0];
+  eta = n.coords[1];
+
+  // Computational to Physical
+  for (int k = 0; k < this->NUM_NODES; k++)
+  {
+    auto coords = this->computational_map.find(k)->second;
+    int i = coords[0];
+    int j = coords[1];
+
+    Lcsi = Helpers<Lagrange>::Pn(i, csi);
+    Leta = Helpers<Lagrange>::Pn(j, eta);
+
+    x += Lcsi * Leta * enodes[this->nodes[k]].coords[0];
+    y += Lcsi * Leta * enodes[this->nodes[k]].coords[1];
+  }
+
+  return Node{x, y, z};
+  //return Node();
 }
 
 void Triangle::allocate_jacobian(int order)
@@ -821,23 +836,23 @@ void Pyramid::calculate_jacobian(const std::vector<Node> &snodes,
 {
 }
 
-Node Triangle::transform(const Node &n)
+Node Triangle::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
 }
 
-Node Tetrahedron::transform(const Node &n)
+Node Tetrahedron::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
 }
 
-Node Hexahedron::transform(const Node &n)
+Node Hexahedron::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
 }
 
-Node Prism::transform(const Node &n)
+Node Prism::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
 }
 
-Node Pyramid::transform(const Node &n)
+Node Pyramid::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
 }
 

@@ -25,8 +25,13 @@ if (Boost_FOUND)
     project(master)
 
     # master 
+    # add_executable(master_exe 
+    #             src/Main.cpp
+    # )
+
+    # ringleb 
     add_executable(master_exe 
-                src/Main.cpp
+                src/ringleb.cpp
     )
 
     target_link_libraries(master_exe
