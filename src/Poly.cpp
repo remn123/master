@@ -19,10 +19,10 @@ void Poly::newton_raphson(double a, double b, unsigned int k, unsigned int n, do
     xn = x0 - this->Pn(a, b, n, x0) / (this->dPn(a, b, n, x0) - this->Pn(a, b, n, x0) * S);
     dx = abs(xn - x0);
     x0 = xn;
-    if (counter % 100 == 0)
-    {
-      std::cout << "[newton_raphson] - Iter(" << counter << "): Residue = " << log10(dx) << "; xn = " << xn << "; r = " << r << "\n";
-    }
+    // if (counter % 100 == 0)
+    // {
+    //   std::cout << "[newton_raphson] - Iter(" << counter << "): Residue = " << log10(dx) << "; xn = " << xn << "; r = " << r << "\n";
+    // }
     counter++;
   }
   this->nodes[k] = xn;
@@ -69,8 +69,8 @@ unsigned long Poly::factorial(unsigned int n)
   }
   else if (this->memo.size() > n)
   {
-    std::cout << "Ahá MEMO for n = " << n << "!!!!!\n";
-    std::cout << "n! = " << this->memo[n] << "\n";
+    // std::cout << "Ahá MEMO for n = " << n << "!!!!!\n";
+    // std::cout << "n! = " << this->memo[n] << "\n";
     return this->memo[n];
   }
 
@@ -91,8 +91,8 @@ void Poly::delete_nodes(void)
 // Chebyshev
 void Chebyshev::setup(unsigned int n)
 {
-  std::cout << "Setting up Chebyshev Polynomials"
-            << "\n";
+  // std::cout << "Setting up Chebyshev Polynomials"
+  //           << "\n";
 
   double xk = 0.0;
   if (this->nodes.size() != n)
@@ -125,8 +125,8 @@ double Chebyshev::get_node(unsigned int k)
 // Gauss-Legendre
 void GL::setup(unsigned int n)
 {
-  std::cout << "Setting up Gauss-Legendre Polynomials"
-            << "\n";
+  // std::cout << "Setting up Gauss-Legendre Polynomials"
+  //           << "\n";
 
   double r = 0.0;
   if (this->nodes.size() != n)
@@ -166,8 +166,8 @@ double GL::get_node(unsigned int k)
 // Guass-Legendre-Lobatto
 void GLL::setup(unsigned int n)
 {
-  std::cout << "Setting up Gauss-Legendre-Lobatto Polynomials"
-            << "\n";
+  // std::cout << "Setting up Gauss-Legendre-Lobatto Polynomials"
+  //           << "\n";
 
   double r = 0.0;
   if (this->nodes.size() != n)
@@ -208,8 +208,8 @@ double GLL::get_node(unsigned int k)
 // Lagrange
 void Lagrange::setup(std::vector<double> nodes)
 {
-  std::cout << "Setting up Lagrange Polynomials"
-            << "\n";
+  // std::cout << "Setting up Lagrange Polynomials"
+  //           << "\n";
   this->nodes = nodes;
 }
 

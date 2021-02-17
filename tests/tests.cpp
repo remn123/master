@@ -17,29 +17,29 @@ TEST_CASE("1: Check elements' id of a Mesh Object", "[multi-file:2]")
 {
   fs::path cur_path = fs::current_path();
 
-  Mesh mesh1{2};
+  auto mesh1 = std::make_shared<Mesh>(2);
 
-  mesh1.read_gmsh((cur_path.parent_path() / "resources" / "mesh_test.msh").string());
+  mesh1->read_gmsh((cur_path.parent_path() / "resources" / "mesh_test.msh").string());
 
-  REQUIRE(mesh1.nodes.size() == 9);
-  REQUIRE(mesh1.elems.size() == 4);
+  REQUIRE(mesh1->nodes.size() == 9);
+  REQUIRE(mesh1->elems.size() == 4);
 
-  REQUIRE(mesh1.elems[0]->id == 0);
-  REQUIRE(mesh1.elems[3]->id == 3);
+  REQUIRE(mesh1->elems[0]->id == 0);
+  REQUIRE(mesh1->elems[3]->id == 3);
 }
 
 TEST_CASE("2: Check nodes' id of an Element Object", "[mesh]")
 {
   fs::path cur_path = fs::current_path();
 
-  Mesh mesh1{2};
+  auto mesh1 = std::make_shared<Mesh>(2);
 
-  mesh1.read_gmsh((cur_path.parent_path() / "resources" / "mesh_test.msh").string());
+  mesh1->read_gmsh((cur_path.parent_path() / "resources" / "mesh_test.msh").string());
 
-  long n0 = mesh1.elems[0]->nodes[0];
-  long n1 = mesh1.elems[0]->nodes[1];
-  long n2 = mesh1.elems[0]->nodes[2];
-  long n3 = mesh1.elems[0]->nodes[3];
+  long n0 = mesh1->elems[0]->nodes[0];
+  long n1 = mesh1->elems[0]->nodes[1];
+  long n2 = mesh1->elems[0]->nodes[2];
+  long n3 = mesh1->elems[0]->nodes[3];
 
   SECTION("Check Element nodes component")
   {
@@ -51,10 +51,10 @@ TEST_CASE("2: Check nodes' id of an Element Object", "[mesh]")
 
   SECTION("Check Mesh nodes id")
   {
-    REQUIRE(mesh1.nodes[n0].id == 8);
-    REQUIRE(mesh1.nodes[n1].id == 6);
-    REQUIRE(mesh1.nodes[n2].id == 3);
-    REQUIRE(mesh1.nodes[n3].id == 7);
+    REQUIRE(mesh1->nodes[n0].id == 8);
+    REQUIRE(mesh1->nodes[n1].id == 6);
+    REQUIRE(mesh1->nodes[n2].id == 3);
+    REQUIRE(mesh1->nodes[n3].id == 7);
   }
 }
 
@@ -62,42 +62,42 @@ TEST_CASE("3: Check coordinates of a Node Object", "[mesh]")
 {
   fs::path cur_path = fs::current_path();
 
-  Mesh mesh1{2};
+  auto mesh1 = std::make_shared<Mesh>(2);
 
-  mesh1.read_gmsh((cur_path.parent_path() / "resources" / "mesh_test.msh").string());
+  mesh1->read_gmsh((cur_path.parent_path() / "resources" / "mesh_test.msh").string());
 
-  long n = mesh1.elems[0]->nodes[0];
+  long n = mesh1->elems[0]->nodes[0];
 
-  REQUIRE(mesh1.nodes[n].coords[0] == 0.4983490244891706);
-  REQUIRE(mesh1.nodes[n].coords[1] == 0.4983490244891706);
-  REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
-  // for (auto& node: mesh1.elems[0]->nodes)
+  REQUIRE(mesh1->nodes[n].coords[0] == 0.4983490244891706);
+  REQUIRE(mesh1->nodes[n].coords[1] == 0.4983490244891706);
+  REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
+  // for (auto& node: mesh1->elems[0]->nodes)
   //     std::cout << "Element[0]->Node[" << node << "]: ("
-  //               << mesh1.nodes[node].coords[0] << ", "
-  //               << mesh1.nodes[node].coords[1] << ", "
-  //               << mesh1.nodes[node].coords[2] << ")\n";
+  //               << mesh1->nodes[node].coords[0] << ", "
+  //               << mesh1->nodes[node].coords[1] << ", "
+  //               << mesh1->nodes[node].coords[2] << ")\n";
 }
 
 TEST_CASE("4: Check edges of a Mesh Object", "[mesh2]")
 {
   fs::path cur_path = fs::current_path();
 
-  Mesh mesh1{2};
+  auto mesh1 = std::make_shared<Mesh>(2);
 
-  mesh1.read_gmsh((cur_path.parent_path() / "resources" / "mesh_test.msh").string());
+  mesh1->read_gmsh((cur_path.parent_path() / "resources" / "mesh_test.msh").string());
 
   // Check if element is a Quadrangle
 
   // Check the number of elements, nodes and edges
   SECTION("Check the number of elements, nodes and edges")
   {
-    REQUIRE(mesh1.elems.size() == 4);
-    REQUIRE(mesh1.nodes.size() == 9);
-    REQUIRE(mesh1.ghosts.size() == 8);
-    REQUIRE(mesh1.Nel == 4);
-    REQUIRE(mesh1.N == 9);
-    REQUIRE(mesh1.Ngh == 8);
-    REQUIRE(mesh1.Ned == 12);
+    REQUIRE(mesh1->elems.size() == 4);
+    REQUIRE(mesh1->nodes.size() == 9);
+    REQUIRE(mesh1->ghosts.size() == 8);
+    REQUIRE(mesh1->Nel == 4);
+    REQUIRE(mesh1->N == 9);
+    REQUIRE(mesh1->Ngh == 8);
+    REQUIRE(mesh1->Ned == 12);
   }
   long n = 0;
 
@@ -105,106 +105,106 @@ TEST_CASE("4: Check edges of a Mesh Object", "[mesh2]")
   {
     // Element 0: 8 6 3 7
     // Node 0
-    n = mesh1.elems[0]->nodes[0];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.4983490244891706);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.4983490244891706);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[0]->nodes[0];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.4983490244891706);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.4983490244891706);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 8);
     // Node 1
-    n = mesh1.elems[0]->nodes[1];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.5000000000020595);
-    REQUIRE(mesh1.nodes[n].coords[1] == 1.0);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[0]->nodes[1];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.5000000000020595);
+    REQUIRE(mesh1->nodes[n].coords[1] == 1.0);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 6);
     // Node 2
-    n = mesh1.elems[0]->nodes[2];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.0);
-    REQUIRE(mesh1.nodes[n].coords[1] == 1.0);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[0]->nodes[2];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.0);
+    REQUIRE(mesh1->nodes[n].coords[1] == 1.0);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 3);
     // Node 3
-    n = mesh1.elems[0]->nodes[3];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.0);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.5000000000020595);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[0]->nodes[3];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.0);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.5000000000020595);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 7);
 
     // Element 1: 8 5 2 6
     // Node 0
-    n = mesh1.elems[1]->nodes[0];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.4983490244891706);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.4983490244891706);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[1]->nodes[0];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.4983490244891706);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.4983490244891706);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 8);
     // Node 1
-    n = mesh1.elems[1]->nodes[1];
-    REQUIRE(mesh1.nodes[n].coords[0] == 1.0);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.4999999999986921);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[1]->nodes[1];
+    REQUIRE(mesh1->nodes[n].coords[0] == 1.0);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.4999999999986921);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 5);
     // Node 2
-    n = mesh1.elems[1]->nodes[2];
-    REQUIRE(mesh1.nodes[n].coords[0] == 1.0);
-    REQUIRE(mesh1.nodes[n].coords[1] == 1.0);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[1]->nodes[2];
+    REQUIRE(mesh1->nodes[n].coords[0] == 1.0);
+    REQUIRE(mesh1->nodes[n].coords[1] == 1.0);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 2);
     // Node 3
-    n = mesh1.elems[1]->nodes[3];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.5000000000020595);
-    REQUIRE(mesh1.nodes[n].coords[1] == 1.0);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[1]->nodes[3];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.5000000000020595);
+    REQUIRE(mesh1->nodes[n].coords[1] == 1.0);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 6);
 
     // Element 2: 8 4 1 5
     // Node 0
-    n = mesh1.elems[2]->nodes[0];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.4983490244891706);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.4983490244891706);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[2]->nodes[0];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.4983490244891706);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.4983490244891706);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 8);
     // Node 1
-    n = mesh1.elems[2]->nodes[1];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.4999999999986921);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.0);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[2]->nodes[1];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.4999999999986921);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.0);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 4);
     // Node 2
-    n = mesh1.elems[2]->nodes[2];
-    REQUIRE(mesh1.nodes[n].coords[0] == 1.0);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.0);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[2]->nodes[2];
+    REQUIRE(mesh1->nodes[n].coords[0] == 1.0);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.0);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 1);
     // Node 3
-    n = mesh1.elems[2]->nodes[3];
-    REQUIRE(mesh1.nodes[n].coords[0] == 1.0);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.4999999999986921);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[2]->nodes[3];
+    REQUIRE(mesh1->nodes[n].coords[0] == 1.0);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.4999999999986921);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 5);
 
     // Element 3: 7 0 4 8
     // Node 0
-    n = mesh1.elems[3]->nodes[0];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.0);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.5000000000020595);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[3]->nodes[0];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.0);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.5000000000020595);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 7);
     // Node 1
-    n = mesh1.elems[3]->nodes[1];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.0);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.0);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[3]->nodes[1];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.0);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.0);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 0);
     // Node 2
-    n = mesh1.elems[3]->nodes[2];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.4999999999986921);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.0);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[3]->nodes[2];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.4999999999986921);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.0);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 4);
     // Node 3
-    n = mesh1.elems[3]->nodes[3];
-    REQUIRE(mesh1.nodes[n].coords[0] == 0.4983490244891706);
-    REQUIRE(mesh1.nodes[n].coords[1] == 0.4983490244891706);
-    REQUIRE(mesh1.nodes[n].coords[2] == 0.0);
+    n = mesh1->elems[3]->nodes[3];
+    REQUIRE(mesh1->nodes[n].coords[0] == 0.4983490244891706);
+    REQUIRE(mesh1->nodes[n].coords[1] == 0.4983490244891706);
+    REQUIRE(mesh1->nodes[n].coords[2] == 0.0);
     REQUIRE(n == 8);
   }
 
@@ -235,7 +235,7 @@ TEST_CASE("4: Check edges of a Mesh Object", "[mesh2]")
     long count = 0;
     for (auto &ed : edges)
     {
-      auto search = mesh1.bc_map.find(ed);
+      auto search = mesh1->bc_map.find(ed);
       auto physical_tag = search->second[0];
       auto entity_tag = search->second[1];
       REQUIRE(physical_tag == physical_tags[count]);
@@ -246,7 +246,7 @@ TEST_CASE("4: Check edges of a Mesh Object", "[mesh2]")
 
   SECTION("Check edges boundary conditions")
   {
-    for (auto &e : mesh1.elems)
+    for (auto &e : mesh1->elems)
     {
       for (auto &ed : e->edges)
       {
@@ -255,7 +255,7 @@ TEST_CASE("4: Check edges of a Mesh Object", "[mesh2]")
           auto nodes = ed.nodes;
           std::sort(nodes.begin(), nodes.end());
 
-          auto search = mesh1.bc_map.find(nodes);
+          auto search = mesh1->bc_map.find(nodes);
           auto physical_tag = search->second[0];
           auto entity_tag = search->second[1];
           REQUIRE(physical_tag == ed.type);
@@ -268,13 +268,13 @@ TEST_CASE("4: Check edges of a Mesh Object", "[mesh2]")
   SECTION("Check edges' neighbors boundary conditions")
   {
     auto count = 0;
-    for (auto &e : mesh1.elems)
+    for (auto &e : mesh1->elems)
     {
       for (auto &ed : e->edges)
       {
         if (ed.boundary == 1)
         {
-          auto ghost = mesh1.ghosts[ed.ghost];
+          auto ghost = mesh1->ghosts[ed.ghost];
 
           REQUIRE(ghost.type == ed.type);
           REQUIRE(ghost.group == ed.group);
@@ -287,7 +287,7 @@ TEST_CASE("4: Check edges of a Mesh Object", "[mesh2]")
   }
 
   // int local=0;
-  // for (auto& e: mesh1.elems)
+  // for (auto& e: mesh1->elems)
   // {
   //   std::cout << "Element[" << e->id << "]: \n";
   //   local = 0;

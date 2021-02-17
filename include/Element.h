@@ -14,6 +14,10 @@
 class Element
 {
 public:
+  int NUM_FACES = 0;
+  size_t NUM_VERTICES = 0;
+  size_t NUM_NODES = 0;
+
   //std::vector<int> nodes;
   std::vector<long> nodes;
   std::vector<Edge> edges;
@@ -61,6 +65,7 @@ public:
   virtual void calculate_jacobian(const std::vector<Node> &,
                                   const std::vector<std::vector<Node>> &,
                                   const std::vector<Vertice> &) = 0;
+  virtual double calculate_jacobian_at_node(const Node&) = 0;
 
 private:
 };
@@ -69,11 +74,12 @@ private:
 // Triangle
 class Triangle : public Element
 {
-  const int NUM_FACES = 3;
-
 public:
   Triangle(const std::vector<std::string> &node_list) : Element(node_list)
   {
+    this->NUM_FACES = 3;
+    this->NUM_VERTICES = 3;
+    this->NUM_NODES = 3;
     this->enumerate_edges();
   }
   ~Triangle(void)
@@ -88,17 +94,19 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
+  double calculate_jacobian_at_node(const Node&);
   std::vector<long> get_ordered_nodes_by_local_edge_id(long);
 };
 
 // Quadrangle
 class Quadrangle : public Element
 {
-  const int NUM_FACES = 4;
-
 public:
   Quadrangle(const std::vector<std::string> &node_list) : Element(node_list)
   {
+    this->NUM_FACES = 4;
+    this->NUM_VERTICES = 4;
+    this->NUM_NODES = 4;
     this->enumerate_edges();
   }
   ~Quadrangle(void)
@@ -113,15 +121,14 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
+  double calculate_jacobian_at_node(const Node&);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
 // Quadrangle High-Order
 class QuadrangleHO : public Element
 {
-  const int NUM_FACES = 4;
-  const size_t NUM_VERTICES = 4;
-  size_t NUM_NODES = 0;
+  
   int ORDER;
   std::vector<double> ce_space;
   std::unordered_map<int, std::vector<int>> computational_map;
@@ -129,6 +136,9 @@ class QuadrangleHO : public Element
 public:
   QuadrangleHO(const std::vector<std::string> &node_list) : Element(node_list)
   {
+    this->NUM_FACES = 4;
+    this->NUM_VERTICES = 4;
+    this->NUM_NODES = 0;
     this->enumerate_edges();
   }
   ~QuadrangleHO(void)
@@ -143,6 +153,7 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
+  double calculate_jacobian_at_node(const Node&);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
 
 private:
@@ -153,9 +164,13 @@ private:
 // Tetrahedron
 class Tetrahedron : public Element
 {
-
+  
 public:
-  Tetrahedron(const std::vector<std::string> &node_list) : Element(node_list) {}
+  Tetrahedron(const std::vector<std::string> &node_list) : Element(node_list) {
+    this->NUM_FACES = 4;
+    this->NUM_VERTICES = 4;
+    this->NUM_NODES = 4;
+  }
   ~Tetrahedron(void) { std::cout << "Tetrahedron has been deleted!" << std::endl; }
 
   Node transform(const Node &, const std::vector<Vertice> &);
@@ -166,14 +181,20 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
+  double calculate_jacobian_at_node(const Node&);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
 // Hexahedron
 class Hexahedron : public Element
 {
+  
 public:
-  Hexahedron(const std::vector<std::string> &node_list) : Element(node_list) {}
+  Hexahedron(const std::vector<std::string> &node_list) : Element(node_list) {
+    this->NUM_FACES = 6;
+    this->NUM_VERTICES = 8;
+    this->NUM_NODES = 8;
+  }
   ~Hexahedron(void) { std::cout << "Hexahedron has been deleted!" << std::endl; }
 
   Node transform(const Node &, const std::vector<Vertice> &);
@@ -184,14 +205,20 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
+  double calculate_jacobian_at_node(const Node&);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
 // Prism
 class Prism : public Element
 {
+  
 public:
-  Prism(const std::vector<std::string> &node_list) : Element(node_list) {}
+  Prism(const std::vector<std::string> &node_list) : Element(node_list) {
+    this->NUM_FACES = 5;
+    this->NUM_VERTICES = 6;
+    this->NUM_NODES = 6;
+  }
   ~Prism(void) { std::cout << "Prism has been deleted!" << std::endl; }
 
   Node transform(const Node &, const std::vector<Vertice> &);
@@ -202,15 +229,19 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
+  double calculate_jacobian_at_node(const Node&);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
 // Pyramid
 class Pyramid : public Element
 {
-
 public:
-  Pyramid(const std::vector<std::string> &node_list) : Element(node_list) {}
+  Pyramid(const std::vector<std::string> &node_list) : Element(node_list) {
+    this->NUM_FACES = 5;
+    this->NUM_VERTICES = 5;
+    this->NUM_NODES = 5;
+  }
   ~Pyramid(void) { std::cout << "Pyramid has been deleted!" << std::endl; }
 
   Node transform(const Node &, const std::vector<Vertice> &);
@@ -221,6 +252,7 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
+  double calculate_jacobian_at_node(const Node&);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 

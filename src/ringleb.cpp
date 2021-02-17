@@ -10,6 +10,31 @@
 
 namespace fs = std::filesystem;
 
+/* Declaring analytical field solution */
+std::vector<double> ringleb_field (const Node& n)
+{
+  std::vector<double> vec;
+
+  // Constants
+  
+  // Coordinates
+  double x = n.coords[0];
+  double y = n.coords[1];
+
+  double pho = 1.0;
+  double u = exp(-x*x);
+  double v = exp(-y*y);
+  double E = 1.0;
+
+  vec[0] = pho; 
+  vec[1] = pho*u; 
+  vec[2] = pho*v; 
+  vec[3] = E; 
+  
+  return vec;
+
+}
+
 int main()
 {
   fs::path cur_path = fs::current_path();
@@ -24,7 +49,7 @@ int main()
       1.1) Calculate solution and fluxes points
       1.2) Initialize solution and fluxes
   */
-  sd->setup(mesh);
+  sd->setup(mesh, ringleb_field);
 
   /*
     2) Solver Loop (for each element in Mesh)

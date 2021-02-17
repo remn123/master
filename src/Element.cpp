@@ -35,6 +35,7 @@ Edge::Edge(const std::vector<long> &e_nodes,
   this->right = right;
 
   this->physical = std::make_shared<Property>();
+  this->computational = std::make_shared<Property>();
 
   this->group = -1;
   this->type = -1;
@@ -120,8 +121,7 @@ Element::Element(const std::vector<std::string> &node_list)
 /* DESTRUCTORS */
 Element::~Element(void)
 {
-  //std::cout << "Element (" << this->id << ") has been deleted!" << std::endl;
-  //std::cin.get();
+  if (Element::num_elems > -1) Element::num_elems--;
 }
 
 /* ELEMENT METHODS */
@@ -183,6 +183,11 @@ void Triangle::enumerate_edges(void)
   //	}
   //	ordered_vertices.clear();
   //}
+}
+
+double Triangle::calculate_jacobian_at_node(const Node& node)
+{
+  return 0.0;
 }
 
 /* ------------------------------ */
@@ -363,10 +368,10 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
     double dx_dcsi, dx_deta, dy_dcsi, dy_deta;
     double dcsi_dx, dcsi_dy, deta_dx, deta_dy;
 
-    dx_dcsi = 0.25 * (a1 + c1 * eta);
-    dx_deta = 0.25 * (b1 + c1 * csi);
-    dy_dcsi = 0.25 * (a2 + c2 * eta);
-    dy_deta = 0.25 * (b2 + c2 * csi);
+    dx_dcsi = (a1 + c1 * eta);
+    dx_deta = (b1 + c1 * csi);
+    dy_dcsi = (a2 + c2 * eta);
+    dy_deta = (b2 + c2 * csi);
 
     this->J[index][s_index - 1] = dx_dcsi * dy_deta - dx_deta * dy_dcsi;
     this->Jm[index][s_index - 1] = {dx_dcsi, dx_deta,
@@ -404,10 +409,10 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
       double dx_dcsi, dx_deta, dy_dcsi, dy_deta;
       double dcsi_dx, dcsi_dy, deta_dx, deta_dy;
 
-      dx_dcsi = 0.25 * (a1 + c1 * eta);
-      dx_deta = 0.25 * (b1 + c1 * csi);
-      dy_dcsi = 0.25 * (a2 + c2 * eta);
-      dy_deta = 0.25 * (b2 + c2 * csi);
+      dx_dcsi = (a1 + c1 * eta);
+      dx_deta = (b1 + c1 * csi);
+      dy_dcsi = (a2 + c2 * eta);
+      dy_deta = (b2 + c2 * csi);
 
       this->J[index][f_index - 1] = dx_dcsi * dy_deta - dx_deta * dy_dcsi;
       this->Jm[index][f_index - 1] = {dx_dcsi, dx_deta,
@@ -422,6 +427,28 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
                                       deta_dx, deta_dy};
     }
   }
+}
+
+double Quadrangle::calculate_jacobian_at_node(const Node& node)
+{
+  auto a1 = this->metrics[0];
+  auto b1 = this->metrics[1];
+  auto c1 = this->metrics[2];
+  auto d1 = this->metrics[3];
+  auto a2 = this->metrics[4];
+  auto b2 = this->metrics[5];
+  auto c2 = this->metrics[6];
+  auto d2 = this->metrics[7];
+
+  auto csi = node.coords[0];
+  auto eta = node.coords[1];
+
+  auto dx_dcsi = (a1 + c1 * eta);
+  auto dx_deta = (b1 + c1 * csi);
+  auto dy_dcsi = (a2 + c2 * eta);
+  auto dy_deta = (b2 + c2 * csi);
+
+  return dx_dcsi * dy_deta - dx_deta * dy_dcsi;
 }
 
 Node Quadrangle::transform(const Node &n, const std::vector<Vertice> &enodes)
@@ -786,6 +813,7 @@ Node QuadrangleHO::transform(const Node &n, const std::vector<Vertice> &enodes)
   //return Node();
 }
 
+
 void Triangle::allocate_jacobian(int order)
 {
 }
@@ -854,6 +882,31 @@ Node Prism::transform(const Node &n, const std::vector<Vertice> &enodes)
 
 Node Pyramid::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
+}
+
+double QuadrangleHO::calculate_jacobian_at_node(const Node& node)
+{
+  return 0.0;
+}
+
+double Tetrahedron::calculate_jacobian_at_node(const Node& node)
+{
+  return 0.0;
+}
+
+double Hexahedron::calculate_jacobian_at_node(const Node& node)
+{
+  return 0.0;
+}
+
+double Prism::calculate_jacobian_at_node(const Node& node)
+{
+  return 0.0;
+}
+
+double Pyramid::calculate_jacobian_at_node(const Node& node)
+{
+  return 0.0;
 }
 
 void Tetrahedron::enumerate_faces(void)

@@ -1,3 +1,4 @@
+#include <filesystem>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -5,11 +6,13 @@
 #include <catch/catch.hpp>
 #include <Dummies.h>
 #include <Element.h>
+#include <Field.h>
 #include <Mesh.h>
 #include <Node.h>
 #include <SD.h>
 
 using namespace Catch::literals;
+      namespace fs = std::filesystem;
 
 // explicit instantiations
 template class SD<Euler>;
@@ -54,7 +57,7 @@ TEST_CASE("1: Test SD<Euler> - Constructor", "[sd]")
 }
 
 
-TEST_CASE("2: Test SD<Euler> - create_nodes", "[sd]")
+TEST_CASE("2: Test SD<Euler> - create_nodes", "[sd2]")
 {
   int order=2;     // second order
   int dimension=2; // 2D
@@ -160,4 +163,378 @@ TEST_CASE("2: Test SD<Euler> - create_nodes", "[sd]")
   REQUIRE(sd->fnodes[1][5].coords[0] == Approx(+0.577350269189626).margin(1E-15));
   REQUIRE(sd->fnodes[1][5].coords[1] == 1.0);
   REQUIRE(sd->fnodes[1][5].coords[2] == Approx(0.0).margin(1E-15));
+}
+
+TEST_CASE("3: Test SD<Euler> - setup", "[sd3gaussian]")
+{
+  fs::path cur_path = fs::current_path();
+  auto mesh = std::make_shared<Mesh>(2);
+
+  mesh->read_gmsh((cur_path.parent_path() / "resources" / "mesh_test_gaussian.msh").string());
+
+  int order = 2;
+  auto sd = std::make_shared<SD<Euler>>(order, 2);
+  
+  sd->setup(mesh, FIELDS::GAUSSIAN_FIELD_MAPPING);
+  
+  // for (auto& e : mesh->elems) 
+  // {
+  //   std::cout << "Element: " << e->id << std::endl;
+  //   long index = 0;
+  //   for (auto& sol : e->physical->Qsp) 
+  //   {
+  //     std::cout << "  Node   : " << index << std::endl;
+  //     std::cout << "    pho  : " << sol[0] << std::endl;
+  //     std::cout << "    pho*u: " << sol[1] << std::endl;
+  //     std::cout << "    pho*v: " << sol[2] << std::endl;
+  //     std::cout << "    E    : " << sol[3] << std::endl;
+  //     index++;
+  //   }
+  //   std::cin.get();
+  // }
+
+  sd->to_vtk(mesh, 
+            (cur_path.parent_path() / "results" / "pp_mesh_test_gaussian.vtk").string());
+}
+
+
+TEST_CASE("4: Test SD<Euler> - setup", "[sd3uniform]")
+{
+  fs::path cur_path = fs::current_path();
+  auto mesh = std::make_shared<Mesh>(2);
+
+  mesh->read_gmsh((cur_path.parent_path() / "resources" / "mesh_test_0_order.msh").string());
+
+  int order = 2;
+  auto sd = std::make_shared<SD<Euler>>(order, 2);
+  
+  sd->setup(mesh, FIELDS::DEFAULT_FIELD_MAPPING);
+
+  // Element 0:
+  auto e = mesh->elems[0];
+  // snodes
+  // sp 0
+  auto n = e->transform(sd->snodes[0], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.3943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // sp 1
+  n = e->transform(sd->snodes[1], mesh->nodes);
+  
+
+  REQUIRE(n.coords[0] == Approx(+0.1056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // sp 2
+  n = e->transform(sd->snodes[2], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.3943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // sp 3
+  n = e->transform(sd->snodes[3], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.1056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  
+  // x-fnodes
+  // fp 0
+  n = e->transform(sd->fnodes[0][0], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.3943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.500).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+
+  // fp 1
+  n = e->transform(sd->fnodes[0][1], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.3943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.750).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 2
+  n = e->transform(sd->fnodes[0][2], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.3943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+1.000).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 3
+  n = e->transform(sd->fnodes[0][3], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.1056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.500).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 4
+  n = e->transform(sd->fnodes[0][4], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.1056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.750).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 5
+  n = e->transform(sd->fnodes[0][5], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.1056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+1.000).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+
+  // y-fnodes
+  // fp 0
+  n = e->transform(sd->fnodes[1][0], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.500).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 1
+  n = e->transform(sd->fnodes[1][1], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.250).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 2
+  n = e->transform(sd->fnodes[1][2], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.000).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 3
+  n = e->transform(sd->fnodes[1][3], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.500).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 4
+  n = e->transform(sd->fnodes[1][4], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.250).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 5
+  n = e->transform(sd->fnodes[1][5], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.000).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+
+  // Neighboors
+  // edge 0
+  auto& ed = e->edges[0];
+  REQUIRE(ed.nodes[0] == 8);
+  REQUIRE(ed.nodes[1] == 6);
+  REQUIRE(ed.ghost == -1);
+  REQUIRE(ed.left == 0);
+  REQUIRE(ed.right == 1);
+  REQUIRE(ed.lr_edge == 3);
+  REQUIRE(ed.boundary == 0);
+  auto& fn = ed.fnodes[0];
+  REQUIRE(fn.local == 0);
+  REQUIRE(fn.right == 0);
+  fn = ed.fnodes[1];
+  REQUIRE(fn.local == 3);
+  REQUIRE(fn.right == 3);
+
+  // edge 1
+  ed = e->edges[1];
+  REQUIRE(ed.nodes[0] == 6);
+  REQUIRE(ed.nodes[1] == 3);
+  REQUIRE(ed.ghost == 0);
+  REQUIRE(ed.left == 0);
+  REQUIRE(ed.right == -1);
+  REQUIRE(ed.lr_edge == -1);
+  REQUIRE(ed.boundary == 1);
+  fn = ed.fnodes[0];
+  REQUIRE(fn.local == 2);
+  REQUIRE(fn.right == 2);
+  fn = ed.fnodes[1];
+  REQUIRE(fn.local == 5);
+  REQUIRE(fn.right == 5);
+
+  // edge 2
+  ed = e->edges[2];
+  REQUIRE(ed.nodes[0] == 3);
+  REQUIRE(ed.nodes[1] == 7);
+  REQUIRE(ed.ghost == 1);
+  REQUIRE(ed.left == 0);
+  REQUIRE(ed.right == -1);
+  REQUIRE(ed.lr_edge == -1);
+  REQUIRE(ed.boundary == 1);
+  fn = ed.fnodes[0];
+  REQUIRE(fn.local == 5);
+  REQUIRE(fn.right == 5);
+  fn = ed.fnodes[1];
+  REQUIRE(fn.local == 2);
+  REQUIRE(fn.right == 2);
+
+  // edge 3
+  ed = e->edges[3];
+  REQUIRE(ed.nodes[0] == 7);
+  REQUIRE(ed.nodes[1] == 8);
+  REQUIRE(ed.ghost == -1);
+  REQUIRE(ed.left == 0);
+  REQUIRE(ed.right == 3);
+  REQUIRE(ed.lr_edge == 3);
+  REQUIRE(ed.boundary == 0);
+  fn = ed.fnodes[0];
+  REQUIRE(fn.local == 3);
+  REQUIRE(fn.right == 0);
+  fn = ed.fnodes[1];
+  REQUIRE(fn.local == 0);
+  REQUIRE(fn.right == 3);
+
+  // Element 1:
+  e = mesh->elems[1];
+  // snodes
+  // sp 0
+  n = e->transform(sd->snodes[0], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // sp 1
+  n = e->transform(sd->snodes[1], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // sp 2
+  n = e->transform(sd->snodes[2], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // sp 3
+  n = e->transform(sd->snodes[3], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  
+  // x-fnodes
+  // fp 0
+  n = e->transform(sd->fnodes[0][0], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.500).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 1
+  n = e->transform(sd->fnodes[0][1], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.750).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 2
+  n = e->transform(sd->fnodes[0][2], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+1.000).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 3
+  n = e->transform(sd->fnodes[0][3], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.500).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 4
+  n = e->transform(sd->fnodes[0][4], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.750).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 5
+  n = e->transform(sd->fnodes[0][5], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+1.000).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+
+  // y-fnodes
+  // fp 0
+  n = e->transform(sd->fnodes[1][0], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.500).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 1
+  n = e->transform(sd->fnodes[1][1], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.750).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 2
+  n = e->transform(sd->fnodes[1][2], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.6056624327).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+1.000).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 3
+  n = e->transform(sd->fnodes[1][3], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.500).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 4
+  n = e->transform(sd->fnodes[1][4], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+0.750).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+  // fp 5
+  n = e->transform(sd->fnodes[1][5], mesh->nodes);
+  REQUIRE(n.coords[0] == Approx(+0.8943375673).margin(1E-15));
+  REQUIRE(n.coords[1] == Approx(+1.000).margin(1E-15));
+  REQUIRE(n.coords[2] == Approx(+0.000).margin(1E-15));
+
+  // Neighboors
+  // edge 0
+  ed = e->edges[0];
+  REQUIRE(ed.nodes[0] == 8);
+  REQUIRE(ed.nodes[1] == 5);
+  REQUIRE(ed.ghost == -1);
+  REQUIRE(ed.left == 1);
+  REQUIRE(ed.right == 2);
+  REQUIRE(ed.lr_edge == 3);
+  REQUIRE(ed.boundary == 0);
+  fn = ed.fnodes[0];
+  REQUIRE(fn.local == 0);
+  REQUIRE(fn.right == 0);
+  fn = ed.fnodes[1];
+  REQUIRE(fn.local == 3);
+  REQUIRE(fn.right == 3);
+
+  // edge 1
+  ed = e->edges[1];
+  REQUIRE(ed.nodes[0] == 5);
+  REQUIRE(ed.nodes[1] == 2);
+  REQUIRE(ed.ghost == 2);
+  REQUIRE(ed.left == 1);
+  REQUIRE(ed.right == -1);
+  REQUIRE(ed.lr_edge == -1);
+  REQUIRE(ed.boundary == 1);
+  fn = ed.fnodes[0];
+  REQUIRE(fn.local == 2);
+  REQUIRE(fn.right == 2);
+  fn = ed.fnodes[1];
+  REQUIRE(fn.local == 5);
+  REQUIRE(fn.right == 5);
+
+  // edge 2
+  ed = e->edges[2];
+  REQUIRE(ed.nodes[0] == 2);
+  REQUIRE(ed.nodes[1] == 6);
+  REQUIRE(ed.ghost == 3);
+  REQUIRE(ed.left == 1);
+  REQUIRE(ed.right == -1);
+  REQUIRE(ed.lr_edge == -1);
+  REQUIRE(ed.boundary == 1);
+  fn = ed.fnodes[0];
+  REQUIRE(fn.local == 5);
+  REQUIRE(fn.right == 5);
+  fn = ed.fnodes[1];
+  REQUIRE(fn.local == 2);
+  REQUIRE(fn.right == 2);
+
+  // edge 3
+  ed = e->edges[3];
+  REQUIRE(ed.nodes[0] == 6);
+  REQUIRE(ed.nodes[1] == 8);
+  REQUIRE(ed.ghost == -1);
+  REQUIRE(ed.left == 1);
+  REQUIRE(ed.right == 0);
+  REQUIRE(ed.lr_edge == 0);
+  REQUIRE(ed.boundary == 0);
+  fn = ed.fnodes[0];
+  REQUIRE(fn.local == 3);
+  REQUIRE(fn.right == 3);
+  fn = ed.fnodes[1];
+  REQUIRE(fn.local == 0);
+  REQUIRE(fn.right == 0);
+
+  sd->to_vtk(mesh, 
+            (cur_path.parent_path() / "results" / "pp_mesh_test_0_order.vtk").string());
+}
+
+TEST_CASE("5: Test SD<Euler> - setup", "[sd3linear]")
+{
+  fs::path cur_path = fs::current_path();
+  auto mesh = std::make_shared<Mesh>(2);
+
+  mesh->read_gmsh((cur_path.parent_path() / "resources" / "mesh_test_linear.msh").string());
+
+  int order = 2;
+  auto sd = std::make_shared<SD<Euler>>(order, 2);
+  
+  sd->setup(mesh, FIELDS::LINEAR_FIELD_MAPPING);
+
+  sd->to_vtk(mesh, 
+            (cur_path.parent_path() / "results" / "pp_mesh_test_linear.vtk").string());
 }

@@ -72,7 +72,7 @@ public:
     this->dFdsp.reserve(1);
     this->dFdfp.reserve(1);
 
-    std::cout << "Property has been created!" << std::endl;
+    /*std::cout << "Property has been created!" << std::endl;*/
   };
-  ~Property() { std::cout << "Property has been deleted!" << std::endl; };
+  ~Property() { /*std::cout << "Property has been deleted!" << std::endl;*/ };
 };

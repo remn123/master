@@ -11,6 +11,7 @@ class Edge
 {
 public:
   std::shared_ptr<Property> physical;
+  std::shared_ptr<Property> computational;
   std::vector<long> nodes;
   std::vector<fNode> fnodes;
 

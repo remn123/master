@@ -31,15 +31,16 @@ if (Boost_FOUND)
 
     # ringleb 
     add_executable(master_exe 
-                src/ringleb.cpp
+                src/Main.cpp
     )
 
     target_link_libraries(master_exe
-                        master_lib   
+                          master_lib   
     )
 
     add_library(master_lib
                 src/Element.cpp
+                src/Field.cpp
                 src/Ghost.cpp
                 src/Mesh.cpp
                 src/Node.cpp
@@ -54,6 +55,7 @@ if (Boost_FOUND)
                 include/Dummies.h
                 include/Edge.h
                 include/Element.h
+                include/Field.h
                 include/Ghost.h
                 include/Helpers.h
                 include/Mesh.h
@@ -88,6 +90,7 @@ if (Boost_FOUND)
                 #tests/test_pipeline.cpp
                 #tests/test_sd.cpp
                 #tests/test_ublas.cpp
+                tests/test_functional.cpp
 
     )
 
