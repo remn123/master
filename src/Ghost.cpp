@@ -21,4 +21,5 @@ Ghost::Ghost(const long element_id, const long edge_id, const int local_id, cons
 
 Ghost::~Ghost()
 {
+  //Ghost::num_ghosts--;
 }

@@ -26,6 +26,7 @@ SD<Euler>::SD(int order, int dimension)
 {
   this->order = order;
   this->dimension = dimension;
+  this->GAMMA = 1.4;
   this->MU = 0.0;
   this->MUv = 0.0;
   std::size_t snodes_size = order * order;
@@ -44,6 +45,7 @@ SD<NavierStokes>::SD(int order, int dimension, double mu, double Mach, double Re
 {
   this->order = order;
   this->dimension = dimension;
+  this->GAMMA = 1.4;
   this->M = Mach;
   this->Re = Reynolds;
   this->MU = mu;
@@ -309,6 +311,8 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element> &e,
 
   e->physical->Qsp.clear();
   e->physical->Qsp.resize(this->snodes.size());
+  e->computational->Qsp.clear();
+  e->computational->Qsp.resize(this->snodes.size());
 
   // PHYSICAL
   Node n;
@@ -318,7 +322,7 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element> &e,
     n = e->transform(sp, enodes);
     auto vec = field(n);
     e->physical->Qsp[index] = vec;
-
+    e->computational->Qsp[index] = e->J[0][index]*e->physical->Qsp[index];
     index++;
   }
 
@@ -384,7 +388,6 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element> &e,
 
   // COMPUTATIONAL
   // Conservative Properties
-  this->_init_dvec(e->computational->Qsp, this->snodes.size());
   this->_init_dvec(e->computational->Qfp, this->fnodes[0].size());
 
   // Convective Fluxes
@@ -825,7 +828,7 @@ DVector SD<Equation>::interpolate_solution_to_node(std::shared_ptr<Element> &e, 
     Lcsi = Helpers<Lagrange>::Pn(i, csi);
     Leta = Helpers<Lagrange>::Pn(j, eta);
     auto J = e->J[0][s_index];
-    solution += ((Lcsi * Leta * J) * e->physical->Qsp[s_index]);
+    solution += ((Lcsi * Leta) * e->computational->Qsp[s_index]);
 
     s_index++;
   }
@@ -1212,7 +1215,8 @@ void SD<Euler>::calculate_fluxes_fp(std::shared_ptr<Element> &e)
     f_index = 0;
     for (auto &node : vec_lines) // line nodes for a specific direction (x, y)
     {
-      e->physical->Qfp[index][f_index] =  (1.0/e->J[index+1][f_index])*e->computational->Qfp[index][f_index];
+      auto J = e->J[index+1][f_index];
+      e->physical->Qfp[index][f_index] =  (1.0/J)*e->computational->Qfp[index][f_index];
 
       q1 = e->physical->Qfp[index][f_index][0];
       q2 = e->physical->Qfp[index][f_index][1];
@@ -1254,8 +1258,8 @@ void SD<Euler>::calculate_fluxes_fp(std::shared_ptr<Element> &e)
         //                                             (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
         // }
 
-        ds_dx = e->Jm[index+1][f_index][2 * (index)];
-        ds_dy = e->Jm[index+1][f_index][2 * (index) + 1];
+        ds_dx = J*e->Ji[index+1][f_index][2 * (index)];
+        ds_dy = J*e->Ji[index+1][f_index][2 * (index) + 1];
 
         e->computational->Fcfp[index][f_index] = {ds_dx * q2 + ds_dy * q3,
                                                   ds_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + ds_dy * q3 * q2 / q1,
@@ -1519,8 +1523,8 @@ void SD<Euler>::calculate_fluxes_fp(Ghost &g, const std::vector<std::shared_ptr<
     // deta_dx = elems[g.elm_id]->Ji[0][f_index - 1][2];
     // deta_dy = elems[g.elm_id]->Ji[0][f_index - 1][3];
 
-    ds_dx = elems[g.elm_id]->Jm[dir+1][f_index][2 * (dir)];
-    ds_dy = elems[g.elm_id]->Jm[dir+1][f_index][2 * (dir) + 1];
+    ds_dx = J*elems[g.elm_id]->Ji[dir+1][fn.right][2 * (dir)];
+    ds_dy = J*elems[g.elm_id]->Ji[dir+1][fn.right][2 * (dir) + 1];
 
     g.computational->Fcfp[dir][f_index] = {ds_dx * q2 + ds_dy * q3,
                                            ds_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + ds_dy * q3 * q2 / q1,
@@ -1635,53 +1639,99 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
 {
   double rhoL, uL, vL, EL, pL, hL;
   double rhoR, uR, vR, ER, pR, hR;
+  double q1, q2, q3, q4;
+  double J_L, J_R, nxL, nxR, nyL, nyR;
+  double ds_dx, ds_dy;
   double rho_ROE, ux_ROE, uy_ROE, h_ROE, ek_ROE, un_ROE, c_ROE;
   double nx, ny;
   double l1, l2, l3, l4;
   double alp1, alp2, alp3, alp4;
-  DVector central_term;
-  DVector upwind;
+  DVector central_term, upwind, fxL, fyL, fxR, fyR;
   int dirL=0, dirR=0;
   int ll_edge=0;
   int signN = 1, signT = 1;
   auto gamma = this->GAMMA;
+  std::vector<double> normal;
   std::vector<std::vector<double>> T;
 
   for (auto &ed : e->edges)
   {
     dirL = (ll_edge == 0 || ll_edge == 2) ? 1 : 0; // 0: x, 1: y
     dirR = (ed.lr_edge == 0 || ed.lr_edge == 2) ? 1 : 0; // 0: x, 1: y
-    signN = (((ll_edge==0||ll_edge==3)&&(ed.lr_edge==0||ed.lr_edge==3))||((ll_edge==1||ll_edge==2)&&(ed.lr_edge==1||ed.lr_edge==2))) ? -1 : 1;
-    signT = (((ll_edge==0||ll_edge==1)&&(ed.lr_edge==0||ed.lr_edge==1))||((ll_edge==2||ll_edge==3)&&(ed.lr_edge==2||ed.lr_edge==3))) ? -1 : 1;
-
+    
     for (auto &fn : ed.fnodes)
     {
-      rhoL = e->computational->Qfp[dirL][fn.local][0];
-      uL = e->computational->Qfp[dirL][fn.local][1] / rhoL;
-      vL = e->computational->Qfp[dirL][fn.local][2] / rhoL;
-      EL = e->computational->Qfp[dirL][fn.local][3];
+      J_L = e->J[dirL+1][fn.local];
+      // Physical Primitive Properties for edge's left side
+      rhoL = (1.0/J_L)*e->computational->Qfp[dirL][fn.local][0];
+      uL = (1.0/J_L)*e->computational->Qfp[dirL][fn.local][1] / rhoL;
+      vL = (1.0/J_L)*e->computational->Qfp[dirL][fn.local][2] / rhoL;
+      EL = (1.0/J_L)*e->computational->Qfp[dirL][fn.local][3];
       pL = (gamma - 1.0) * (EL - 0.5 * rhoL * (uL * uL + vL * vL));
       hL = (EL + pL) / rhoL;
+
+      // Physical Conserved Properties
+      q1 = rhoL;
+      q2 = rhoL*uL;
+      q3 = rhoL*vL;
+      q4 = EL;
+
+      // Physical Fcfp_x
+      fxL = DVector{{q2,
+                     q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
+                     q2 * q3 / q1,
+                     (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
+      
+      // Physical Fcfp_y
+      fyL = DVector{{q3,
+                     q3 * q2 / q1,
+                     q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
+                     (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
+
+      // Normal unit vector in Physical Space
+      normal = e->get_normal_vector(dirL+1, fn.local, ll_edge);
+      nx = normal[0];
+      ny = normal[1];
+
       if (ed.right != -1) // if not a boundary
       {
-        rhoR = elems[ed.right]->computational->Qfp[dirR][fn.right][0];
-        uR = signN*elems[ed.right]->computational->Qfp[dirR][fn.right][1] / rhoR;
-        vR = signT*elems[ed.right]->computational->Qfp[dirR][fn.right][2] / rhoR;
-        ER = elems[ed.right]->computational->Qfp[dirR][fn.right][3];
-        pR = (gamma - 1.0) * (ER - 0.5 * rhoR * (uR * uR + vR * vR));
-        hR = (ER + pR) / rhoR;
-        central_term = 0.5 * (e->computational->Fcfp[dirL][fn.local] + signN*elems[ed.right]->computational->Fcfp[dirR][fn.right]);
+        J_R = elems[ed.right]->J[dirR+1][fn.right];
+        // Physical Primitive Properties for edge's right side
+        rhoR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][0];
+        uR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][1] / rhoR;
+        vR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][2] / rhoR;
+        ER = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][3];
       }
       else
       {
-        rhoR = ghosts[ed.ghost].computational->Qfp[dirR][fn.right][0];
-        uR = signN*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][1] / rhoR;
-        vR = signT*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][2] / rhoR;
-        ER = ghosts[ed.ghost].computational->Qfp[dirR][fn.right][3];
-        pR = (gamma - 1.0) * (ER - 0.5 * rhoR * (uR * uR + vR * vR));
-        hR = (ER + pR) / rhoR;
-        central_term = 0.5 * (e->computational->Fcfp[dirL][fn.local] + signN*ghosts[ed.ghost].computational->Fcfp[dirR][fn.right]);
+        J_R = J_L; // mirror
+        // Physical Primitive Properties for edge's right side (when it's a ghost cell)
+        rhoR = (1.0/J_R)*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][0];
+        uR = (1.0/J_R)*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][1] / rhoR;
+        vR = (1.0/J_R)*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][2] / rhoR;
+        ER = (1.0/J_R)*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][3];
       }
+      
+      pR = (gamma - 1.0) * (ER - 0.5 * rhoR * (uR * uR + vR * vR));
+      hR = (ER + pR) / rhoR;
+
+      // Physical Conserved Properties
+      q1 = rhoR;
+      q2 = rhoR*uR;
+      q3 = rhoR*vR;
+      q4 = ER;
+
+      // Physical Fcfp_x
+      fxR = DVector{{q2,
+                     q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
+                     q2 * q3 / q1,
+                     (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
+
+      // Physical Fcfp_y
+      fyR = DVector{{q3,
+                     q3 * q2 / q1,
+                     q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
+                     (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
 
       // Roe-averages
       rho_ROE = std::sqrt(rhoL) * std::sqrt(rhoR);
@@ -1689,7 +1739,8 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       uy_ROE = (vL * std::sqrt(rhoL) + vR * std::sqrt(rhoR)) / rho_ROE;
       h_ROE = (hL * std::sqrt(rhoL) + hR * std::sqrt(rhoR)) / rho_ROE;
       ek_ROE = (ux_ROE * ux_ROE + uy_ROE * uy_ROE) / 2.0;
-      un_ROE = (dirL == 1) ? uy_ROE : ux_ROE;
+      un_ROE = ux_ROE*nx + uy_ROE*ny;
+      //ut_ROE = (dirL == 1) ? uy_ROE : ux_ROE;
       c_ROE = std::sqrt((gamma - 1.0) * (h_ROE - ek_ROE));
 
       // Roe lambdas
@@ -1704,34 +1755,46 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
            { uy_ROE,          -nx,         uy_ROE+c_ROE*ny,     uy_ROE-c_ROE*ny  },
            { ek_ROE, ux_ROE*ny-uy_ROE*nx, h_ROE+c_ROE*un_ROE, h_ROE-c_ROE*un_ROE }};
       */
-      alp1 = (rhoR - rhoL) - (pR - pL) / (c_ROE * c_ROE);
 
-      if (dirL == 1) // y
-      {
-        nx = 0.0;
-        ny = 1.0;
-        T = {{1.0, 0.0, 1.0, 1.0},
-             {ux_ROE, 1.0, ux_ROE, ux_ROE},
-             {uy_ROE, 0.0, uy_ROE + c_ROE, uy_ROE - c_ROE},
-             {ek_ROE, ux_ROE, h_ROE + c_ROE * un_ROE, h_ROE - c_ROE * un_ROE}};
-        alp2 = rho_ROE * (uR - uL);
-        alp3 = (pR - pL + rho_ROE * c_ROE * (vR - vL)) / (2.0 * c_ROE * c_ROE);
-        alp4 = (pR - pL - rho_ROE * c_ROE * (vR - vL)) / (2.0 * c_ROE * c_ROE);
-      }
-      else // x
-      {
-        nx = 1.0;
-        ny = 0.0;
-        T = {{1.0, 0.0, 1.0, 1.0},
-             {ux_ROE, 0.0, ux_ROE + c_ROE, ux_ROE - c_ROE},
-             {uy_ROE, -1.0, uy_ROE, uy_ROE},
-             {ek_ROE, -uy_ROE, h_ROE + c_ROE * un_ROE, h_ROE - c_ROE * un_ROE}};
-        alp2 = rho_ROE * (vR - vL);
-        alp3 = (pR - pL + rho_ROE * c_ROE * (uR - uL)) / (2.0 * c_ROE * c_ROE);
-        alp4 = (pR - pL - rho_ROE * c_ROE * (uR - uL)) / (2.0 * c_ROE * c_ROE);
-      }
+      T = {{  1.0,             0.0,              1.0,                1.0         },
+           { ux_ROE,           ny,         ux_ROE+c_ROE*nx,     ux_ROE-c_ROE*nx  },
+           { uy_ROE,          -nx,         uy_ROE+c_ROE*ny,     uy_ROE-c_ROE*ny  },
+           { ek_ROE, ux_ROE*ny-uy_ROE*nx, h_ROE+c_ROE*un_ROE, h_ROE-c_ROE*un_ROE }};
+
+      alp1 = (rhoR - rhoL) - (pR - pL) / (c_ROE * c_ROE);
+      alp2 = rho_ROE * ((uR*nx + vR*ny) - (uL*nx + vL*ny));
+      alp3 = ((pR - pL) + rho_ROE * c_ROE * ((uR*nx + vR*ny) - (uL*nx + vL*ny))) / (2.0 * c_ROE * c_ROE);
+      alp4 = ((pR - pL) - rho_ROE * c_ROE * ((uR*nx + vR*ny) - (uL*nx + vL*ny))) / (2.0 * c_ROE * c_ROE);
+
+
+      // if (dirL == 1) // y
+      // {
+      //   nx = 0.0;
+      //   ny = 1.0;
+      //   T = {{1.0, 0.0, 1.0, 1.0},
+      //        {ux_ROE, 1.0, ux_ROE, ux_ROE},
+      //        {uy_ROE, 0.0, uy_ROE + c_ROE, uy_ROE - c_ROE},
+      //        {ek_ROE, ux_ROE, h_ROE + c_ROE * un_ROE, h_ROE - c_ROE * un_ROE}};
+      //   alp2 = rho_ROE * (uR - uL);
+      //   alp3 = (pR - pL + rho_ROE * c_ROE * (vR - vL)) / (2.0 * c_ROE * c_ROE);
+      //   alp4 = (pR - pL - rho_ROE * c_ROE * (vR - vL)) / (2.0 * c_ROE * c_ROE);
+      // }
+      // else // x
+      // {
+      //   nx = 1.0;
+      //   ny = 0.0;
+      //   T = {{1.0, 0.0, 1.0, 1.0},
+      //        {ux_ROE, 0.0, ux_ROE + c_ROE, ux_ROE - c_ROE},
+      //        {uy_ROE, -1.0, uy_ROE, uy_ROE},
+      //        {ek_ROE, -uy_ROE, h_ROE + c_ROE * un_ROE, h_ROE - c_ROE * un_ROE}};
+      //   alp2 = rho_ROE * (vR - vL);
+      //   alp3 = (pR - pL + rho_ROE * c_ROE * (uR - uL)) / (2.0 * c_ROE * c_ROE);
+      //   alp4 = (pR - pL - rho_ROE * c_ROE * (uR - uL)) / (2.0 * c_ROE * c_ROE);
+      // }
 
       // Flux reconstruction
+      central_term = 0.5 * ((fxL*nx + fyL*ny) + (fxR*nx + fyR*ny));
+
       upwind = {
           0.5 * abs(l1) * alp1 * (T[0][0] + T[0][1] + T[0][2] + T[0][3]),
           0.5 * abs(l2) * alp2 * (T[1][0] + T[1][1] + T[1][2] + T[1][3]),
@@ -1739,7 +1802,7 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
           0.5 * abs(l4) * alp4 * (T[3][0] + T[3][1] + T[3][2] + T[3][3]),
       };
       //e->computational->Fcfp[dirL][fn.local] = (central_term - upwind);
-      ed.computational->Fcfp[dirL][fn.local] = (central_term - upwind);
+      ed.computational->Fcfp[dirL][fn.id] = J_L*(central_term - upwind);
     }
     ll_edge++;
   }
@@ -1756,14 +1819,8 @@ void SD<NavierStokes>::riemann_solver(std::shared_ptr<Element> &e, const std::ve
 template <>
 void SD<Euler>::interpolate_fp2sp(std::shared_ptr<Element> &e)
 {
-  Helpers<GLL>::init();
-  Helpers<GLL>::set_nodes(this->order + 1);
-
-  Helpers<Lagrange>::init();
-  Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
-
   double csi = 0.0, eta = 0.0;
-  //double Lcsi, Leta;
+  double Lcsi, Leta;
   double dLcsi, dLeta;
   unsigned int i, j;
   unsigned int index, s_index, f_index;
@@ -1789,22 +1846,72 @@ void SD<Euler>::interpolate_fp2sp(std::shared_ptr<Element> &e)
       f_index = 0;
       for (auto &node : vec_lines)
       {
-        i = (int)f_index / this->order;
-        j = f_index % this->order;
-        f_index++;
-        //Lcsi = Helpers<Lagrange>::Pn(i, csi);
-        //Leta = Helpers<Lagrange>::Pn(j, eta);
-        dLcsi = Helpers<Lagrange>::dPn(i, csi);
-        dLeta = Helpers<Lagrange>::dPn(j, eta);
-
         // index-1 is related to the flux direction (x/0 or y/1)
-        e->computational->dFcsp[index - 1][s_index - 1] += ((dLcsi * dLeta) * e->computational->Fcfp[index - 1][f_index - 1]);
+        if (index == 1) // csi
+        { 
+          // csi
+          Helpers<GLL>::init();
+          Helpers<GLL>::set_nodes(this->order + 1);
+          Helpers<Lagrange>::init();
+          Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
+
+          i = (int)f_index / (this->order + 1);
+          dLcsi = Helpers<Lagrange>::dPn(i, csi);
+
+          Helpers<Lagrange>::delete_nodes();
+          Helpers<GLL>::delete_nodes();
+
+          // eta
+          Helpers<GL>::init();
+          Helpers<GL>::set_nodes(this->order);
+
+          Helpers<Lagrange>::init();
+          Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
+
+          j = f_index % this->order;
+          Leta = Helpers<Lagrange>::Pn(j, eta);
+          
+          Helpers<Lagrange>::delete_nodes();
+          Helpers<GL>::delete_nodes();
+          f_index++;
+          e->computational->dFcsp[index - 1][s_index - 1] += ((dLcsi * Leta) * e->computational->Fcfp[index - 1][f_index - 1]);
+        } 
+        else // eta
+        {
+          // csi
+          Helpers<GL>::init();
+          Helpers<GL>::set_nodes(this->order);
+
+          Helpers<Lagrange>::init();
+          Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
+
+          i = (int)f_index / this->order;
+          Lcsi = Helpers<Lagrange>::Pn(i, csi);
+
+          Helpers<Lagrange>::delete_nodes();
+          Helpers<GL>::delete_nodes();
+
+          // eta
+          Helpers<GLL>::init();
+          Helpers<GLL>::set_nodes(this->order + 1);
+          Helpers<Lagrange>::init();
+          Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
+
+          j = f_index % (this->order+1);
+          dLeta = Helpers<Lagrange>::dPn(j, eta);
+          
+          Helpers<Lagrange>::delete_nodes();
+          Helpers<GLL>::delete_nodes();
+
+          f_index++;
+
+          e->computational->dFcsp[index - 1][s_index - 1] += ((Lcsi * dLeta) * e->computational->Fcfp[index - 1][f_index - 1]);
+        }
         //e->physical->dFcsp[index-1][s_index-1] += ((dLcsi*dLeta)*e->physical->Fcfp[index-1][f_index-1]);
       }
     }
   }
-  Helpers<Lagrange>::delete_nodes();
-  Helpers<GLL>::delete_nodes();
+  
 }
 
 template <>
@@ -1879,9 +1986,8 @@ void SD<Euler>::update_fluxes(std::shared_ptr<Element> &e)
   {
     dir = (local_edge_id == 0 || local_edge_id == 2) ? 1 : 0; // 0: x, 1: y
     for (auto& fn : ed.fnodes) 
-    {
-      e->computational->Fcfp[dir][fn.local] = ed.computational->Fcfp[dir][fn.local];
-    }
+      e->computational->Fcfp[dir][fn.local] = ed.computational->Fcfp[dir][fn.id];
+      
     local_edge_id++;
   }
 }
@@ -1898,7 +2004,7 @@ template <>
 void SD<Euler>::residue(std::shared_ptr<Element> &e)
 {
   unsigned int s_index;
-  double ds = 0.0;
+  //double ds = 0.0;
 
   s_index = 0;
   for (auto &node : this->snodes)
@@ -1906,8 +2012,8 @@ void SD<Euler>::residue(std::shared_ptr<Element> &e)
     e->computational->res[s_index] = 0.0;
     for (auto dir=0; dir < this->dimension; dir++)
     {
-      ds = e->Ji[0][s_index][3 * dir];
-      e->computational->res[s_index] += (-ds*e->computational->dFcsp[dir][s_index]);
+      //ds = e->Ji[0][s_index][3 * dir];
+      e->computational->res[s_index] += (-e->computational->dFcsp[dir][s_index]);
     }
     s_index++;
   }
@@ -2049,9 +2155,8 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
   /* 0.2) Looping through all elements */
   for (auto &e : mesh->elems)
   {
-    // Mark element as visited
-    // visited.insert(e->id);
-    
+    // element vertices
+    //auto evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
     // Loop though element vertices
     for (auto n : e->nodes)
     {
@@ -2074,7 +2179,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
           auto coords = vert_to_comp.find(which_node)->second;
           // std::cout << "Coords: x = " << coords[0] << "; y = " << coords[1] << "\n";
           auto vec = this->interpolate_solution_to_node(el, Node{coords[0], coords[1], coords[2]});
-          auto J = el->calculate_jacobian_at_node(Node{coords[0], coords[1], coords[2]});
+          auto J = el->calculate_jacobian_at_node(Node{coords[0], coords[1], coords[2]}, mesh->nodes);
           // std::cout << "Jacobian :" << J << "\n";
           rho += vec[0]/J;
           u   += vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
@@ -2103,19 +2208,14 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
                        std::to_string(n.coords[1]) + std::string(" ") +
                        std::to_string(n.coords[2]));
       
-
-      //auto vec = this->interpolate_solution_to_node(e, n);
-      auto rho = e->physical->Qsp[s_index][0];
-      auto   u = e->physical->Qsp[s_index][1]/rho;
-      auto   v = e->physical->Qsp[s_index][2]/rho;
-      auto   E = e->physical->Qsp[s_index][3];
+      auto vec = this->interpolate_solution_to_node(e, this->snodes[s_index]);
+      auto J = e->calculate_jacobian_at_node(this->snodes[s_index], mesh->nodes);
       
+      auto rho = vec[0]/J;
+      auto   u = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
+      auto   v = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
+      auto   E = vec[3]/J;
       
-      // std::cout << "    pho   : " << vec[0] << std::endl;
-      // std::cout << "    pho*u : " << vec[1] << std::endl;
-      // std::cout << "    pho*v : " << vec[2] << std::endl;
-      // std::cout << "    E     : " << vec[3] << std::endl;
-
       point_data[pd_index] = std::to_string(u) + std::string(" ") +
                              std::to_string(v) + std::string(" ") +
                              std::to_string(0.0);
@@ -2176,7 +2276,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
                        std::to_string(n.coords[2]));
       
       auto vec = this->interpolate_solution_to_node(e, this->fnodes[0][f_index]);
-      auto J = e->calculate_jacobian_at_node(this->fnodes[0][f_index]);
+      auto J = e->calculate_jacobian_at_node(this->fnodes[0][f_index], mesh->nodes);
       
       auto rho = vec[0]/J;
       auto   u = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
@@ -2206,7 +2306,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
       
       
       auto vec = this->interpolate_solution_to_node(e, this->fnodes[1][f_index]);
-      auto J = e->calculate_jacobian_at_node(this->fnodes[1][f_index]);
+      auto J = e->calculate_jacobian_at_node(this->fnodes[1][f_index], mesh->nodes);
       
       auto rho = vec[0]/J;
       auto   u = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
@@ -2228,7 +2328,8 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     // 1) define new elements
     // 1.1) First row:
     //      - Quad 1:
-    n1 = mesh->get_closest(e->transform(this->fnodes[1][0], mesh->nodes), e->nodes); // nearest vertice from 0 y-FP
+    auto evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
+    n1 = mesh->get_closest(e->transform(this->fnodes[1][0], mesh->nodes), evertices); // nearest vertice from 0 y-FP
     n2 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + 0;      // y-FP
     n3 = nverts + e->id * (this->order * this->order) + 0;                           // SP
     n4 = nverts + nsps + e->id * (this->order * (this->order + 1)) + 0;              // x-FP
@@ -2261,10 +2362,11 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     }
 
     //      - Quad 2:
-    n1 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + ((this->order + 1) * (this->order - 1));    // y-FP
-    n2 = mesh->get_closest(e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)], mesh->nodes), e->nodes); // nearest vertice from 0 y-FP
-    n3 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order;                                        // x-FP
-    n4 = nverts + e->id * (this->order * this->order) + this->order * (this->order - 1);                                 // SP
+    evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
+    n1 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + ((this->order + 1) * (this->order - 1));     // y-FP
+    n2 = mesh->get_closest(e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)], mesh->nodes), evertices); // nearest vertice from 0 y-FP
+    n3 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order;                                         // x-FP
+    n4 = nverts + e->id * (this->order * this->order) + this->order * (this->order - 1);                                  // SP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2337,10 +2439,11 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
 
     // 1.3) High row:
     //      - Quad 1:
+    evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
     n1 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (this->order + 1) * (this->order - 1); // x-FP
     n2 = nverts + e->id * (this->order * this->order) + (this->order - 1);                                  // SP
     n3 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order;                   // y-FP
-    n4 = mesh->get_closest(e->transform(this->fnodes[1][this->order], mesh->nodes), e->nodes);              // nearest vertice from n y-FP
+    n4 = mesh->get_closest(e->transform(this->fnodes[1][this->order], mesh->nodes), evertices);              // nearest vertice from n y-FP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2369,9 +2472,10 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     }
 
     //      - Quad 2:
+    evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
     n1 = nverts + e->id * (this->order * this->order) + this->order * this->order - 1;                                 // SP
     n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1;              // x-FP
-    n3 = mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1], mesh->nodes), e->nodes); // nearest vertice from n*(n+1)-1 x-FP
+    n3 = mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1], mesh->nodes), evertices); // nearest vertice from n*(n+1)-1 x-FP
     n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1;      // y-FP
 
     cells.push_back(std::string{"4 "} +

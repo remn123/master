@@ -65,7 +65,17 @@ public:
   virtual void calculate_jacobian(const std::vector<Node> &,
                                   const std::vector<std::vector<Node>> &,
                                   const std::vector<Vertice> &) = 0;
-  virtual double calculate_jacobian_at_node(const Node&) = 0;
+  virtual double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&) = 0;
+  virtual std::vector<double> get_normal_vector(int, int, int) = 0;
+  /*
+  get_normal_vector: 
+    calculate normal vector components in physical space for a specific flux point
+        Parameters:
+          index:    1 - csi, 2 - eta
+          point:    0-(order*(order+1))
+          local_ed: 0-4
+   */
+
 
 private:
 };
@@ -94,8 +104,9 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
-  double calculate_jacobian_at_node(const Node&);
+  double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
   std::vector<long> get_ordered_nodes_by_local_edge_id(long);
+  std::vector<double> get_normal_vector(int, int, int);
 };
 
 // Quadrangle
@@ -121,8 +132,9 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
-  double calculate_jacobian_at_node(const Node&);
+  double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  std::vector<double> get_normal_vector(int, int, int);
 };
 
 // Quadrangle High-Order
@@ -131,7 +143,7 @@ class QuadrangleHO : public Element
   
   int ORDER;
   std::vector<double> ce_space;
-  std::unordered_map<int, std::vector<int>> computational_map;
+  std::unordered_map<long, std::vector<long>> computational_map;
 
 public:
   QuadrangleHO(const std::vector<std::string> &node_list) : Element(node_list)
@@ -153,12 +165,13 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
-  double calculate_jacobian_at_node(const Node&);
+  double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  std::vector<double> get_normal_vector(int, int, int);
 
 private:
   void calculate_computational_map(void);
-  void recursive_computational_map(std::vector<int>, int, int);
+  void recursive_computational_map(std::vector<long>, long, long);
 };
 
 // Tetrahedron
@@ -181,7 +194,8 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
-  double calculate_jacobian_at_node(const Node&);
+  double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -205,7 +219,8 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
-  double calculate_jacobian_at_node(const Node&);
+  double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -229,7 +244,8 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
-  double calculate_jacobian_at_node(const Node&);
+  double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 
@@ -252,7 +268,8 @@ public:
   void calculate_jacobian(const std::vector<Node> &,
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
-  double calculate_jacobian_at_node(const Node&);
+  double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
 

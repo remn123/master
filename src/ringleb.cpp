@@ -5,30 +5,42 @@
 #include <memory>
 //#include <crtdbg.h>
 
+#include <Dummies.h>
 #include <Mesh.h>
+#include <SD.h>
 #include <Solver.h>
+#include <Time.h>
 
 namespace fs = std::filesystem;
+
+// explicit instantiations
+// template class SD<Euler>;
+// template class SD<NavierStokes>;
+
+// template class Time<Explicit::SSPRungeKutta>;
 
 /* Declaring analytical field solution */
 std::vector<double> ringleb_field (const Node& n)
 {
-  std::vector<double> vec;
+  std::vector<double> vec(4, 0.0);
 
-  // Constants
-  
   // Coordinates
   double x = n.coords[0];
   double y = n.coords[1];
+  double q = sqrt(x*x + y*y); // Umag
+  double gamma = 1.4;
 
-  double pho = 1.0;
-  double u = exp(-x*x);
-  double v = exp(-y*y);
-  double E = 1.0;
+  double a = sqrt(1.0 - (gamma-1.0)*q*q/2.0);
 
-  vec[0] = pho; 
-  vec[1] = pho*u; 
-  vec[2] = pho*v; 
+  double rho = pow(a, (2.0/(gamma-1.0)));
+  double u = x;
+  double v = y;
+  double p = (1.0/gamma)*pow(a, (2.0*gamma/(gamma-1.0)));
+  double E = p/(gamma-1.0) + rho*(x*x + y*y)/2.0;
+
+  vec[0] = rho; 
+  vec[1] = rho*u; 
+  vec[2] = rho*v; 
   vec[3] = E; 
   
   return vec;
@@ -40,7 +52,7 @@ int main()
   fs::path cur_path = fs::current_path();
   auto mesh = std::make_shared<Mesh>(2);
 
-  mesh->read_gmsh((cur_path.parent_path() / ".." / "resources" / "ringleb.msh").string());
+  mesh->read_gmsh((cur_path.parent_path() / "resources" / "ringleb.msh").string());
 
   int order = 2;
   auto sd = std::make_shared<SD<Euler>>(2, 2);
@@ -71,21 +83,20 @@ int main()
   */
   double CFL = 0.1;
   long MAX_ITER = 1E+3;
-  int stages = 5;
   int rk_order = 4;
+  int stages = 5;
   int size = mesh->Nel * (order * order); // overall number of solution points
 
-  auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>({CFL,
-                                                               MAX_ITER,
-                                                               stages,
-                                                               rk_order,
-                                                               size});
+  auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>(CFL,
+                                                              MAX_ITER,
+                                                              stages,
+                                                              rk_order,
+                                                              size);
 
   time->loop(mesh, sd->solve);
 
-  time->save(mesh, sd->to_vtk);
-
-  //std::cin.get();
+  auto filename = (cur_path.parent_path() / "results" / "pp_mesh_ringleb.vtk").string();
+  time->save(mesh, filename, sd->to_vtk);
 
   return 0;
 }

@@ -15,6 +15,11 @@
 
 using namespace Catch::literals;
 
+// explicit instantiations
+template class SD<Euler>;
+template class SD<NavierStokes>;
+
+
 namespace fs = std::filesystem;
 // Solver
 /*

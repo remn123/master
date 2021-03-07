@@ -121,19 +121,6 @@ std::istream &Mesh::get_line(std::istream &is, std::string &t)
   }
 }
 
-//void Mesh::calculate_jacobians(std::shared_ptr<Element>& e)
-//{
-//  std::vector<Node> enodes;
-//  enodes.reserve(e->nodes.size());
-//
-//  for (auto& n_id : e->nodes)
-//  {
-//    enodes.push_back(this->nodes[n_id]);
-//  }
-//  e->calculate_jacobian(enodes);
-//  enodes.clear();
-//}
-
 void Mesh::mark_boundaries(void)
 {
   int local_id = 0;
@@ -628,7 +615,7 @@ void Mesh::append_elem_to_nodes(const std::shared_ptr<Element> &e)
 void Mesh::append_boundary_face(const int entity_tag, const int physical_tag, const std::vector<std::string> &node_list)
 {
   // Consider only the first and last nodes (the vertices) to create an edge
-  std::vector<std::string> vertices_list = {node_list[0], node_list.back()};
+  std::vector<std::string> vertices_list = {node_list[0], node_list[1]};
   std::vector<long> edges_nodes = {};
   edges_nodes.reserve(2);
 

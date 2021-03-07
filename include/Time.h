@@ -35,10 +35,13 @@ public:
   virtual ~Time();
 
   void update(std::shared_ptr<Mesh> &, void (*)(std::shared_ptr<Mesh> &));
-  void loop(std::shared_ptr<Mesh> &mesh, void (*)(std::shared_ptr<Mesh> &));
+  void loop(std::shared_ptr<Mesh> &, void (*)(std::shared_ptr<Mesh> &));
   void read_solution(const std::shared_ptr<Mesh> &, size_t);
   void read_residue(const std::shared_ptr<Mesh> &, size_t);
   void write_solution(std::shared_ptr<Mesh> &, size_t);
+  void save(const std::shared_ptr<Mesh> &,
+            const std::string &,
+            void (*)(const std::shared_ptr<Mesh> &, const std::string &));
   double c(int, int);
 };
 

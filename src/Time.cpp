@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <math>
+#include <math.h>
 // #include <boost/numeric/ublas/vector.hpp>
 
 #include <Dummies.h>
@@ -169,6 +169,14 @@ void Time<Method>::loop(std::shared_ptr<Mesh> &mesh,
 {
   while (this->iter <= this->MAX_ITER)
     this->update(mesh, solve);
+}
+
+template <typename Method>
+void Time<Method>::save(const std::shared_ptr<Mesh> &mesh,
+                        const std::string &filename,
+                        void (*to_vtk)(const std::shared_ptr<Mesh> &, const std::string &))
+{
+  to_vtk(mesh, filename);
 }
 
 template <typename Method>

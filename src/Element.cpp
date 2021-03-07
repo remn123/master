@@ -185,7 +185,7 @@ void Triangle::enumerate_edges(void)
   //}
 }
 
-double Triangle::calculate_jacobian_at_node(const Node& node)
+double Triangle::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
 {
   return 0.0;
 }
@@ -429,7 +429,7 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
   }
 }
 
-double Quadrangle::calculate_jacobian_at_node(const Node& node)
+double Quadrangle::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
 {
   auto a1 = this->metrics[0];
   auto b1 = this->metrics[1];
@@ -468,6 +468,25 @@ Node Quadrangle::transform(const Node &n, const std::vector<Vertice> &enodes)
   return Node{x, y, z};
 }
 
+
+  
+std::vector<double> Quadrangle::get_normal_vector(int index, int point, int local_ed)
+{
+  auto J = this->J[index][point];
+  auto ds_dx = this->Ji[index][point][2 * (index-1)];
+  auto ds_dy = this->Ji[index][point][2 * (index-1) + 1];
+  double nx, ny;
+  
+  auto signN = ((local_ed==0||local_ed==3)) ? -1 : 1;
+
+  // nx = (abs(ds_dx) > 1E-15) ? signN*J*ds_dx/abs(ds_dx) : 0.0;
+  // ny = (abs(ds_dy) > 1E-15) ? signN*J*ds_dy/abs(ds_dy) : 0.0;
+  double S_norm = sqrt(ds_dx*ds_dx + ds_dy*ds_dy);
+  nx = signN*ds_dx/S_norm;
+  ny = signN*ds_dy/S_norm;
+  return std::vector<double>{nx, ny};
+}
+
 /* ------------------------------ */
 /*     QUADRANGLE 25-Nodes        */
 /* ------------------------------ */
@@ -503,7 +522,7 @@ void QuadrangleHO::enumerate_edges(void)
   //std::cout << "Enumerating edges of a QuadrangleHO" << std::endl;
   this->NUM_NODES = this->nodes.size();
   this->ORDER = static_cast<int>(sqrt(this->NUM_NODES)) - 1;
-
+  this->computational_map = std::unordered_map<long, std::vector<long>>{};
   // Calculates computational map that creates a unordered_map (computational_map)
   // whose keys are the cell's node and its value gives a vector
   // for the i, j coordinates in the isoparametric space
@@ -569,6 +588,8 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
   x.reserve(this->NUM_NODES);
   y.reserve(this->NUM_NODES);
 
+  
+
   this->ce_space.reserve(sqrt(this->NUM_NODES));
   double ds = 2.0 / double(this->ORDER);
   double Lcsi = 0.0, Leta = 0.0, dLcsi = 0.0, dLeta = 0.0;
@@ -606,7 +627,10 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
       Ji = [dcsi_dx  dcsi_dy;
             deta_dx  deta_dy]
     */
-
+    dx_dcsi = 0.0; 
+    dx_deta = 0.0; 
+    dy_dcsi = 0.0; 
+    dy_deta = 0.0;
     for (int k = 0; k < this->NUM_NODES; k++)
     {
       auto coords = this->computational_map.find(k)->second;
@@ -648,7 +672,11 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
       // flux node coordinates
       csi = node.coords[0];
       eta = node.coords[1];
-
+      
+      dx_dcsi = 0.0; 
+      dx_deta = 0.0; 
+      dy_dcsi = 0.0; 
+      dy_deta = 0.0;
       for (int k = 0; k < this->NUM_NODES; k++)
       {
         auto coords = this->computational_map.find(k)->second;
@@ -685,14 +713,15 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
                                       deta_dx, deta_dy};
     }
   }
+  Helpers<Lagrange>::delete_nodes();
 }
 
-void QuadrangleHO::recursive_computational_map(std::vector<int> indices, int i0, int j0)
+void QuadrangleHO::recursive_computational_map(std::vector<long> indices, long i0, long j0)
 {
-  double N = indices.size();
-  double v;
-  int order = static_cast<int>(sqrt(N)) - 1;
-
+  long N = indices.size();
+  long v;
+  long order = static_cast<long>(sqrt(N)) - 1;
+  
   if (N == 1)
   {
     v = indices.back();
@@ -700,38 +729,39 @@ void QuadrangleHO::recursive_computational_map(std::vector<int> indices, int i0,
     this->computational_map.insert({v, {i0, j0}});
   }
 
-  if (N != 0)
+  if (N > 1)
   {
-    std::vector<long> vertices;
-    int i, j;
+    std::vector<long> vertices={};
+    long i, j;
     // Nodes at the vertices
     while (vertices.size() < 4)
     {
       vertices.push_back(indices.back());
       indices.pop_back();
-      int idx = 0;
-      for (auto v : vertices)
+    }
+    long idx = 0;
+    for (auto v : vertices)
+    {
+      if (idx == 0)
       {
-        if (idx == 0)
-        {
-          i = i0;
-          j = j0;
-        }
-        if (idx == 1)
-          i += order;
-        if (idx == 2)
-          j += order;
-        if (idx == 3)
-          j -= order;
-
-        this->computational_map.insert({v, {i, j}});
+        i = i0;
+        j = j0;
       }
+      if (idx == 1)
+        i += order;
+      if (idx == 2)
+        j += order;
+      if (idx == 3)
+        i -= order;
+      
+      this->computational_map.insert({v, {i, j}});
+      idx++;
     }
 
     if (indices.size() > 0)
     {
       // Nodes at edges
-      std::vector<int> edges;
+      std::vector<long> edges = {};
       while (edges.size() < 4 * (order - 1))
       {
         edges.push_back(indices.back());
@@ -740,8 +770,8 @@ void QuadrangleHO::recursive_computational_map(std::vector<int> indices, int i0,
 
       i = i0;
       j = j0;
-      double L = order - 1;
-      int idx = 0;
+      long L = order - 1;
+      long idx = 0;
       for (auto e : edges)
       {
         if (idx < L)
@@ -763,6 +793,8 @@ void QuadrangleHO::recursive_computational_map(std::vector<int> indices, int i0,
           i -= 1;
         if (idx == 4 * L - 1)
           i += 1;
+
+        idx++;
       }
     }
     this->recursive_computational_map(indices, i, j);
@@ -772,11 +804,11 @@ void QuadrangleHO::recursive_computational_map(std::vector<int> indices, int i0,
 void QuadrangleHO::calculate_computational_map(void)
 {
   double ds = 2.0 / double(this->ORDER);
-  std::vector<int> indices;
+  std::vector<long> indices;
   indices.reserve((this->ORDER + 1) * (this->ORDER + 1));
-  for (auto i = (this->ORDER + 1) * (this->ORDER + 1) - 1; i < 0; i--)
+  for (auto i = (this->ORDER + 1) * (this->ORDER + 1) - 1; i >= 0; i--)
     indices.push_back(i);
-
+  
   this->recursive_computational_map(indices, 0, 0);
 }
 
@@ -808,12 +840,94 @@ Node QuadrangleHO::transform(const Node &n, const std::vector<Vertice> &enodes)
     x += Lcsi * Leta * enodes[this->nodes[k]].coords[0];
     y += Lcsi * Leta * enodes[this->nodes[k]].coords[1];
   }
-
+  Helpers<Lagrange>::delete_nodes();
   return Node{x, y, z};
   //return Node();
 }
 
+double QuadrangleHO::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
+{
+  // Shape functions in 2D will be constructed based on
+  // the Lagrange Polynomials applied to the isoparametric space
+  // due to all nodes are allocated in a specific coordinate
+  // Once these nodes' locations are known, it can be used to interpolate
+  // each dimension separetely and multiply them in order to obtain
+  // the set of shape functions that map a node from isoparametric space
+  // to the physical space. For the inverse mapping, it will be used the
+  // inverse of the Jacobian matrix.
+  Helpers<Lagrange>::init();
+  Helpers<Lagrange>::set_nodes(this->ce_space);
 
+  double Lcsi = 0.0, Leta = 0.0, dLcsi = 0.0, dLeta = 0.0;
+  double dx_dcsi = 0.0, dx_deta = 0.0, dy_dcsi = 0.0, dy_deta = 0.0;
+
+  // node coordinates in computational space
+  auto csi = node.coords[0];
+  auto eta = node.coords[1];
+
+  for (int k = 0; k < this->NUM_NODES; k++)
+  {
+    auto coords = this->computational_map.find(k)->second;
+    int i = coords[0];
+    int j = coords[1];
+
+    Lcsi = Helpers<Lagrange>::Pn(i, csi);
+    Leta = Helpers<Lagrange>::Pn(j, eta);
+    dLcsi = Helpers<Lagrange>::dPn(i, csi);
+    dLeta = Helpers<Lagrange>::dPn(j, eta);
+
+    dx_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[0];
+    dx_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[0];
+    dy_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[1];
+    dy_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[1];
+  }
+  Helpers<Lagrange>::delete_nodes();
+  return dx_dcsi * dy_deta - dx_deta * dy_dcsi;
+}
+
+std::vector<double> QuadrangleHO::get_normal_vector(int index, int point, int local_ed)
+{
+  auto J = this->J[index][point];
+  auto ds_dx = this->Ji[index][point][2 * (index-1)];
+  auto ds_dy = this->Ji[index][point][2 * (index-1) + 1];
+  double nx, ny;
+  
+  auto signN = ((local_ed==0||local_ed==3)) ? -1 : 1;
+
+  double S_norm = sqrt(ds_dx*ds_dx + ds_dy*ds_dy);
+  nx = signN*ds_dx/S_norm;
+  ny = signN*ds_dy/S_norm;
+  return std::vector<double>{nx, ny};
+}
+
+// Get normal Vector Function
+std::vector<double> Triangle::get_normal_vector(int index, int point, int local_ed)
+{
+  return std::vector<double>{0.0, 0.0}; // PASS
+}
+
+std::vector<double> Tetrahedron::get_normal_vector(int index, int point, int local_ed)
+{
+  return std::vector<double>{0.0, 0.0}; // PASS
+}
+
+std::vector<double> Hexahedron::get_normal_vector(int index, int point, int local_ed)
+{
+  return std::vector<double>{0.0, 0.0}; // PASS
+}
+
+std::vector<double> Prism::get_normal_vector(int index, int point, int local_ed)
+{
+  return std::vector<double>{0.0, 0.0}; // PASS
+}
+
+std::vector<double> Pyramid::get_normal_vector(int index, int point, int local_ed)
+{
+  return std::vector<double>{0.0, 0.0}; // PASS
+}
+
+
+// Allocate Jacobian function
 void Triangle::allocate_jacobian(int order)
 {
 }
@@ -884,27 +998,24 @@ Node Pyramid::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
 }
 
-double QuadrangleHO::calculate_jacobian_at_node(const Node& node)
+
+
+double Tetrahedron::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
 {
   return 0.0;
 }
 
-double Tetrahedron::calculate_jacobian_at_node(const Node& node)
+double Hexahedron::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
 {
   return 0.0;
 }
 
-double Hexahedron::calculate_jacobian_at_node(const Node& node)
+double Prism::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
 {
   return 0.0;
 }
 
-double Prism::calculate_jacobian_at_node(const Node& node)
-{
-  return 0.0;
-}
-
-double Pyramid::calculate_jacobian_at_node(const Node& node)
+double Pyramid::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
 {
   return 0.0;
 }
