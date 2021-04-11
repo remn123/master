@@ -11,7 +11,10 @@ private:
 public:
   DVector() { this->q = std::vector<double>(4, 0.0); };
   DVector(const std::vector<double> &sol) : q(sol){};
-  DVector(const DVector &rhs) { this->q = rhs.q; };
+  DVector(const DVector &rhs) { 
+    this->q = std::vector<double>(4, 0.0);
+    this->q = rhs.q; 
+  };
   ~DVector() { this->q.clear(); };
 
   size_t size(void)

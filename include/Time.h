@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <vector>
 #include <memory>
 // #include <boost/numeric/ublas/vector.hpp>
@@ -24,6 +25,7 @@ public:
   double dt;
   long iter;
 
+  
   std::vector<DVector> Q;
   std::vector<DVector> res;
   DVector res_sum;
@@ -34,14 +36,19 @@ public:
   Time(double, long, int, int, size_t);
   virtual ~Time();
 
-  void update(std::shared_ptr<Mesh> &, void (*)(std::shared_ptr<Mesh> &));
-  void loop(std::shared_ptr<Mesh> &, void (*)(std::shared_ptr<Mesh> &));
+  void update(std::shared_ptr<Mesh> &, std::function<void(std::shared_ptr<Mesh> &)>);
+  void loop(
+    std::shared_ptr<Mesh> &, 
+    std::function<void(std::shared_ptr<Mesh> &)>,
+    const std::string &,
+    std::function<void(const std::shared_ptr<Mesh> &, const std::string &)>
+  );
   void read_solution(const std::shared_ptr<Mesh> &, size_t);
   void read_residue(const std::shared_ptr<Mesh> &, size_t);
   void write_solution(std::shared_ptr<Mesh> &, size_t);
   void save(const std::shared_ptr<Mesh> &,
             const std::string &,
-            void (*)(const std::shared_ptr<Mesh> &, const std::string &));
+            std::function<void(const std::shared_ptr<Mesh> &, const std::string &)>);
   double c(int, int);
 };
 

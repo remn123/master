@@ -60,6 +60,7 @@ public:
 	double get_area(const std::vector<long> &, const Vertice &);
 	double get_volume(const std::vector<Vertice> &);
 	void update_element_neighbors(void);
+	void update_physical_tags(void);
 	void mark_boundaries(void);
 	void to_vtk(const std::string &);
 	long get_closest(const Node &, std::vector<long> &);

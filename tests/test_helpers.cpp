@@ -117,6 +117,32 @@ TEST_CASE("7: Test Legendre - set_nodes", "[gauss-legendre]")
   REQUIRE( nodes[1] == Approx(0.0).margin(1E-15));
   REQUIRE( nodes[2] == Approx(0.7745966692414833770359).margin(1E-15));
   Helpers<GL>::delete_nodes(); 
+
+  nodes.clear();
+
+  Helpers<GL>::set_nodes(4);
+  nodes = Helpers<GL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-0.8611363115940525752239).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(-0.3399810435848562648026).margin(1E-15));
+  REQUIRE( nodes[2] == Approx(0.3399810435848562648026).margin(1E-15));
+  REQUIRE( nodes[3] == Approx(0.8611363115940525752239).margin(1E-15));
+  Helpers<GL>::delete_nodes(); 
+
+  nodes.clear();
+
+  Helpers<GL>::set_nodes(10);
+  nodes = Helpers<GL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-0.9739065285171717200779640120844520534).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(-0.8650633666889845107320966884234930485).margin(1E-15));
+  REQUIRE( nodes[2] == Approx(-0.6794095682990244062343273651148735757).margin(1E-15));
+  REQUIRE( nodes[3] == Approx(-0.4333953941292471907992659431657841622).margin(1E-15));
+  REQUIRE( nodes[4] == Approx(-0.1488743389816312108848260011297199846).margin(1E-15));
+  REQUIRE( nodes[5] == Approx(0.1488743389816312108848260011297199846).margin(1E-15));
+  REQUIRE( nodes[6] == Approx(0.4333953941292471907992659431657841622).margin(1E-15));
+  REQUIRE( nodes[7] == Approx(0.6794095682990244062343273651148735757).margin(1E-15));
+  REQUIRE( nodes[8] == Approx(0.8650633666889845107320966884234930485).margin(1E-15));
+  REQUIRE( nodes[9] == Approx(0.9739065285171717200779640120844520534).margin(1E-15));
+  Helpers<GL>::delete_nodes(); 
 }
 // ----------------------------------------------------------------- //
 
@@ -148,6 +174,62 @@ TEST_CASE("3: Test Gauss-Lobatto - get_nodes method", "[gauss-lobatto]")
   REQUIRE( nodes[1] == Approx(0.0).margin(1E-15));
   REQUIRE( nodes[2] == Approx(1.0).margin(1E-15));
   Helpers<GLL>::delete_nodes();
+}
+
+TEST_CASE("4: Test Lobatto - high orders", "[gauss-lobatto]")
+{
+  Helpers<GLL>::init();
+  Helpers<GLL>::set_nodes(2);
+  std::vector<double> nodes = Helpers<GLL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-1.0).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(1.0).margin(1E-15));
+  Helpers<GLL>::delete_nodes();
+
+  nodes.clear();
+
+  Helpers<GLL>::set_nodes(3);
+  nodes = Helpers<GLL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-1.0).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(0.0).margin(1E-15));
+  REQUIRE( nodes[2] == Approx(1.0).margin(1E-15));
+  Helpers<GLL>::delete_nodes(); 
+
+  nodes.clear();
+
+  Helpers<GLL>::set_nodes(4);
+  nodes = Helpers<GLL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-1.0).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(-0.5773502691896257645092).margin(1E-15));
+  REQUIRE( nodes[2] == Approx(0.5773502691896257645092).margin(1E-15));
+  REQUIRE( nodes[3] == Approx(1.0).margin(1E-15));
+  Helpers<GLL>::delete_nodes(); 
+
+  nodes.clear();
+
+  Helpers<GLL>::set_nodes(5);
+  nodes = Helpers<GLL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-1.0).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(-0.7745966692414833770359).margin(1E-15));
+  REQUIRE( nodes[2] == Approx(0.0).margin(1E-15));
+  REQUIRE( nodes[3] == Approx(0.7745966692414833770359).margin(1E-15));
+  REQUIRE( nodes[4] == Approx(1.0).margin(1E-15));
+  Helpers<GLL>::delete_nodes();
+
+  nodes.clear();
+
+  Helpers<GLL>::set_nodes(10);
+  nodes = Helpers<GLL>::get_nodes();
+  REQUIRE( nodes[0] == Approx(-1.0).margin(1E-15));
+  REQUIRE( nodes[1] == Approx(-0.9602898564975362316835608685694729904).margin(1E-15));
+  REQUIRE( nodes[2] == Approx(-0.7966664774136267395915539364758304368).margin(1E-15));
+  REQUIRE( nodes[3] == Approx(-0.5255324099163289858177390491892463490).margin(1E-15));
+  REQUIRE( nodes[4] == Approx(-0.1834346424956498049394761423601839806).margin(1E-15));
+  REQUIRE( nodes[5] == Approx(0.1834346424956498049394761423601839806).margin(1E-15));
+  REQUIRE( nodes[6] == Approx(0.5255324099163289858177390491892463490).margin(1E-15));
+  REQUIRE( nodes[7] == Approx(0.7966664774136267395915539364758304368).margin(1E-15));
+  REQUIRE( nodes[8] == Approx(0.9602898564975362316835608685694729904).margin(1E-15));
+  REQUIRE( nodes[9] == Approx(1.0).margin(1E-15));
+  Helpers<GLL>::delete_nodes(); 
 }
 // ----------------------------------------------------------------- //
 

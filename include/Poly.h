@@ -11,7 +11,7 @@ class Poly
 {
 public:
   std::vector<double> nodes;
-  inline static double MAX_ERROR = 1e-5;
+  inline static double MAX_ERROR = 1e-15;
   inline static std::vector<double> memo{1};
 
 public:

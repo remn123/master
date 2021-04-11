@@ -21,7 +21,7 @@ void Poly::newton_raphson(double a, double b, unsigned int k, unsigned int n, do
     x0 = xn;
     // if (counter % 100 == 0)
     // {
-    //   std::cout << "[newton_raphson] - Iter(" << counter << "): Residue = " << log10(dx) << "; xn = " << xn << "; r = " << r << "\n";
+    //std::cout << std::setprecision(36)<< "[newton_raphson] - Iter(" << counter << "): Residue = " << log10(dx) << "; xn = " << xn << "; r = " << r << "\n";
     // }
     counter++;
   }
@@ -188,7 +188,7 @@ void GLL::setup(unsigned int n)
       {
         r = (r + this->nodes[k - 1]) / 2.0;
       }
-      newton_raphson(1.0, 1.0, k, n, r); // Legendre Polynomials
+      newton_raphson(0.0, 0.0, k, n-2, r); // Legendre Polynomials
     }
     this->nodes[n - 1] = 1.0;
   }
@@ -236,8 +236,14 @@ double Lagrange::Pn(unsigned int i, double x)
       {
         xi = this->nodes[i];
         xk = this->nodes[k];
-
-        prod *= (x - xk) / (xi - xk);
+        if (abs(x - xk)<=1E-15)
+        {
+          prod = 0.0;
+        }
+        else
+        {
+          prod*= (x - xk) / (xi - xk);
+        }
       }
     }
   }
@@ -253,20 +259,30 @@ double Lagrange::dPn(unsigned int i, double x)
     for (auto j = 0; j < n; j++)
     {
       xj = this->nodes[j];
-      for (auto k = 0; k < n; k++)
-      {
-        if (k != i && k != j)
-        {
-          xi = this->nodes[i];
-          xk = this->nodes[k];
-
-          prod *= (x - xk) / (xi - xk);
-        }
-      }
+      
       if (j != i)
-      {
-        //sum += (-xj)/(xi - xj);
-        sum += prod / (xi - xj);
+      { 
+        prod = 1.0;
+        for (auto k = 0; k < n; k++)
+        {
+          if (k != i && k != j)
+          {
+            xi = this->nodes[i];
+            xk = this->nodes[k];
+            if (abs(x - xk)<=1E-15)
+            {
+              prod = 0.0;
+            }
+            else
+            {
+              prod*= (x - xk) / (xi - xk);
+            }
+          }
+        }
+        if (prod!=0.0)
+        {
+          sum += (prod  / (xi - xj));
+        }
       }
     }
   }

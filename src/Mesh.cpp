@@ -1,14 +1,15 @@
-#include <fstream>
-#include <string>
-#include <iostream>
-#include <map>
-#include <sstream>
-#include <sys/stat.h>
-#include <iterator>
 #include <algorithm>
+#include <fstream>
 #include <functional>
-#include <random>
+#include <iostream>
+#include <iterator>
 #include <limits>
+#include <map>
+#include <random>
+#include <regex>
+#include <sstream>
+#include <string>
+#include <sys/stat.h>
 
 #include <Mesh.h>
 #include <Ghost.h>
@@ -80,6 +81,25 @@ void Mesh::update_element_neighbors(void)
             ed2.right = ed1.left;
           }
         }
+      }
+    }
+  }
+}
+
+void Mesh::update_physical_tags(void)
+{
+  // scan all elements
+  for (auto &e : this->elems)
+  {
+    // scan all elements' edges
+    for (auto &ed : e->edges)
+    {
+      // if there is a negative neighbor, mark element as boundary
+      if (ed.right < 0)
+      {
+        auto tag = this->ghosts[ed.ghost].tag;
+        auto type = Ghost::tag_name_map.find(tag)->second;
+        this->ghosts[ed.ghost].type = type;
       }
     }
   }
@@ -257,6 +277,8 @@ void Mesh::read_gmsh(const std::string &filename)
         {"$EndElements", blocks::eELEMENTS},
         {"$NodeData", blocks::NODEDATA},
         {"$EndNodeData", blocks::eNODEDATA},
+        {"$PhysicalNames", blocks::PHYSICALNAMES},
+        {"$EndPhysicalNames", blocks::ePHYSICALNAMES},
         {"$ElementData", blocks::ELEMENTDATA},
         {"$EndElementData", blocks::eELEMENTDATA},
         {"$ElementNodeData", blocks::ELEMENTNODEDATA},
@@ -334,6 +356,49 @@ void Mesh::read_gmsh(const std::string &filename)
           this->nodes.reserve(this->N);
           //std::cout << "N Nodes = " << this->N << " - this->nodes.size = " << this->nodes.size() << std::endl;
           // this->nodes.resize(this->N);
+        }
+      }
+      // Getting into the Element Block
+      else if (_BLOCK_ == blocks::PHYSICALNAMES)
+      { 
+        std::vector<std::string> parser(std::istream_iterator<std::string>{check_},
+                                        std::istream_iterator<std::string>());
+        // std::cout << "blocks::PHYSICALNAMES\n";
+        if (parser.size() > 2)
+        {
+          // [0] dimension(ASCII int)  
+          // [1] physicalTag(ASCII int)
+          // [2] "name"(127 characters max)
+
+          //int dimension = std::stoi(parser[0]);
+          int physical_tag_id = std::stoi(parser[1]);
+          std::string physical_tag_name = parser[2];
+          // std::cout << "physical_tag_id = " << physical_tag_id << "\n";
+          // std::cout << "physical_tag_name = " << physical_tag_name << "\n";
+          // std::cin.get();
+
+          std::regex WALL_r(".*(wall|inner|outer).*", std::regex::icase);
+          std::regex INLET_r(".*(inlet|inflow).*", std::regex::icase);
+          std::regex OUTLET_r(".*(outlet|outflow).*", std::regex::icase);
+          auto test =  std::regex_match(physical_tag_name, WALL_r);
+          // std::cout << "test = " << test << "\n";
+          if (std::regex_match(physical_tag_name, WALL_r))
+          {
+            // std::cout << "WALL" << "\n";
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::WALL});
+          }
+          else if (std::regex_match(physical_tag_name, INLET_r))
+          {
+            // std::cout << "INLET" << "\n";
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::SUPERSONIC_INLET});
+          }
+          else if (std::regex_match(physical_tag_name, OUTLET_r))
+          {
+            // std::cout << "OUTLET" << "\n";
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::SUPERSONIC_OUTLET});
+          }
+          // std::cin.get();
+
         }
       }
       // Getting into the Element Block
@@ -477,6 +542,7 @@ void Mesh::read_gmsh(const std::string &filename)
     this->Ned = Element::num_edges + 1;
     this->update_element_neighbors();
     this->mark_boundaries();
+    this->update_physical_tags();
     this->Ngh = Ghost::num_ghosts + 1;
     // reset num_elems, num_edges and num_ghosts
     Element::num_elems = -1;
@@ -668,7 +734,7 @@ double Mesh::get_residue_norm(int type)
   switch (type)
   {
   // L1-norm
-  case 1:
+  case 0:
     // for each cell
     for (auto &e : this->elems)
     {
@@ -677,9 +743,8 @@ double Mesh::get_residue_norm(int type)
       for (auto &node : e->computational->res)
       {
         res_norm = 0.0;
-        for (auto r : node)
-          res_norm += r * r;
-        res_norm = sqrt(res_norm);
+        for (auto k = 0; k < node.size(); k++)
+          res_norm += std::abs(node[k]);
 
         if (cell_res_norm <= res_norm)
           cell_res_norm = res_norm;
@@ -690,6 +755,29 @@ double Mesh::get_residue_norm(int type)
     break;
 
   // L2-norm
+  case 1:
+    // for each cell
+    for (auto &e : this->elems)
+    {
+      cell_res_norm = 0.0;
+      // for each cell's node (solution points)
+      for (auto &node : e->computational->res)
+      {
+        res_norm = 0.0;
+        for (auto k = 0; k < node.size(); k++)
+          res_norm += node[k] * node[k];
+        res_norm = std::sqrt(res_norm);
+
+        if (cell_res_norm <= res_norm)
+          cell_res_norm = res_norm;
+      }
+
+      L_norm += std::pow(cell_res_norm, 2.0);
+    }
+    L_norm = std::sqrt(L_norm);
+    break;
+
+  // Linf-norm
   case 2:
     // for each cell
     for (auto &e : this->elems)
@@ -701,30 +789,7 @@ double Mesh::get_residue_norm(int type)
         res_norm = 0.0;
         for (auto k = 0; k < node.size(); k++)
           res_norm += node[k] * node[k];
-        res_norm = sqrt(res_norm);
-
-        if (cell_res_norm <= res_norm)
-          cell_res_norm = res_norm;
-      }
-
-      L_norm += pow(cell_res_norm, 2.0);
-    }
-    L_norm = sqrt(L_norm);
-    break;
-
-  // Linf-norm
-  case 3:
-    // for each cell
-    for (auto &e : this->elems)
-    {
-      cell_res_norm = 0.0;
-      // for each cell's node (solution points)
-      for (auto &node : e->computational->res)
-      {
-        res_norm = 0.0;
-        for (auto k = 0; k < node.size(); k++)
-          res_norm += node[k] * node[k];
-        res_norm = sqrt(res_norm);
+        res_norm = std::sqrt(res_norm);
 
         if (cell_res_norm <= res_norm)
           cell_res_norm = res_norm;

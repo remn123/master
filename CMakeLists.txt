@@ -4,7 +4,7 @@ set(CMAKE_CXX_COMPILER "g++-9")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -lstdc++fs -g -lm")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -g -lm")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -lpthread -O -Wall -Wextra -g -lm")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -g -lm")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -lm")
 #link_libraries(stdc++fs)
@@ -30,43 +30,48 @@ if (Boost_FOUND)
     # )
 
     # ringleb 
-    add_executable(master_exe 
-                src/Main.cpp
+    add_executable(
+        master_exe 
+        src/ringleb.cpp
     )
 
-    target_link_libraries(master_exe
-                          master_lib   
+    target_link_libraries(
+        master_exe
+        master_lib   
     )
 
-    add_library(master_lib
-                src/Element.cpp
-                src/Field.cpp
-                src/Ghost.cpp
-                src/Mesh.cpp
-                src/Node.cpp
-                #src/Pipeline.cpp
-                #src/Posproc.cpp
-                #src/Preproc.cpp
-                src/Poly.cpp
-                src/SD.cpp
-                #src/Solver.cpp
-                include/Dict.h
-                include/DVector.h
-                include/Dummies.h
-                include/Edge.h
-                include/Element.h
-                include/Field.h
-                include/Ghost.h
-                include/Helpers.h
-                include/Mesh.h
-                include/Node.h
-                include/Property.h
-                #include/Pipeline.h
-                #include/Posproc.h
-                #include/Preproc.h
-                include/Poly.h
-                include/SD.h
-                #include/Solver.h
+    add_library(
+        master_lib
+        src/Element.cpp
+        src/Field.cpp
+        src/Ghost.cpp
+        src/Mesh.cpp
+        src/Node.cpp
+        #src/Pipeline.cpp
+        #src/Posproc.cpp
+        #src/Preproc.cpp
+        src/Poly.cpp
+        src/SD.cpp
+        src/Time.cpp
+        #src/Solver.cpp
+        include/Dict.h
+        include/DVector.h
+        include/Dummies.h
+        include/Edge.h
+        include/Element.h
+        include/Field.h
+        include/Ghost.h
+        include/Helpers.h
+        include/Mesh.h
+        include/Node.h
+        include/Property.h
+        #include/Pipeline.h
+        #include/Posproc.h
+        #include/Preproc.h
+        include/Poly.h
+        include/SD.h
+        include/Time.h
+        #include/Solver.h
 
     )
 
@@ -78,28 +83,31 @@ if (Boost_FOUND)
 
 
     # tests
-    add_executable(master_test 
-                tests/main.cpp
-                tests/tests.cpp
-                tests/test_dict.cpp
-                tests/test_dvector.cpp
-                tests/test_element.cpp
-                tests/test_helpers.cpp
-                tests/test_sd.cpp
-                tests/test_posproc.cpp
-                #tests/test_pipeline.cpp
-                #tests/test_sd.cpp
-                #tests/test_ublas.cpp
-                tests/test_functional.cpp
-
+    add_executable(
+        master_test 
+        tests/main.cpp
+        tests/tests.cpp
+        tests/test_dict.cpp
+        tests/test_dvector.cpp
+        tests/test_element.cpp
+        tests/test_helpers.cpp
+        tests/test_sd.cpp
+        tests/test_posproc.cpp
+        #tests/test_pipeline.cpp
+        #tests/test_sd.cpp
+        tests/test_ublas.cpp
+        tests/test_functional.cpp
     )
-
+    find_package (Threads)
+    
     target_link_libraries(master_test master_lib)
     target_link_libraries(master_test catch_lib)
     target_link_libraries(master_test ${Boost_LIBRARY_DIRS})
+    target_link_libraries(master_test ${CMAKE_THREAD_LIBS_INIT})
 
-    add_library(catch_lib
-                thirdparty/catch/catch.hpp
+    add_library(
+        catch_lib
+        thirdparty/catch/catch.hpp
     )
 
     set_target_properties(catch_lib PROPERTIES LINKER_LANGUAGE CXX)

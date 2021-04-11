@@ -584,18 +584,12 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
                                       const std::vector<std::vector<Node>> &fnodes,
                                       const std::vector<Vertice> &enodes)
 {
-  std::vector<double> x, y;
-  x.reserve(this->NUM_NODES);
-  y.reserve(this->NUM_NODES);
-
-  
-
   this->ce_space.reserve(sqrt(this->NUM_NODES));
   double ds = 2.0 / double(this->ORDER);
   double Lcsi = 0.0, Leta = 0.0, dLcsi = 0.0, dLeta = 0.0;
 
   for (size_t i = 0; i <= this->ORDER; i++)
-    this->ce_space.push_back(-1.0 + ds * i);
+    this->ce_space.push_back(-1.0 + ds * double(i));
 
   // Shape functions in 2D will be constructed based on
   // the Lagrange Polynomials applied to the isoparametric space
@@ -631,11 +625,11 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
     dx_deta = 0.0; 
     dy_dcsi = 0.0; 
     dy_deta = 0.0;
-    for (int k = 0; k < this->NUM_NODES; k++)
+    for (auto k = 0; k < this->NUM_NODES; k++)
     {
       auto coords = this->computational_map.find(k)->second;
-      int i = coords[0];
-      int j = coords[1];
+      auto i = (unsigned int) coords[0];
+      auto j = (unsigned int) coords[1];
 
       Lcsi = Helpers<Lagrange>::Pn(i, csi);
       Leta = Helpers<Lagrange>::Pn(j, eta);
@@ -648,6 +642,11 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
       dy_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[1];
     }
     this->J[index][s_index - 1] = dx_dcsi * dy_deta - dx_deta * dy_dcsi;
+    if (this->J[index][s_index - 1] <= 0.0)
+    {
+      std::cout<<" this->J["<<index<<"]["<<s_index - 1<<"] = " << this->J[index][s_index - 1] << "\n";
+      throw "ERROR: Unvalid Jacobian!";
+    }
     this->Jm[index][s_index - 1] = {dx_dcsi, dx_deta,
                                     dy_dcsi, dy_deta};
 
@@ -677,11 +676,11 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
       dx_deta = 0.0; 
       dy_dcsi = 0.0; 
       dy_deta = 0.0;
-      for (int k = 0; k < this->NUM_NODES; k++)
+      for (long k = 0; k < this->NUM_NODES; k++)
       {
         auto coords = this->computational_map.find(k)->second;
-        int i = coords[0];
-        int j = coords[1];
+        auto i = (unsigned int) coords[0];
+        auto j = (unsigned int) coords[1];
 
         Lcsi = Helpers<Lagrange>::Pn(i, csi);
         Leta = Helpers<Lagrange>::Pn(j, eta);
@@ -701,6 +700,11 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
               deta_dx  deta_dy]
       */
       this->J[index][f_index - 1] = dx_dcsi * dy_deta - dx_deta * dy_dcsi;
+      if (this->J[index][f_index - 1] <= 0.0)
+      {
+        std::cout<<" this->J["<<index<<"]["<<f_index - 1<<"] = " << this->J[index][f_index - 1] << "\n";
+        throw "ERROR: Unvalid Jacobian!";
+      }
       this->Jm[index][f_index - 1] = {dx_dcsi, dx_deta,
                                       dy_dcsi, dy_deta};
 
@@ -865,11 +869,11 @@ double QuadrangleHO::calculate_jacobian_at_node(const Node& node, const std::vec
   auto csi = node.coords[0];
   auto eta = node.coords[1];
 
-  for (int k = 0; k < this->NUM_NODES; k++)
+  for (long k = 0; k < this->NUM_NODES; k++)
   {
     auto coords = this->computational_map.find(k)->second;
-    int i = coords[0];
-    int j = coords[1];
+    long i = coords[0];
+    long j = coords[1];
 
     Lcsi = Helpers<Lagrange>::Pn(i, csi);
     Leta = Helpers<Lagrange>::Pn(j, eta);

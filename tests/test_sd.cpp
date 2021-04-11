@@ -617,7 +617,10 @@ TEST_CASE("5: Test SD<Euler> - setup", "[sd3linear]")
   int order = 2;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
   
-  sd->setup(mesh, FIELDS::LINEAR_FIELD_MAPPING);
+  sd->setup(
+    mesh, 
+    FIELDS::LINEAR_FIELD_MAPPING
+  );
 
   sd->to_vtk(mesh, 
             (cur_path.parent_path() / "results" / "pp_mesh_test_linear.vtk").string());
@@ -923,32 +926,34 @@ TEST_CASE("6: Test SD<Euler> - setup", "[sd3uniform2]")
 
 
 
-std::vector<double> ringleb_field (const Node& n)
-{
-  std::vector<double> vec(4, 0.0);
+// std::vector<double> ringleb_field (const Node& n)
+// {
+//   std::vector<double> vec(4, 0.0);
 
-  // Coordinates
-  double x = n.coords[0];
-  double y = n.coords[1];
-  double q = sqrt(x*x + y*y); // Umag
-  double gamma = 1.4;
+//   // Coordinates
+//   double x = n.coords[0];
+//   double y = n.coords[1];
+//   double q = sqrt(x*x + y*y); // Umag
+//   double gamma = 1.4;
 
-  double a = sqrt(1.0 - (gamma-1.0)*q*q/2.0);
+//   double a = sqrt(1.0 - (gamma-1.0)*q*q/2.0);
 
-  double rho = pow(a, (2.0/(gamma-1.0)));
-  double u = x;
-  double v = y;
-  double p = (1.0/gamma)*pow(a, (2.0*gamma/(gamma-1.0)));
-  double E = p/(gamma-1.0) + rho*(x*x + y*y)/2.0;
-
-  vec[0] = rho; 
-  vec[1] = rho*u; 
-  vec[2] = rho*v; 
-  vec[3] = E; 
+//   double rho = pow(a, (2.0/(gamma-1.0)));
+//   double u = x;
+//   double v = y;
+//   double p = (1.0/gamma)*pow(a, (2.0*gamma/(gamma-1.0)));
+//   double E = p/(gamma-1.0) + rho*(x*x + y*y)/2.0;
   
-  return vec;
+//   vec[0] = rho; 
+//   vec[1] = rho*u; 
+//   vec[2] = rho*v; 
+//   vec[3] = E; 
+  
+//   return vec;
 
-}
+// }
+
+
 
 TEST_CASE("7: Test SD<Euler> - setup", "[sd_ringleb]")
 {
@@ -957,12 +962,13 @@ TEST_CASE("7: Test SD<Euler> - setup", "[sd_ringleb]")
 
   mesh->read_gmsh((cur_path.parent_path() / "resources" / "ringleb_v0.msh").string());
 
-  int order = 2;
+  int order = 10;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
 
   
   //sd->setup(mesh, ringleb_field);
-  sd->setup(mesh, FIELDS::LINEAR_FIELD_MAPPING);
+  //sd->setup(mesh, FIELDS::LINEAR_FIELD_MAPPING);
+  sd->setup(mesh, FIELDS::RINGLEB_FIELD_MAPPING);
 
   sd->to_vtk(mesh, 
             (cur_path.parent_path() / "results" / "pp_mesh_test_ringleb.vtk").string());
@@ -1073,7 +1079,7 @@ TEST_CASE("8: Test SD<Euler> - setup", "[sduniform_2order]")
 
   // Neighboors
   // edge 0
-  auto& ed = e->edges[0];
+  auto ed = e->edges[0];
   REQUIRE(ed.nodes[0] == 16);
   REQUIRE(ed.nodes[1] == 10);
   REQUIRE(ed.ghost == -1);

@@ -1,7 +1,8 @@
 #pragma once
 
-#include <vector>
+#include <functional>
 #include <memory>
+#include <vector>
 
 #include <Dummies.h>
 #include <Element.h>
@@ -26,27 +27,34 @@ public:
   std::vector<std::vector<Node>> fnodes; // flux points (FP)
   std::vector<Node> snodes;              // solution points (SP)
 
+  
+
 private:
 public:
   SD(int, int);
   SD(int, int, double, double, double);
   ~SD();
 
+  void solve(std::shared_ptr<Mesh> &);
+  void to_vtk(const std::shared_ptr<Mesh> &, const std::string &);
+
   void setup(std::shared_ptr<Mesh> &, 
-             std::vector<double> (*)(const Node &)  = FIELDS::DEFAULT_FIELD_MAPPING);
+             std::vector<double> (*)(const Node &) = FIELDS::DEFAULT_FIELD_MAPPING);
   void create_nodes(void);
 
-  void initialize_properties(std::shared_ptr<Element> &,
-                             const std::vector<Vertice> &,
-                             std::vector<double> (*)(const Node &));
-  void initialize_properties(Ghost &);
+  void initialize_element_properties(std::shared_ptr<Element> &,
+                                     const std::vector<Vertice> &,
+                                     std::vector<double> (*)(const Node &));
+  void initialize_ghost_properties(Ghost &);
   void update_edges(std::shared_ptr<Element> &,
                     std::vector<std::shared_ptr<Element>> &,
                     std::vector<Ghost> &);
 
   void boundary_condition(Ghost &,
-                          const std::vector<std::shared_ptr<Element>> &);
-  DVector interpolate_solution_to_node(std::shared_ptr<Element> &e, const Node &n);
+                          const std::vector<std::shared_ptr<Element>> &,
+                          const std::vector<Vertice> &);
+  DVector interpolate_solution_to_node(std::shared_ptr<Element> &, const Node &);
+  DVector interpolate_solution_to_fp(std::shared_ptr<Element> &, const Node &, long, int);
   void interpolate_sp2fp(std::shared_ptr<Element> &);
   //void calculate_fluxes(std::shared_ptr<Element>&);
   // void calculate_interface_fluxes(std::shared_ptr<Element>&,
@@ -59,8 +67,6 @@ public:
   void interpolate_fp2sp(std::shared_ptr<Element> &);
   void residue(std::shared_ptr<Element> &);
   void update_fluxes(std::shared_ptr<Element> &);
-  void solve(std::shared_ptr<Mesh> &);
-  void to_vtk(const std::shared_ptr<Mesh> &, const std::string &);
 
 private:
   void _init_dvec(std::vector<DVector> &, size_t);

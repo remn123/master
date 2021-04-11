@@ -1,5 +1,10 @@
-#include <Field.h>
+#pragma once 
+#include <algorithm>
+#include <assert.h>
+#include <math.h>
 
+#include <Field.h>
+#include <Numericals.h>
 
 /* Declaring unitary field */
 std::vector<double> FIELDS::DEFAULT_FIELD_MAPPING (const Node& n)
@@ -20,8 +25,8 @@ std::vector<double> FIELDS::GAUSSIAN_FIELD_MAPPING (const Node& n)
   double sigmax=0.1, sigmay=0.1;
 
   double pho = 1.0;
-  double u = (1.0/(sigmax*sqrt(2.0*M_PI)))*exp(-(x-mux)*(x-mux)/(2.0*sigmax));
-  double v = (1.0/(sigmay*sqrt(2.0*M_PI)))*exp(-(y-muy)*(y-muy)/(2.0*sigmay));
+  double u = (1.0/(sigmax*std::sqrt(2.0*M_PI)))*std::exp(-(x-mux)*(x-mux)/(2.0*sigmax));
+  double v = (1.0/(sigmay*std::sqrt(2.0*M_PI)))*std::exp(-(y-muy)*(y-muy)/(2.0*sigmay));
   double E = 1.0;
 
   vec[0] = pho; 
@@ -54,3 +59,158 @@ std::vector<double> FIELDS::LINEAR_FIELD_MAPPING (const Node& n)
   
   return vec;
 };
+
+
+
+/* RINGLEB FLOW */
+std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)
+{
+  std::vector<double> vec(4, 0.0);
+  boost::numeric::ublas::vector<double> guess(1);
+  boost::numeric::ublas::vector<double> u1(1), u2(1), ul(1), uh(1);
+  boost::numeric::ublas::vector<double> fl(1), fh(1);
+  boost::numeric::ublas::vector<double> velocity(1);
+  boost::numeric::ublas::vector<double> f_guess(1);
+  boost::numeric::ublas::matrix<double> df_guess(1,1);
+
+  // Coordinates
+  double x = n.coords[0];
+  double y = n.coords[1];
+  //std::cout << "Solving for (" << x << "; " << y << ")\n";
+  double gamma = 1.4;
+  double q = std::sqrt(x*x + y*y); // initial guess
+
+  // lambda function for ringleb flow x,y, V relation
+  auto ringleb_f = [&](const boost::numeric::ublas::vector<double>& u, 
+                       boost::numeric::ublas::vector<double>& res) -> bool
+  {
+    //double V = std::max(0.5, std::min(u(0), 1.5));
+    double V = u(0);
+    double b = std::sqrt(1.0-0.2*std::pow(V, 2.0));
+    double rho = std::pow(b, 5.0);
+    // std::cout << "V   = " << V << std::endl;
+    // std::cout << "b   = " << b << std::endl;
+    // std::cout << "rho = " << rho << std::endl;
+    //assert (rho > 0.0);
+    double L = (1.0/b) + (1.0/(3.0*std::pow(b, 3.0))) + (1.0/(5.0*std::pow(b, 5.0))) - (0.5*(std::log((1.0+b)/(1.0-b))));
+
+    res(0) = std::pow((x+L/2.0), 2.0) + std::pow(y, 2.0) - std::pow(1.0/(2.0*rho*std::pow(V, 2.0)), 2.0);
+
+    return true;
+  };
+
+  // lambda function for ringleb flow x,y, V derivative relation
+  auto ringleb_df = [&](const boost::numeric::ublas::vector<double>& u, 
+                        boost::numeric::ublas::matrix<double>& res) -> bool
+  {
+    //double V = std::max(0.5, std::min(u(0), 1.5));
+    double V = u(0);
+    double b = std::sqrt(1.0-0.2*std::pow(V, 2.0));
+    double rho = std::pow(b, 5.0);
+    double L = (1.0/b) + (1.0/(3.0*std::pow(b, 3.0))) + (1.0/(5.0*std::pow(b, 5.0))) - (0.5*(std::log((1.0+b)/(1.0-b))));
+
+    double db_dV = -0.2*V/b;
+    double drho_dV = 5.0*db_dV*std::pow(b, 4.0);
+
+    double dl1 = -db_dV*std::pow(b, -2.0);
+    double dl2 = -db_dV*std::pow(b, -4.0);
+    double dl3 = -db_dV*std::pow(b, -6.0);
+    double dl4 = -db_dV/((1.0-b)*(1.0+b));
+    double dL_dV = dl1 + dl2 + dl3 + dl4;
+
+    double dp1 = (x+L/2.0)*dL_dV;
+    double dp2 = (4.0*V*(drho_dV*V + 2.0*rho))/std::pow(2.0*rho*std::pow(V, 2.0), 3.0);
+    res(0, 0) = dp1 + dp2;
+
+    return true;
+  };
+
+  // Finding
+  std::vector<double> guesses = {0.49, 0.75, 1.0, 1.25, 1.5};
+  bool solved = false;
+  double cur_g = 0.0, cur_fg = 0.0;
+  double last_guess=0.0;
+  int counter=0;
+  for (auto g : guesses)
+  {
+    guess(0) = g;
+    solved = ringleb_f(guess, f_guess);
+    if (!solved) throw "ERROR: unvalid guess for ringleb function";
+    if (counter>0) 
+    {
+      if (cur_fg*f_guess(0)<0.0) 
+      {
+        // std::cout << "last fg: " << cur_fg << "; cur_fg = " << f_guess(0) << "\n";
+        // std::cout << "last guess: " << cur_g << "; current guess = " << g << "\n";
+        //guess(0)=-(cur_fg*g-f_guess(0)*cur_g)/(f_guess(0)-cur_fg);
+        u1(0) = cur_g;
+        u2(0) = g;
+        fl(0) = cur_fg;
+        fh(0) = f_guess(0);
+        last_guess=g;
+        break;
+      }
+    }
+    cur_fg = f_guess(0);
+    cur_g = g;
+    counter++;
+  }
+  velocity(0) = 0.0;
+
+  solved = false;
+  double ds = 1E-5;
+  double b = 0.0;
+  double rho = 0.0;
+  //q = 0.5;
+  q = u1(0);
+  while (!solved)
+  {
+    // if (fl(0) < 0.0) 
+    // {
+    //   ul(0)=u1(0);
+    //   uh(0)=u2(0);
+    // } else {
+    //   uh(0)=u1(0);
+    //   ul(0)=u2(0);
+    // }
+    guess(0) = q;
+    solved = newton_raphson(guess, ringleb_f, ringleb_df, velocity);
+    b = std::sqrt(1.0-0.2*std::pow(velocity(0), 2.0));
+    rho = std::pow(b, 5.0);
+    // if (abs(x+0.277229)<1E-5 && abs(y-0.814547)<1E-5)
+    // {
+    //   solved = ringleb_df(guess, df_guess);
+    //   solved = ringleb_f(guess, f_guess);
+    //   std::cout << "q  = " << q << "\n";
+    //   std::cout << "u  = " << guess << "\n";
+    //   std::cout << "f  = " << f_guess << "\n";
+    //   std::cout << "df = " << df_guess << "\n";
+    //   std::cout << "sol  = " << velocity << "\n";
+    //   std::cin.get();
+    // }
+    if (rho <= 0.0 || velocity(0) > 2.236 || velocity(0) < 0.0) solved=false;
+    if (q > last_guess) throw "ERROR: domain limit has been reached!";
+    q += ds;
+  }
+  
+  assert (solved==true);
+  q = velocity(0);
+  //std::cout << "(x, y, V) = (" << x << ", "<< y << ", " << q << ")\n";
+  b = std::sqrt(1.0-0.2*std::pow(q, 2.0));
+  double L = (1.0/b) + (1.0/(3.0*std::pow(b, 3.0))) + (1.0/(5.0*std::pow(b, 5.0))) - (0.5*(std::log((1.0+b)/(1.0-b))));
+  rho = std::pow(b, 5.0);
+  double k = 1.0/std::sqrt(1.0/(2.0*q*q) + rho*(x+L/2.0));
+  double theta = std::asin(q/k);
+  assert (rho > 0.0);
+  double u = q*std::cos(theta);
+  double v = q*std::sin(theta);
+  double p = (1.0/gamma)*std::pow(b, (2.0*gamma/(gamma-1.0)));
+  double E = p/(gamma-1.0) + rho*(std::pow(q, 2.0))/2.0;
+
+  vec[0] = rho; 
+  vec[1] = rho*u; 
+  vec[2] = rho*v; 
+  vec[3] = E; 
+  
+  return vec;
+}

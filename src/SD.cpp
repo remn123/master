@@ -1,13 +1,17 @@
 #pragma once
 
 #include <algorithm>
+#include <any>
 #include <fstream>
+#include <functional>
 #include <memory>
 #include <string>
 #include <sstream>
+#include <thread>
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+
 
 #include <Dummies.h>
 #include <Helpers.h>
@@ -206,7 +210,7 @@ void SD<Equation>::_init_dvec(std::vector<std::vector<DVector>> &vec, size_t num
 // 0.2) Initialize property template
 // INITIALIZE GHOST PROPERTIES
 template <>
-void SD<Euler>::initialize_properties(Ghost &g)
+void SD<Euler>::initialize_ghost_properties(Ghost &g)
 {
   // PHYSICAL
   // Conservative Properties
@@ -241,7 +245,7 @@ void SD<Euler>::initialize_properties(Ghost &g)
 }
 
 template <>
-void SD<NavierStokes>::initialize_properties(Ghost &g)
+void SD<NavierStokes>::initialize_ghost_properties(Ghost &g)
 {
   // PHYSICAL
   // Conservative Properties
@@ -301,13 +305,13 @@ void SD<NavierStokes>::initialize_properties(Ghost &g)
 
 // INITIALIZE ELEMENTS PROPERTIES
 template <>
-void SD<Euler>::initialize_properties(std::shared_ptr<Element> &e,
-                                      const std::vector<Vertice> &enodes,
-                                      std::vector<double> (*field)(const Node &))
+void SD<Euler>::initialize_element_properties(std::shared_ptr<Element> &e,
+                                              const std::vector<Vertice> &enodes,
+                                              std::vector<double> (*field)(const Node &))
 {
   // Metrics
-  e->allocate_jacobian(this->order);
-  e->calculate_jacobian(this->snodes, this->fnodes, enodes);
+  //e->allocate_jacobian(this->order);
+  //e->calculate_jacobian(this->snodes, this->fnodes, enodes);
 
   e->physical->Qsp.clear();
   e->physical->Qsp.resize(this->snodes.size());
@@ -404,9 +408,9 @@ void SD<Euler>::initialize_properties(std::shared_ptr<Element> &e,
 }
 
 template <>
-void SD<NavierStokes>::initialize_properties(std::shared_ptr<Element> &e, 
-                                             const std::vector<Vertice> &enodes,
-                                             std::vector<double> (*field)(const Node &))
+void SD<NavierStokes>::initialize_element_properties(std::shared_ptr<Element> &e, 
+                                                     const std::vector<Vertice> &enodes,
+                                                     std::vector<double> (*field)(const Node &))
 {
   // Metrics
   e->allocate_jacobian(this->order);
@@ -572,9 +576,9 @@ void SD<Equation>::update_edges(std::shared_ptr<Element> &e,
             //std::cout << "fn1 " << fn1.id << ", local " << fn1.local << ", right " << fn1.right << ", x " << fn1.coords[0] << ", y " << fn1.coords[1] << std::endl;
             //std::cout << "fn2 " << fn2.id << ", local " << fn2.local << ", right " << fn2.right << ", x " << fn2.coords[0] << ", y " << fn2.coords[1] << std::endl;
 
-            if (abs(fn1.coords[0] - fn2.coords[0]) <= 1E-7 &&
-                abs(fn1.coords[1] - fn2.coords[1]) <= 1E-7 &&
-                abs(fn1.coords[2] - fn2.coords[2]) <= 1E-7)
+            if (std::abs(fn1.coords[0] - fn2.coords[0]) <= 1E-7 &&
+                std::abs(fn1.coords[1] - fn2.coords[1]) <= 1E-7 &&
+                std::abs(fn1.coords[2] - fn2.coords[2]) <= 1E-7)
             {
               //std::cout << "Found it!" << std::endl;
               fn1.right = fn2.local;
@@ -653,7 +657,10 @@ void SD<Equation>::update_edges(std::shared_ptr<Element> &e,
 
 // 0)
 template <typename Equation>
-void SD<Equation>::setup(std::shared_ptr<Mesh> &mesh, std::vector<double> (*field)(const Node &))
+void SD<Equation>::setup(
+  std::shared_ptr<Mesh> &mesh, 
+  std::vector<double> (*field)(const Node &)
+)
 {
   /* 
     On setup method, all solution and flux nodes
@@ -662,14 +669,35 @@ void SD<Equation>::setup(std::shared_ptr<Mesh> &mesh, std::vector<double> (*fiel
     Then initialize_properties will allocate and
     populate the mesh with an initial condition
   */
- 
+
+  //Ghost::Qbnds = bnd_map;
+
+
   this->create_nodes();
 
-  for (auto &e : mesh->elems)
-    this->initialize_properties(e, mesh->nodes, field);
+  for (auto &e : mesh->elems) {
+    // Metrics
+    e->allocate_jacobian(this->order);
+    e->calculate_jacobian(this->snodes, this->fnodes, mesh->nodes);
+  }
+
+  std::cout << "Initializing Element Properties! \n";
+  std::vector<std::thread> threads;
+  for (auto &e : mesh->elems) {
+    threads.push_back(std::thread(&SD<Equation>::initialize_element_properties, this, std::ref(e), std::ref(mesh->nodes), std::ref(field)));
+  }
+ 
+  for (auto &th : threads) {
+    th.join();
+  }
+
+  std::cout << "Element Properties initialized! \n";
+  
+  // for (auto &e : mesh->elems)
+  //   this->initialize_element_properties(e, mesh->nodes, field);
 
   for (auto &g : mesh->ghosts)
-    this->initialize_properties(g);
+    this->initialize_ghost_properties(g);
 
   // Update edge communication
   for (auto &e : mesh->elems)
@@ -702,59 +730,140 @@ void SD<Equation>::setup(std::shared_ptr<Mesh> &mesh, std::vector<double> (*fiel
 
 */
 template <>
-void SD<Euler>::boundary_condition(Ghost &g, const std::vector<std::shared_ptr<Element>> &elems)
-{
+void SD<Euler>::boundary_condition(
+  Ghost &g, 
+  const std::vector<std::shared_ptr<Element>> &elems,
+  const std::vector<Vertice> &enodes
+)
+{ 
+  // std::cout << "Ghost Cell ID = " << g.id << "; Type = " << g.type << "\n";
   // ghost face direction (0: csi/x and 1: eta/y)
   int dir = (g.lr_edge == 0 || g.lr_edge == 2) ? 1 : 0;
   switch (g.type)
   {
   //- Solid Inviscid Wall (Euler) [TYPE 0]:
-  case 0:
+  case PhysicalEnum::WALL:
     // Un - Uwall,n = (U-Uwall).n = 0
     // Qn
+    // std::cout << "PhysicalEnum::WALL\n";
     for (auto &fn : g.fnodes)
-    {
-      // Ghost's Computational Properties
-      g.computational->Qfp[dir][fn.local][0] = elems[g.elm_id]->computational->Qfp[dir][fn.right][0]; // rho
-      //  Uwall,t = some value (SLIP - there's no boundary layer here)
-      if (dir == 0) // csi
-      {
-        g.computational->Qfp[dir][fn.local][1] = -elems[g.elm_id]->computational->Qfp[dir][fn.right][1]; // rho*u
-        g.computational->Qfp[dir][fn.local][2] = elems[g.elm_id]->computational->Qfp[dir][fn.right][2];  // rho*v
-      }
-      else // eta
-      {
-        g.computational->Qfp[dir][fn.local][1] = elems[g.elm_id]->computational->Qfp[dir][fn.right][1];  // rho*u
-        g.computational->Qfp[dir][fn.local][2] = -elems[g.elm_id]->computational->Qfp[dir][fn.right][2]; // rho*v
-      }
-      g.computational->Qfp[dir][fn.local][3] = elems[g.elm_id]->computational->Qfp[dir][fn.right][3]; // E
+    { 
+      // Normal unit vector in Physical Space
+      auto normal = elems[g.elm_id]->get_normal_vector(dir+1, fn.right, g.lr_edge);
+      auto nx = normal[0];
+      auto ny = normal[1];
+      // auto ds_dx = this->Ji[dir+1][fn.local][2 * dir];
+      // auto ds_dy = this->Ji[dir+1][fn.local][2 * dir + 1];
+      auto J = elems[g.elm_id]->J[dir+1][fn.right];
+      
+      auto rho = elems[g.elm_id]->computational->Qfp[dir][fn.right][0];
+      auto u = elems[g.elm_id]->computational->Qfp[dir][fn.right][1]/rho;
+      auto v = elems[g.elm_id]->computational->Qfp[dir][fn.right][2]/rho;
+      auto E = elems[g.elm_id]->computational->Qfp[dir][fn.right][3];
+      g.computational->Qfp[dir][fn.local][0] = rho;
+      g.computational->Qfp[dir][fn.local][1] = rho*(u-2.0*(u*nx + v*ny)*nx);
+      g.computational->Qfp[dir][fn.local][2] = rho*(v-2.0*(u*nx + v*ny)*ny);
+      g.computational->Qfp[dir][fn.local][3] = E; // E
     }
   // Supersonic Inlet BC or Far Field
-  case 1:
+  case PhysicalEnum::SUPERSONIC_INLET:
+    // std::cout << "PhysicalEnum::SUPERSONIC_INLET\n";
     for (auto &fn : g.fnodes)
     {
-      auto Qbnd = Ghost::Qbnds[g.group];
-      auto Qint = elems[g.elm_id]->computational->Qfp[dir][fn.right];
-      auto J = elems[g.elm_id]->J[dir + 1][fn.right]; // J[0] for snodes, J[1] for csi-fnodes and J[2] for eta-fnodes
-      // Inplace
-      std::transform(Qbnd.begin(), Qbnd.end(), Qbnd.begin(), [&J](auto &c) { return c / J; });
+      auto normal = elems[g.elm_id]->get_normal_vector(dir+1, fn.right, g.lr_edge);
+      auto nx = normal[0];
+      auto ny = normal[1];
+
       // Ghost's Computational Properties
-      g.computational->Qfp[dir][fn.local] = 2.0 * Qbnd - Qint;
+      auto rho = elems[g.elm_id]->computational->Qfp[dir][fn.right][0];
+      auto u = elems[g.elm_id]->computational->Qfp[dir][fn.right][1] / rho;
+      auto v = elems[g.elm_id]->computational->Qfp[dir][fn.right][2] / rho;
+      auto E = elems[g.elm_id]->computational->Qfp[dir][fn.right][3];
+      auto p = (this->GAMMA - 1.0) * (E - 0.5 * rho * (u * u + v * v));
+      auto ek = rho*(0.5*(u*u+v*v));
+      auto a = std::sqrt(this->GAMMA*p/rho);
+
+      auto un = std::abs(u*nx) + std::abs(v*ny);
+      if (un < a) // Subsonic Inlet
+      {
+        auto Qint = elems[g.elm_id]->computational->Qfp[dir][fn.right];
+        g.computational->Qfp[dir][fn.local] = Qint;
+      }
+      else // Supersonic Inlet
+      {
+        auto vec = std::any_cast<std::vector<double>(*)(const Node&)> (Ghost::analytical_solution)(fn);
+        DVector Qbnd = DVector(vec);
+        
+        auto J = elems[g.elm_id]->J[dir + 1][fn.right]; // J[0] for snodes, J[1] for csi-fnodes and J[2] for eta-fnodes
+        // Inplace
+        std::transform(Qbnd.begin(), Qbnd.end(), Qbnd.begin(), [&J](auto &c) { return c * J; });
+
+        g.computational->Qfp[dir][fn.local] = Qbnd;
+      }
+
+      // auto vec = std::any_cast<std::vector<double>(*)(const Node&)> (Ghost::analytical_solution)(fn);
+      // DVector Qbnd = DVector(vec);
+     
+      // auto Qint = elems[g.elm_id]->computational->Qfp[dir][fn.right];
+      // auto J = elems[g.elm_id]->J[dir + 1][fn.right]; // J[0] for snodes, J[1] for csi-fnodes and J[2] for eta-fnodes
+      // // Inplace
+      // std::transform(Qbnd.begin(), Qbnd.end(), Qbnd.begin(), [&J](auto &c) { return c * J; });
+      // // Ghost's Computational Properties
+      // g.computational->Qfp[dir][fn.local] = (2.0 * Qbnd) - Qint;
     }
   // Supersonic Outlet BC (Neumann BC)
-  case 2:
+  case PhysicalEnum::SUPERSONIC_OUTLET:
+    // std::cout << "PhysicalEnum::SUPERSONIC_OUTLET\n";
     for (auto &fn : g.fnodes)
     {
+      auto normal = elems[g.elm_id]->get_normal_vector(dir+1, fn.right, g.lr_edge);
+      auto nx = normal[0];
+      auto ny = normal[1];
+
       // Ghost's Computational Properties
-      auto Qint = elems[g.elm_id]->computational->Qfp[dir][fn.right];
-      g.computational->Qfp[dir][fn.local] = Qint;
+      auto rho = elems[g.elm_id]->computational->Qfp[dir][fn.right][0];
+      auto u = elems[g.elm_id]->computational->Qfp[dir][fn.right][1] / rho;
+      auto v = elems[g.elm_id]->computational->Qfp[dir][fn.right][2] / rho;
+      auto E = elems[g.elm_id]->computational->Qfp[dir][fn.right][3];
+      auto p = (this->GAMMA - 1.0) * (E - 0.5 * rho * (u * u + v * v));
+      auto ek = rho*(0.5*(u*u+v*v));
+      auto a = std::sqrt(this->GAMMA*p/rho);
+
+      auto un = std::abs(u*nx) + std::abs(v*ny);
+      if (un >= a) // Supersonic Outlet
+      {
+        auto Qint = elems[g.elm_id]->computational->Qfp[dir][fn.right];
+        g.computational->Qfp[dir][fn.local] = Qint;
+      }
+      else // Subsonic Outlet
+      {
+        auto vec = std::any_cast<std::vector<double>(*)(const Node&)> (Ghost::analytical_solution)(fn);
+        DVector Qbnd = DVector(vec);
+        
+        auto J = elems[g.elm_id]->J[dir + 1][fn.right]; // J[0] for snodes, J[1] for csi-fnodes and J[2] for eta-fnodes
+        // Inplace
+        std::transform(Qbnd.begin(), Qbnd.end(), Qbnd.begin(), [&J](auto &c) { return c * J; });
+        
+        auto pbc = (this->GAMMA - 1.0) * (Qbnd[3] - 0.5 * Qbnd[0] * (Qbnd[1] * Qbnd[1] + Qbnd[2] * Qbnd[2]));
+
+        g.computational->Qfp[dir][fn.local][0] = rho;
+        g.computational->Qfp[dir][fn.local][1] = rho*u;
+        g.computational->Qfp[dir][fn.local][2] = rho*v;
+        g.computational->Qfp[dir][fn.local][3] = (p/this->GAMMA) + ek;
+        //g.computational->Qfp[dir][fn.local][3] = (2.0*pbc - p)/this->GAMMA + ek;
+      }
     }
   }
 }
 
 template <>
-void SD<NavierStokes>::boundary_condition(Ghost &g, const std::vector<std::shared_ptr<Element>> &elems)
+void SD<NavierStokes>::boundary_condition(
+  Ghost &g, 
+  const std::vector<std::shared_ptr<Element>> &elems,
+  const std::vector<Vertice> &enodes
+)
 {
+  // std::cout << "Ghost Cell ID = " << g.id << "\n";
   // ghost face direction (0: csi/x and 1: eta/y)
   int dir = (g.lr_edge == 0 || g.lr_edge == 2) ? 1 : 0;
   switch (g.type)
@@ -776,7 +885,10 @@ void SD<NavierStokes>::boundary_condition(Ghost &g, const std::vector<std::share
   case 1:
     for (auto &fn : g.fnodes)
     {
-      auto Qbnd = Ghost::Qbnds[g.group];
+      auto type = (int)g.type;
+      //auto n = elems[g.elm_id]->transform(fn, enodes);
+      auto field = std::any_cast<std::vector<double>(*)(const Node&)> (Ghost::Qbnds.find(type)->second);
+      auto Qbnd = DVector(field(fn));
       auto Qint = elems[g.elm_id]->computational->Qfp[dir][fn.right];
       auto dQint = elems[g.elm_id]->computational->dQfp[dir][fn.right];
       auto J = elems[g.elm_id]->J[dir + 1][fn.right]; // J[0] for snodes, J[1] for csi-fnodes and J[2] for eta-fnodes
@@ -813,6 +925,10 @@ DVector SD<Equation>::interpolate_solution_to_node(std::shared_ptr<Element> &e, 
   Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
 
   double csi = n.coords[0], eta = n.coords[1];
+  if (std::abs(csi)>1.0||std::abs(eta)>1.0) {
+    std::cout << "(csi, eta) = (" << csi << ", " << eta << ")\n";
+    std::cin.get();
+  }
   double Lcsi, Leta;
   unsigned int i, j;
   unsigned int s_index;
@@ -827,9 +943,71 @@ DVector SD<Equation>::interpolate_solution_to_node(std::shared_ptr<Element> &e, 
 
     Lcsi = Helpers<Lagrange>::Pn(i, csi);
     Leta = Helpers<Lagrange>::Pn(j, eta);
-    auto J = e->J[0][s_index];
+
     solution += ((Lcsi * Leta) * e->computational->Qsp[s_index]);
 
+    s_index++;
+  }
+  Helpers<Lagrange>::delete_nodes();
+  Helpers<GL>::delete_nodes();
+
+  return solution;
+}
+
+template <typename Equation>
+DVector SD<Equation>::interpolate_solution_to_fp(std::shared_ptr<Element> &e, const Node &n, long f_index, int dir)
+{
+  Helpers<GL>::init();
+  Helpers<GL>::set_nodes(this->order);
+
+  Helpers<Lagrange>::init();
+  Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
+
+  double csi = n.coords[0], eta = n.coords[1];
+  double Lcsi, Leta;
+  unsigned int i, j, fp_i, fp_j;
+  unsigned int s_index;
+
+  DVector solution{};
+
+  if (dir==1) 
+  {
+    fp_i = (unsigned int)f_index / (this->order+1);
+    fp_j = (unsigned int)f_index % (this->order+1);
+  }
+  else
+  {
+    fp_j = (unsigned int)f_index / (this->order+1);
+    fp_i = (unsigned int)f_index % (this->order+1);
+  }
+
+  s_index = 0;
+  for (auto &sp : this->snodes)
+  {
+    i = (int)s_index / this->order;
+    j = s_index % this->order;
+
+    if (dir==0) 
+    {
+      if (j==fp_j)
+      {
+        Lcsi = Helpers<Lagrange>::Pn(i, csi);
+        //Leta = Helpers<Lagrange>::Pn(j, eta);
+
+        solution += (Lcsi * e->computational->Qsp[s_index]);
+      }
+    }
+    else 
+    {
+      if (i==fp_i)
+      {
+        //Lcsi = Helpers<Lagrange>::Pn(i, csi);
+        Leta = Helpers<Lagrange>::Pn(j, eta);
+
+        solution += (Leta * e->computational->Qsp[s_index]);
+      }
+    }
+    
     s_index++;
   }
   Helpers<Lagrange>::delete_nodes();
@@ -844,50 +1022,21 @@ DVector SD<Equation>::interpolate_solution_to_node(std::shared_ptr<Element> &e, 
 template <typename Equation>
 void SD<Equation>::interpolate_sp2fp(std::shared_ptr<Element> &e)
 {
-  Helpers<GL>::init();
-  Helpers<GL>::set_nodes(this->order);
-
-  Helpers<Lagrange>::init();
-  Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
-
-  double csi = 0.0, eta = 0.0;
-  double Lcsi, Leta;
-  unsigned int i, j;
-  unsigned int index, s_index, f_index;
-
+  unsigned int index, f_index;
   index = 0;
   for (auto &vec_lines : this->fnodes)
   {
-    index++;
-
     f_index = 0;
     for (auto &node : vec_lines) // line nodes for a specific direction (x, y)
     {
+      e->computational->Qfp[index][f_index] = 0.0;
+      auto vec = this->interpolate_solution_to_fp(e, this->fnodes[index][f_index], f_index, index);
+      e->computational->Qfp[index][f_index] = vec;
+
       f_index++;
-      // flux node coordinates
-      csi = node.coords[0];
-      eta = node.coords[1];
-
-      // reinitialize flux nodes solution
-      e->computational->Qfp[index - 1][f_index - 1] = 0.0;
-      //e->physical->Qfp[index - 1][f_index - 1] = 0.0;
-
-      s_index = 0;
-      for (auto &n : this->snodes)
-      {
-        i = (int)s_index / this->order;
-        j = s_index % this->order;
-        s_index++;
-
-        Lcsi = Helpers<Lagrange>::Pn(i, csi);
-        Leta = Helpers<Lagrange>::Pn(j, eta);
-        e->computational->Qfp[index - 1][f_index - 1] += ((Lcsi * Leta) * e->computational->Qsp[s_index - 1]);
-        //e->physical->Qfp[index - 1][f_index - 1] += ((Lcsi * Leta) * e->physical->Qsp[s_index - 1]);
-      }
     }
+    index++;
   }
-  Helpers<Lagrange>::delete_nodes();
-  Helpers<GL>::delete_nodes();
 }
 
 // 3) Calculate Fluxes
@@ -929,20 +1078,6 @@ void SD<Euler>::calculate_fluxes_sp(std::shared_ptr<Element> &e)
         Fcsic = e->Fc[0]
         Fetac = e->Fc[1]
       */  
-      // e->computational->Fcsp[0][s_index] = {q2,
-      //                                       q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-      //                                       q2 * q3 / q1,
-      //                                       (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-
-      // e->computational->Fcsp[1][s_index] = {q3,
-      //                                       q3 * q2 / q1,
-      //                                       q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-      //                                       (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-
-      // dcsi_dx = e->Ji[0][s_index - 1][0];
-      // dcsi_dy = e->Ji[0][s_index - 1][1];
-      // deta_dx = e->Ji[0][s_index - 1][2];
-      // deta_dy = e->Ji[0][s_index - 1][3];
       
       e->computational->Fcsp[0][s_index - 1] = {dcsi_dx * q2 + dcsi_dy * q3,
                                                 dcsi_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + dcsi_dy * q3 * q2 / q1,
@@ -954,15 +1089,6 @@ void SD<Euler>::calculate_fluxes_sp(std::shared_ptr<Element> &e)
                                                 deta_dx * (q2 * q3 / q1) + deta_dy * (q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)),
                                                 deta_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + deta_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
 
-      // e->physical->Fcsp[0][s_index - 1] = {q2,
-      //                                      q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-      //                                      q2 * q3 / q1,
-      //                                      (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-
-      // e->physical->Fcsp[1][s_index - 1] = {q3,
-      //                                      q3 * q2 / q1,
-      //                                      q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-      //                                      (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
     }
     else if (this->dimension + 2 == 5)
     {
@@ -986,42 +1112,6 @@ void SD<Euler>::calculate_fluxes_sp(std::shared_ptr<Element> &e)
         Fetac = e->Fc[1]
         Fzetc = e->Fc[2]
       */
-
-      // e->computational->Fcsp[0][s_index-1] = {e->Ji[1][1][s_index]*(q2) + e->Ji[1][2][s_index]*(q3) + e->Ji[1][3][s_index]*(q4),
-      //                                         e->Ji[1][1][s_index]*(q2*q2/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1)) + e->Ji[1][2][s_index]*(q3*q2/q1) + e->Ji[1][3][s_index]*(q4*q2/q1),
-      //                                         e->Ji[1][1][s_index]*(q2*q3/q1) + e->Ji[1][2][s_index]*(q3*q3/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1)) + e->Ji[1][3][s_index]*(q4*q3/q1),
-      //                                         e->Ji[1][1][s_index]*(q2*q4/q1) + e->Ji[1][2][s_index]*(q3*q4/q1) + e->Ji[1][3][s_index]*(q4*q4/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1)),
-      //                                         e->Ji[1][1][s_index]*((q2/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)) + e->Ji[1][2][s_index]*((q3/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)) + e->Ji[1][3][s_index]*((q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1))};
-
-      // e->computational->Fcsp[1][s_index-1] = {e->Ji[2][1][s_index]*(q2) + e->Ji[2][2][s_index]*(q3) + e->Ji[2][3][s_index]*(q4),
-      //                                         e->Ji[2][1][s_index]*(q2*q2/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1)) + e->Ji[2][2][s_index]*(q3*q2/q1) + e->Ji[2][3][s_index]*(q4*q2/q1),
-      //                                         e->Ji[2][1][s_index]*(q2*q3/q1) + e->Ji[2][2][s_index]*(q3*q3/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1)) + e->Ji[2][3][s_index]*(q4*q3/q1),
-      //                                         e->Ji[2][1][s_index]*(q2*q4/q1) + e->Ji[2][2][s_index]*(q3*q4/q1) + e->Ji[2][3][s_index]*(q4*q4/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1)),
-      //                                         e->Ji[2][1][s_index]*((q2/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)) + e->Ji[2][2][s_index]*((q3/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)) + e->Ji[2][3][s_index]*((q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1))};
-
-      // e->computational->Fcsp[2][s_index-1] = {e->Ji[3][1][s_index]* (q2)+e->Ji[3][2][s_index]* (q3)+e->Ji[3][3][s_index]* (q4),
-      //                                         e->Ji[3][1][s_index]* (q2 * q2 / q1 + (this->GAMMA - 1.0) * (q5 - 0.5 * (q2 * q2 + q3 * q3 + q4 * q4) / q1)) + e->Ji[3][2][s_index]* (q3 * q2 / q1) + e->Ji[3][3][s_index]* (q4 * q2 / q1),
-      //                                         e->Ji[3][1][s_index]* (q2 * q3 / q1) + e->Ji[3][2][s_index]* (q3 * q3 / q1 + (this->GAMMA - 1.0) * (q5 - 0.5 * (q2 * q2 + q3 * q3 + q4 * q4) / q1)) + e->Ji[3][3][s_index]* (q4 * q3 / q1),
-      //                                         e->Ji[3][1][s_index]* (q2 * q4 / q1) + e->Ji[3][2][s_index]* (q3 * q4 / q1) + e->Ji[3][3][s_index]* (q4 * q4 / q1 + (this->GAMMA - 1.0) * (q5 - 0.5 * (q2 * q2 + q3 * q3 + q4 * q4) / q1)),
-      //                                         e->Ji[3][1][s_index]* ((q2 / q1) * (this->GAMMA * q5 - 0.5 * (this->GAMMA - 1.0) * (q2 * q2 + q3 * q3 + q4 * q4) / q1)) + e->Ji[3][2][s_index]* ((q3 / q1) * (this->GAMMA * q5 - 0.5 * (this->GAMMA - 1.0) * (q2 * q2 + q3 * q3 + q4 * q4) / q1)) + e->Ji[3][3][s_index]*((q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1))};
-
-      // e->Fcsp[0][s_index-1] = {q2,
-      //                          q2*q2/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
-      //                          q2*q3/q1,
-      //                          q2*q4/q1,
-      //                          (q2/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
-
-      // e->Fcsp[1][s_index-1] = {q3,
-      //                          q3*q2/q1,
-      //                          q3*q3/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
-      //                          q3*q4/q1,
-      //                          (q3/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
-
-      // e->Fcsp[2][s_index-1] = {q4,
-      //                          q4*q2/q1,
-      //                          q4*q3/q1,
-      //                          q4*q4/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
-      //                          (q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
     }
     s_index++;
   }
@@ -1239,25 +1329,6 @@ void SD<Euler>::calculate_fluxes_fp(std::shared_ptr<Element> &e)
           Fcsic = e->Fc[0]
           Fetac = e->Fc[1]
         */
-        // dcsi_dx = e->Ji[1][f_index - 1][0];
-        // dcsi_dy = e->Ji[1][f_index - 1][1];
-        // deta_dx = e->Ji[2][f_index - 1][2];
-        // deta_dy = e->Ji[2][f_index - 1][3];
-        // if (index == 0) 
-        // {
-        //   e->computational->Fcfp[index][f_index] = {q2,
-        //                                             q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-        //                                             q2 * q3 / q1,
-        //                                             (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-        // }
-        // else 
-        // {
-        //   e->computational->Fcfp[index][f_index] = {q3,
-        //                                             q3 * q2 / q1,
-        //                                             q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-        //                                             (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-        // }
-
         ds_dx = J*e->Ji[index+1][f_index][2 * (index)];
         ds_dy = J*e->Ji[index+1][f_index][2 * (index) + 1];
 
@@ -1266,56 +1337,11 @@ void SD<Euler>::calculate_fluxes_fp(std::shared_ptr<Element> &e)
                                                   ds_dx * (q2 * q3 / q1) + ds_dy * (q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)),
                                                   ds_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + ds_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
 
-        // e->physical->Fcfp[index - 1][f_index - 1] = {q2,
-        //                                              q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-        //                                              q2 * q3 / q1,
-        //                                              (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-
-        // e->computational->Fcfp[0][f_index - 1] = {dcsi_dx * q2 + dcsi_dy * q3,
-        //                                           dcsi_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + dcsi_dy * q3 * q2 / q1,
-        //                                           dcsi_dx * (q2 * q3 / q1) + dcsi_dy * (q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)),
-        //                                           dcsi_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + dcsi_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
-
-        // e->computational->Fcfp[1][f_index - 1] = {deta_dx * q2 + deta_dy * q3,
-        //                                           deta_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + deta_dy * q3 * q2 / q1,
-        //                                           deta_dx * (q2 * q3 / q1) + deta_dy * (q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)),
-        //                                           deta_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + deta_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
-
-
-        // e->physical->Fcfp[0][f_index - 1] = {q2,
-        //                                      q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-        //                                      q2 * q3 / q1,
-        //                                      (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-
-        // e->physical->Fcfp[1][f_index - 1] = {q3,
-        //                                      q3 * q2 / q1,
-        //                                      q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-        //                                      (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-        
-
 
       }
       else if (this->dimension + 2 == 5)
       {
-        // q5 = e->physical->Qsp[f_index-1][4];
-
-        // e->computational->Fcsp[0][f_index-1] = {q2,
-        //                          q2*q2/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
-        //                          q2*q3/q1,
-        //                          q2*q4/q1,
-        //                          (q2/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
-
-        // e->computational->Fcsp[1][s_index-1] = {q3,
-        //                          q3*q2/q1,
-        //                          q3*q3/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
-        //                          q3*q4/q1,
-        //                          (q3/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
-
-        // e->computational->Fcsp[2][s_index-1] = {q4,
-        //                          q4*q2/q1,
-        //                          q4*q3/q1,
-        //                          q4*q4/q1 + (this->GAMMA-1.0)*(q5 - 0.5*(q2*q2 + q3*q3 + q4*q4)/q1),
-        //                          (q4/q1)*(this->GAMMA*q5 - 0.5*(this->GAMMA-1.0)*(q2*q2 + q3*q3 + q4*q4)/q1)};
+       
       }
       f_index++;
     }
@@ -1518,10 +1544,6 @@ void SD<Euler>::calculate_fluxes_fp(Ghost &g, const std::vector<std::shared_ptr<
         Fcsic = e->Fc[0]
         Fetac = e->Fc[1]
       */
-    // dcsi_dx = elems[g.elm_id]->Ji[0][f_index - 1][0];
-    // dcsi_dy = elems[g.elm_id]->Ji[0][f_index - 1][1];
-    // deta_dx = elems[g.elm_id]->Ji[0][f_index - 1][2];
-    // deta_dy = elems[g.elm_id]->Ji[0][f_index - 1][3];
 
     ds_dx = J*elems[g.elm_id]->Ji[dir+1][fn.right][2 * (dir)];
     ds_dy = J*elems[g.elm_id]->Ji[dir+1][fn.right][2 * (dir) + 1];
@@ -1530,41 +1552,6 @@ void SD<Euler>::calculate_fluxes_fp(Ghost &g, const std::vector<std::shared_ptr<
                                            ds_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + ds_dy * q3 * q2 / q1,
                                            ds_dx * (q2 * q3 / q1) + ds_dy * (q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)),
                                            ds_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + ds_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
-
-
-    // g.computational->Fcfp[dir][f_index - 1] = {dcsi_dx * q2 + dcsi_dy * q3,
-    //                                            dcsi_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + dcsi_dy * q3 * q2 / q1,
-    //                                            dcsi_dx * (q2 * q3 / q1) + dcsi_dy * (q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)),
-    //                                            dcsi_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + dcsi_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
-
-    // g.computational->Fcfp[1][f_index - 1] = {deta_dx * q2 + deta_dy * q3,
-    //                                          deta_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + deta_dy * q3 * q2 / q1,
-    //                                          deta_dx * (q2 * q3 / q1) + deta_dy * (q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)),
-    //                                          deta_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + deta_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
-
-    // g.physical->Fcfp[0][f_index - 1] = {q2,
-    //                                     q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-    //                                     q2 * q3 / q1,
-    //                                     (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-
-    // g.physical->Fcfp[1][f_index - 1] = {q3,
-    //                                     q3 * q2 / q1,
-    //                                     q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-    //                                     (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-    // if (dir == 0) 
-    // {
-    //   g.computational->Fcfp[dir][f_index] = {q2,
-    //                                          q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-    //                                          q2 * q3 / q1,
-    //                                          (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-    // }
-    // else
-    // {
-    //   g.computational->Fcfp[dir][f_index] = {q3,
-    //                                          q3 * q2 / q1,
-    //                                          q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-    //                                          (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)};
-    // }
     
   }
 }
@@ -1705,11 +1692,19 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       else
       {
         J_R = J_L; // mirror
+        dirR = (ghosts[ed.ghost].lr_edge == 0 || ghosts[ed.ghost].lr_edge == 2) ? 1 : 0; // 0: x, 1: y
         // Physical Primitive Properties for edge's right side (when it's a ghost cell)
         rhoR = (1.0/J_R)*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][0];
         uR = (1.0/J_R)*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][1] / rhoR;
         vR = (1.0/J_R)*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][2] / rhoR;
         ER = (1.0/J_R)*ghosts[ed.ghost].computational->Qfp[dirR][fn.right][3];
+
+        // std::cout << "dirR = " << dirR << "\n";
+        // std::cout << "ghosts[ed.ghost].computational->Qfp[dirR][fn.right][0] = " << ghosts[ed.ghost].computational->Qfp[dirR][fn.right][0] << "\n";
+        // std::cout << "ghosts[ed.ghost].computational->Qfp[dirR][fn.right][1] = " << ghosts[ed.ghost].computational->Qfp[dirR][fn.right][1] << "\n";
+        // std::cout << "ghosts[ed.ghost].computational->Qfp[dirR][fn.right][2] = " << ghosts[ed.ghost].computational->Qfp[dirR][fn.right][2] << "\n";
+        // std::cout << "ghosts[ed.ghost].computational->Qfp[dirR][fn.right][3] = " << ghosts[ed.ghost].computational->Qfp[dirR][fn.right][3] << "\n";
+
       }
       
       pR = (gamma - 1.0) * (ER - 0.5 * rhoR * (uR * uR + vR * vR));
@@ -1734,10 +1729,10 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
                      (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
 
       // Roe-averages
-      rho_ROE = std::sqrt(rhoL) * std::sqrt(rhoR);
-      ux_ROE = (uL * std::sqrt(rhoL) + uR * std::sqrt(rhoR)) / rho_ROE;
-      uy_ROE = (vL * std::sqrt(rhoL) + vR * std::sqrt(rhoR)) / rho_ROE;
-      h_ROE = (hL * std::sqrt(rhoL) + hR * std::sqrt(rhoR)) / rho_ROE;
+      rho_ROE = std::sqrt(rhoL)+std::sqrt(rhoR);
+      ux_ROE = (uL * std::sqrt(rhoL) + uR * std::sqrt(rhoR)) / (std::sqrt(rhoL)+std::sqrt(rhoR));
+      uy_ROE = (vL * std::sqrt(rhoL) + vR * std::sqrt(rhoR)) / (std::sqrt(rhoL)+std::sqrt(rhoR));
+      h_ROE = (hL * std::sqrt(rhoL) + hR * std::sqrt(rhoR)) / (std::sqrt(rhoL)+std::sqrt(rhoR));
       ek_ROE = (ux_ROE * ux_ROE + uy_ROE * uy_ROE) / 2.0;
       un_ROE = ux_ROE*nx + uy_ROE*ny;
       //ut_ROE = (dirL == 1) ? uy_ROE : ux_ROE;
@@ -1748,6 +1743,13 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       l2 = un_ROE;
       l3 = un_ROE + c_ROE;
       l4 = un_ROE - c_ROE;
+
+      // Harten's Entropy Correction
+      auto delta = c_ROE/10.0;
+      if (std::abs(l3) > delta) l3 = std::abs(l3);
+      else l3 = (l3*l3 + delta*delta)/(2.0*delta);
+      if (std::abs(l4) > delta) l4 = std::abs(l4);
+      else l4 = (l4*l4 + delta*delta)/(2.0*delta);
 
       /*
       T = {{  1.0,             0.0,              1.0,                1.0         },
@@ -1762,7 +1764,7 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
            { ek_ROE, ux_ROE*ny-uy_ROE*nx, h_ROE+c_ROE*un_ROE, h_ROE-c_ROE*un_ROE }};
 
       alp1 = (rhoR - rhoL) - (pR - pL) / (c_ROE * c_ROE);
-      alp2 = rho_ROE * ((uR*nx + vR*ny) - (uL*nx + vL*ny));
+      alp2 = rho_ROE * ((uR*ny - vR*nx) - (uL*ny - vL*nx));
       alp3 = ((pR - pL) + rho_ROE * c_ROE * ((uR*nx + vR*ny) - (uL*nx + vL*ny))) / (2.0 * c_ROE * c_ROE);
       alp4 = ((pR - pL) - rho_ROE * c_ROE * ((uR*nx + vR*ny) - (uL*nx + vL*ny))) / (2.0 * c_ROE * c_ROE);
 
@@ -1791,18 +1793,92 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       //   alp3 = (pR - pL + rho_ROE * c_ROE * (uR - uL)) / (2.0 * c_ROE * c_ROE);
       //   alp4 = (pR - pL - rho_ROE * c_ROE * (uR - uL)) / (2.0 * c_ROE * c_ROE);
       // }
+      // T = {{  1.0,             0.0,              1.0,                1.0         },
+      //      { ux_ROE,           ny,         ux_ROE+c_ROE*nx,     ux_ROE-c_ROE*nx  },
+      //      { uy_ROE,          -nx,         uy_ROE+c_ROE*ny,     uy_ROE-c_ROE*ny  },
+      //      { ek_ROE, ux_ROE*ny-uy_ROE*nx, h_ROE+c_ROE*un_ROE, h_ROE-c_ROE*un_ROE }};
 
       // Flux reconstruction
       central_term = 0.5 * ((fxL*nx + fyL*ny) + (fxR*nx + fyR*ny));
 
-      upwind = {
-          0.5 * abs(l1) * alp1 * (T[0][0] + T[0][1] + T[0][2] + T[0][3]),
-          0.5 * abs(l2) * alp2 * (T[1][0] + T[1][1] + T[1][2] + T[1][3]),
-          0.5 * abs(l3) * alp3 * (T[2][0] + T[2][1] + T[2][2] + T[2][3]),
-          0.5 * abs(l4) * alp4 * (T[3][0] + T[3][1] + T[3][2] + T[3][3]),
+      // upwind = {
+      //     0.5 * abs(l1) * alp1 * (T[0][0] + T[0][1] + T[0][2] + T[0][3]),
+      //     0.5 * abs(l2) * alp2 * (T[1][0] + T[1][1] + T[1][2] + T[1][3]),
+      //     0.5 * abs(l3) * alp3 * (T[2][0] + T[2][1] + T[2][2] + T[2][3]),
+      //     0.5 * abs(l4) * alp4 * (T[3][0] + T[3][1] + T[3][2] + T[3][3]),
+      // };
+       upwind = {
+         0.5*std::abs(l1)*alp1*T[0][0] + 0.5*std::abs(l2)*alp2*T[0][1] + 0.5*std::abs(l3)*alp3*T[0][2] + 0.5*std::abs(l4)*alp4*T[0][3],
+         0.5*std::abs(l1)*alp1*T[1][0] + 0.5*std::abs(l2)*alp2*T[1][1] + 0.5*std::abs(l3)*alp3*T[1][2] + 0.5*std::abs(l4)*alp4*T[1][3],
+         0.5*std::abs(l1)*alp1*T[2][0] + 0.5*std::abs(l2)*alp2*T[2][1] + 0.5*std::abs(l3)*alp3*T[2][2] + 0.5*std::abs(l4)*alp4*T[2][3],
+         0.5*std::abs(l1)*alp1*T[3][0] + 0.5*std::abs(l2)*alp2*T[3][1] + 0.5*std::abs(l3)*alp3*T[3][2] + 0.5*std::abs(l4)*alp4*T[3][3],
       };
       //e->computational->Fcfp[dirL][fn.local] = (central_term - upwind);
+      
       ed.computational->Fcfp[dirL][fn.id] = J_L*(central_term - upwind);
+      // std::cout << "J_L = " << J_L << "\n";
+      // std::cout << "rhoL = " << rhoL << "\n";
+      // std::cout << "uL = " << uL << "\n";
+      // std::cout << "vL = " << vL << "\n";
+      // std::cout << "EL = " << EL << "\n";
+      // std::cout << "ed.ghost = " << ed.ghost << "\n";
+      // std::cout << "J_R = " << J_R << "\n";
+      // std::cout << "rhoR = " << rhoR << "\n";
+      // std::cout << "uR = " << uR << "\n";
+      // std::cout << "vR = " << vR << "\n";
+      // std::cout << "ER = " << ER << "\n";
+
+      // std::cout << "central_term[0] = " << central_term[0] << "\n";
+      // std::cout << "central_term[1] = " << central_term[1] << "\n";
+      // std::cout << "central_term[2] = " << central_term[2] << "\n";
+      // std::cout << "central_term[3] = " << central_term[3] << "\n";
+      // std::cout << "upwind[0] = " << upwind[0] << "\n";
+      // std::cout << "upwind[1] = " << upwind[1] << "\n";
+      // std::cout << "upwind[2] = " << upwind[2] << "\n";
+      // std::cout << "upwind[3] = " << upwind[3] << "\n";
+
+      // std::cout << "rho_ROE = " << rho_ROE << "\n";
+      // std::cout << "ux_ROE = " << ux_ROE << "\n";
+      // std::cout << "uy_ROE = " << uy_ROE << "\n";
+      // std::cout << "h_ROE = " << h_ROE << "\n";
+      // std::cout << "ek_ROE = " << ek_ROE << "\n";
+      // std::cout << "un_ROE = " << un_ROE << "\n";
+      // std::cout << "c_ROE = " << c_ROE << "\n";
+      // std::cout << "nx = " << nx << "\n";
+      // std::cout << "ny = " << ny << "\n";
+
+      // std::cout << "abs(l1) = " << abs(l1) << "\n";
+      // std::cout << "abs(l2) = " << abs(l2) << "\n";
+      // std::cout << "abs(l3) = " << abs(l3) << "\n";
+      // std::cout << "abs(l4) = " << abs(l4) << "\n";
+      // std::cout << "alp1 = " << alp1 << "\n";
+      // std::cout << "alp2 = " << alp2 << "\n";
+      // std::cout << "alp3 = " << alp3 << "\n";
+      // std::cout << "alp4 = " << alp4 << "\n";
+      // std::cout << "T[0][0] = " << T[0][0] << "\n";
+      // std::cout << "T[0][1] = " << T[0][1] << "\n";
+      // std::cout << "T[0][2] = " << T[0][2] << "\n";
+      // std::cout << "T[0][2] = " << T[0][3] << "\n";
+
+      // std::cout << "T[1][0] = " << T[1][0] << "\n";
+      // std::cout << "T[1][1] = " << T[1][1] << "\n";
+      // std::cout << "T[1][2] = " << T[1][2] << "\n";
+      // std::cout << "T[1][2] = " << T[1][3] << "\n";
+      
+      // std::cout << "T[2][0] = " << T[2][0] << "\n";
+      // std::cout << "T[2][1] = " << T[2][1] << "\n";
+      // std::cout << "T[2][2] = " << T[2][2] << "\n";
+      // std::cout << "T[2][2] = " << T[2][3] << "\n";
+
+      // std::cout << "T[3][0] = " << T[3][0] << "\n";
+      // std::cout << "T[3][1] = " << T[3][1] << "\n";
+      // std::cout << "T[3][2] = " << T[3][2] << "\n";
+      // std::cout << "T[3][2] = " << T[3][3] << "\n";
+      // std::cout << "ed.computational->Fcfp[" << dirL << "][" << fn.id << "][0] = " << ed.computational->Fcfp[dirL][fn.id][0] << "\n";
+      // std::cout << "ed.computational->Fcfp[" << dirL << "][" << fn.id << "][1] = " << ed.computational->Fcfp[dirL][fn.id][1] << "\n";
+      // std::cout << "ed.computational->Fcfp[" << dirL << "][" << fn.id << "][2] = " << ed.computational->Fcfp[dirL][fn.id][2] << "\n";
+      // std::cout << "ed.computational->Fcfp[" << dirL << "][" << fn.id << "][3] = " << ed.computational->Fcfp[dirL][fn.id][3] << "\n";
+      // std::cin.get();
     }
     ll_edge++;
   }
@@ -1874,6 +1950,14 @@ void SD<Euler>::interpolate_fp2sp(std::shared_ptr<Element> &e)
           Helpers<Lagrange>::delete_nodes();
           Helpers<GL>::delete_nodes();
           f_index++;
+
+          // std::cout << "dLcsi = " << dLcsi << "\n";
+          // std::cout << "Leta = " << Leta << "\n";
+          // std::cout << "e->computational->Fcfp[" << index - 1 << "][" << f_index - 1 << "][0] = " << e->computational->Fcfp[index - 1][f_index - 1][0] << "\n";
+          // std::cout << "e->computational->Fcfp[" << index - 1 << "][" << f_index - 1 << "][1] = " << e->computational->Fcfp[index - 1][f_index - 1][1] << "\n";
+          // std::cout << "e->computational->Fcfp[" << index - 1 << "][" << f_index - 1 << "][2] = " << e->computational->Fcfp[index - 1][f_index - 1][2] << "\n";
+          // std::cout << "e->computational->Fcfp[" << index - 1 << "][" << f_index - 1 << "][3] = " << e->computational->Fcfp[index - 1][f_index - 1][3] << "\n";
+          // std::cin.get();
           e->computational->dFcsp[index - 1][s_index - 1] += ((dLcsi * Leta) * e->computational->Fcfp[index - 1][f_index - 1]);
         } 
         else // eta
@@ -1904,7 +1988,13 @@ void SD<Euler>::interpolate_fp2sp(std::shared_ptr<Element> &e)
           Helpers<GLL>::delete_nodes();
 
           f_index++;
-
+          // std::cout << "Lcsi = " << Lcsi << "\n";
+          // std::cout << "dLeta = " << dLeta << "\n";
+          // std::cout << "e->computational->Fcfp[" << index - 1 << "][" << f_index - 1 << "][0] = " << e->computational->Fcfp[index - 1][f_index - 1][0] << "\n";
+          // std::cout << "e->computational->Fcfp[" << index - 1 << "][" << f_index - 1 << "][1] = " << e->computational->Fcfp[index - 1][f_index - 1][1] << "\n";
+          // std::cout << "e->computational->Fcfp[" << index - 1 << "][" << f_index - 1 << "][2] = " << e->computational->Fcfp[index - 1][f_index - 1][2] << "\n";
+          // std::cout << "e->computational->Fcfp[" << index - 1 << "][" << f_index - 1 << "][3] = " << e->computational->Fcfp[index - 1][f_index - 1][3] << "\n";
+          // std::cin.get();
           e->computational->dFcsp[index - 1][s_index - 1] += ((Lcsi * dLeta) * e->computational->Fcfp[index - 1][f_index - 1]);
         }
         //e->physical->dFcsp[index-1][s_index-1] += ((dLcsi*dLeta)*e->physical->Fcfp[index-1][f_index-1]);
@@ -1985,8 +2075,17 @@ void SD<Euler>::update_fluxes(std::shared_ptr<Element> &e)
   for (auto& ed : e->edges) 
   {
     dir = (local_edge_id == 0 || local_edge_id == 2) ? 1 : 0; // 0: x, 1: y
+
     for (auto& fn : ed.fnodes) 
+    {
+      // std::cout << "ed.computational->Fcfp[" << dir << "][" << fn.id << "][0] = " << ed.computational->Fcfp[dir][fn.id][0] << "\n";
+      // std::cout << "ed.computational->Fcfp[" << dir << "][" << fn.id << "][1] = " << ed.computational->Fcfp[dir][fn.id][1] << "\n";
+      // std::cout << "ed.computational->Fcfp[" << dir << "][" << fn.id << "][2] = " << ed.computational->Fcfp[dir][fn.id][2] << "\n";
+      // std::cout << "ed.computational->Fcfp[" << dir << "][" << fn.id << "][3] = " << ed.computational->Fcfp[dir][fn.id][3] << "\n";
+      // std::cin.get();
       e->computational->Fcfp[dir][fn.local] = ed.computational->Fcfp[dir][fn.id];
+    }
+      
       
     local_edge_id++;
   }
@@ -2013,10 +2112,16 @@ void SD<Euler>::residue(std::shared_ptr<Element> &e)
     for (auto dir=0; dir < this->dimension; dir++)
     {
       //ds = e->Ji[0][s_index][3 * dir];
-      e->computational->res[s_index] += (-e->computational->dFcsp[dir][s_index]);
+      // std::cout << "e->computational->dFcsp[" << dir << "][" << s_index << "][0] = " << e->computational->dFcsp[dir][s_index][0] << "\n";
+      // std::cout << "e->computational->dFcsp[" << dir << "][" << s_index << "][1] = " << e->computational->dFcsp[dir][s_index][1] << "\n";
+      // std::cout << "e->computational->dFcsp[" << dir << "][" << s_index << "][2] = " << e->computational->dFcsp[dir][s_index][2] << "\n";
+      // std::cout << "e->computational->dFcsp[" << dir << "][" << s_index << "][3] = " << e->computational->dFcsp[dir][s_index][3] << "\n";
+      
+      e->computational->res[s_index] += (-1.0*e->computational->dFcsp[dir][s_index]);
     }
     s_index++;
   }
+  // std::cin.get();
 }
 
 // Navier-Stokes
@@ -2056,7 +2161,7 @@ void SD<Equation>::solve(std::shared_ptr<Mesh> &mesh)
   // Step 1)
   for (auto &g : mesh->ghosts)
   {
-    this->boundary_condition(g, mesh->elems);
+    this->boundary_condition(g, mesh->elems, mesh->nodes);
     this->calculate_fluxes_fp(g, mesh->elems);
   }
 
@@ -2084,20 +2189,194 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
 
   // std::unordered_set<long> visited;
   // std::unordered_map<long, long> fp_dict;
-  std::vector<std::string> header, points, point_data, cells, cells_header, cells_types;
+  std::vector<double> coords={};
+  std::vector<std::string> header, points, cells, cells_header, cells_types;
+  std::vector<std::vector<std::string>> point_data;
+
+  DVector vec={};
+  Node n={};
 
   // long neighbor, global_ind = -1, local_ind = -1;
   long num_elems = 0, num_vertices = 0, sp = 0, num_cpoints = 0;
   long n1, n2, n3, n4, n5, n6, n7, n8;
   // double q1, q2, q3, q4, q5, q6, q7, q8;
+  long s_index=0, f_index=0, v_index=0, v_idx=0, which_node=-1;
+  double rho=0.0, u=0.0, v=0.0, E=0.0, P=0.0, J=0.0, Jacobian=0.0, Residue=0.0, Mach=0.0;
+  double el_num=0.0;
 
   long pd_index = 0;
 
-  auto nverts = mesh->N;                                      // total number of vertices
-  auto nsps = mesh->Nel * (this->order * this->order);        // total number of solution points
-  auto nxfps = mesh->Nel * (this->order * (this->order + 1)); // total number of x-flux points (global)
-  auto nyfps = nxfps;                                         // total number of y-flux points (global)
-  auto total_num_nodes = mesh->N + mesh->Nel * ((this->order * this->order) + 2 * (this->order * (this->order + 1)));
+ /*
+   0.1) All current vertices in the current order
+  */
+  
+  
+  long nverts=0;                                       // total number of vertices
+  long nsps = mesh->Nel * (this->order * this->order); // total number of solution points
+  long nxfps = 0; // total number of x-flux points (global)
+  long nyfps = 0; // total number of y-flux points (global)
+  long global_id = 0;
+  int dir=0, m=0, direction=0;
+  long lr_edge;
+  long xfp_R, ghost_xfp_R, elem_xfp_R, yfp_R, ghost_yfp_R, elem_yfp_R;
+  std::unordered_map<long, long> xfp_map = {};
+  std::unordered_map<long, long> yfp_map = {};
+
+  std::unordered_map<long, long> v_map = {};
+  for (auto &e : mesh->elems)
+  {
+    // Mapping vertices
+    v_idx=0;
+    for (auto n : e->nodes)
+    {
+      if (v_idx >= e->NUM_VERTICES) break;
+      if (v_map.find(n) == v_map.end()) 
+      {
+        v_map.insert({n, nverts});
+        points.push_back(std::to_string(mesh->nodes[n].coords[0]) + std::string(" ") +
+                         std::to_string(mesh->nodes[n].coords[1]) + std::string(" ") +
+                         std::to_string(mesh->nodes[n].coords[2]));
+        nverts++;
+      }
+      v_idx++;
+    }
+  }
+
+  /* 
+    check if the flux point is over an edge:
+    |
+    |-- T: check if its neighbor has already been mapped
+    |   |
+    |   |-- T: get the global index
+    |   |
+    |   |__ F: global index := nxfps, save this in the map {e.id*(order*(order+1)) + f_index, global index}
+    |
+    |__ F: global index := nxfps, save this in the map {e.id*(order*(order+1)) + f_index, global index}
+    
+    nxfps++;
+
+  */  
+
+  // Mapping x-flux points
+  for (auto &e : mesh->elems) 
+  {
+    f_index = 0;
+    while (f_index < this->order * (this->order + 1))
+    {    
+      // check if the flux point is over an edge and get which edge owns it
+      dir = -1;
+      if (f_index % (this->order+1) == 0)
+      {
+        dir = 0; // for x-fps dir=0 will mean 4th edge        
+        m = (int)(f_index % this->order);
+        m = (int)(-m + this->order-1); // reverse order at 3rd edge
+        xfp_R = e->edges[3].fnodes[m].right;
+        ghost_xfp_R = e->edges[3].ghost;
+        elem_xfp_R = e->edges[3].right;
+        lr_edge = e->edges[3].lr_edge;
+        
+      }
+      else if (f_index % (this->order+1) == this->order)
+      {
+        dir = 1;
+        m = (int)(f_index % this->order);
+        xfp_R = e->edges[1].fnodes[m].right;
+        ghost_xfp_R = e->edges[1].ghost;
+        elem_xfp_R = e->edges[1].right;
+        lr_edge = e->edges[1].lr_edge;
+      }
+      direction = (lr_edge==0 || lr_edge==2) ? 1 : 0; // 0: x,  1: y
+
+      global_id = nxfps;
+      // if dir > 0, then we are at an edge's flux point
+      if (dir != -1) 
+      {
+        // check if its neighbor has already been mapped
+        // if the neighbor is an element
+        if (ghost_xfp_R == -1) 
+        {
+          if (direction==0)
+          {
+            auto search = xfp_map.find(elem_xfp_R*(this->order*(this->order+1))+xfp_R);
+            if (search != xfp_map.end())
+            {
+              global_id = search->second;
+              nxfps--;
+            }
+          }
+        }
+      }
+      xfp_map.insert({e->id*(this->order*(this->order+1))+f_index, global_id});
+      f_index++;
+      nxfps++;
+    }
+  }
+
+  // Mapping y-flux points
+  for (auto &e : mesh->elems) 
+  {
+    f_index = 0;
+    while (f_index < this->order * (this->order + 1))
+    {    
+      // check if the flux point is over an edge and get which edge owns it
+      dir = -1;
+      if (f_index % (this->order+1) == 0)
+      {
+        dir = 0; // for x-fps dir=0 will mean 4th edge        
+        m = (int)(f_index % this->order);
+        yfp_R = e->edges[0].fnodes[m].right;
+        ghost_yfp_R = e->edges[0].ghost;
+        elem_yfp_R = e->edges[0].right;
+        lr_edge = e->edges[0].lr_edge;
+      }
+      else if (f_index % (this->order+1) == this->order)
+      {
+        dir = 1;
+        m = (int)(f_index % this->order);
+        m = (int)(-m + this->order-1); // reverse order at 2nd edge
+        yfp_R = e->edges[2].fnodes[m].right;
+        ghost_yfp_R = e->edges[2].ghost;
+        elem_yfp_R = e->edges[2].right;
+        lr_edge = e->edges[2].lr_edge;
+      }
+      direction = (lr_edge==0 || lr_edge==2) ? 1 : 0; // 0: x,  1: y
+
+      global_id = nyfps;
+      // if dir > 0, then we are at an edge's flux point
+      if (dir != -1) 
+      {
+        // check if its neighbor has already been mapped
+        // if the neighbor is an element
+        if (ghost_yfp_R == -1) 
+        {
+          if (direction==0)
+          {
+            auto search = xfp_map.find(elem_yfp_R*(this->order*(this->order+1))+yfp_R);
+            if (search != xfp_map.end())
+            {
+              global_id = -(search->second+1); // Add 1 to include the 0 case
+              nyfps--;
+            }
+          }
+          else
+          {
+            auto search = yfp_map.find(elem_yfp_R*(this->order*(this->order+1))+yfp_R);
+            if (search != yfp_map.end())
+            {
+              global_id = search->second;
+              nyfps--;
+            }
+          }
+        }
+      }
+      yfp_map.insert({e->id*(this->order*(this->order+1))+f_index, global_id});
+      f_index++;
+      nyfps++;
+    }
+  }
+
+  //auto total_num_nodes = mesh->N + mesh->Nel * ((this->order * this->order) + 2 * (this->order * (this->order + 1)));
+  auto total_num_nodes = nverts + nsps + nxfps + nyfps;
 
   header.push_back("# vtk DataFile Version 3.0");
   header.push_back("PosProc Mesh");
@@ -2106,14 +2385,37 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
   header.push_back(std::string{"POINTS "} + std::to_string(total_num_nodes) + std::string{" float"});
 
   point_data.clear();
-  point_data.resize(total_num_nodes + 3);
+  point_data.resize(6); // rho, P, Mach, Jacobian, Residue, Umag
+  for (auto& pd_vec : point_data)
+    pd_vec.resize(total_num_nodes + 3);
 
   // Point data header
-  point_data[0] = std::string{"POINT_DATA "} + std::to_string(total_num_nodes);
-  point_data[1] = std::string{"SCALARS velocity float 3"};
-  point_data[2] = std::string{"LOOKUP_TABLE default"};
+  // rho
+  point_data[0][0] = std::string{"POINT_DATA "} + std::to_string(total_num_nodes);
+  point_data[0][1] = std::string{"SCALARS rho float 1"};
+  point_data[0][2] = std::string{"LOOKUP_TABLE default"};
+  // P
+  point_data[1][0] = std::string{" "};
+  point_data[1][1] = std::string{"SCALARS pressure float 1"};
+  point_data[1][2] = std::string{"LOOKUP_TABLE default"};
+  // Mach
+  point_data[2][0] = std::string{" "};
+  point_data[2][1] = std::string{"SCALARS Mach float 1"};
+  point_data[2][2] = std::string{"LOOKUP_TABLE default"};
+  // Jacobian
+  point_data[3][0] = std::string{" "};
+  point_data[3][1] = std::string{"SCALARS Jacobian float 1"};
+  point_data[3][2] = std::string{"LOOKUP_TABLE default"};
+  // Residue
+  point_data[4][0] = std::string{" "};
+  point_data[4][1] = std::string{"SCALARS Residue float 1"};
+  point_data[4][2] = std::string{"LOOKUP_TABLE default"};
+  // Umag
+  point_data[5][0] = std::string{" "};
+  point_data[5][1] = std::string{"SCALARS velocity float 3"};
+  point_data[5][2] = std::string{"LOOKUP_TABLE default"};
 
-  pd_index += mesh->N+3;
+  pd_index += nverts+3;
 
   /*
     0) Writing all vertices:
@@ -2134,16 +2436,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
               [mesh->N + (mesh->Nel-1)*(this->order*this->order) + e.id*(this->order*(this->order+1)) : mesh->N + (mesh->Nel-1)*(this->order*this->order) + (mesh->Nel-1)*(this->order*(this->order+1)) ]
   */
 
-  /*
-   0.1) All current vertices in the current order
-  */
-  for (auto &n : mesh->nodes)
-  {
-    points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
-                     std::to_string(n.coords[1]) + std::string(" ") +
-                     std::to_string(n.coords[2]));
-  }
-
+ 
   
   std::unordered_map<long, std::vector<double>> vert_to_comp = {
     {0, {-1.0, -1.0,  0.0}},
@@ -2158,40 +2451,90 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     // element vertices
     //auto evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
     // Loop though element vertices
-    for (auto n : e->nodes)
+    v_index = 0;
+    for (auto n_id : e->nodes)
     {
+      if (v_index >= e->NUM_VERTICES) break;
       // Interpolating solution from solution points to all element vertices
-      auto& vertice = mesh->nodes[n];
-      if (point_data[vertice.id+3].size() < 1) 
+      auto& vertice = mesh->nodes[n_id];
+      auto v_id = v_map.find(vertice.id)->second + 3;
+      if (point_data[0][v_id].size() < 1) 
       {
-        auto rho = 0.0, u = 0.0, v = 0.0, E = 0.0;
-        double el_num = 0.0;
-
+        rho=0.0;
+        u=0.0;
+        v=0.0;
+        E=0.0;
+        P=0.0;
+        Jacobian=0.0;
+        Residue = 0.0;
+        Mach=0.0;
+        el_num=0.0;
         for (auto e_id : vertice.elems) 
         {
           auto& el = mesh->elems[e_id];
-          long which_node = 0;
+          which_node = -1;
           
-          for (auto k=0;k<el->NUM_VERTICES;k++)
+          for (auto k=0; k<el->NUM_VERTICES; k++)
             if (el->nodes[k] == vertice.id) which_node=k;
           // std::cout << "k=" << which_node << "\n";
+          if (which_node<0) 
+          {
+            std::cout << "which_node :" << which_node << "\n";
+            std::cout << "Vertice ["<<vertice.id<<"]\n";
+            std::cin.get();
+          }
+
           // Find vertice computational coordinates
-          auto coords = vert_to_comp.find(which_node)->second;
+          
+          coords = vert_to_comp.find(which_node)->second;
           // std::cout << "Coords: x = " << coords[0] << "; y = " << coords[1] << "\n";
-          auto vec = this->interpolate_solution_to_node(el, Node{coords[0], coords[1], coords[2]});
-          auto J = el->calculate_jacobian_at_node(Node{coords[0], coords[1], coords[2]}, mesh->nodes);
-          // std::cout << "Jacobian :" << J << "\n";
-          rho += vec[0]/J;
-          u   += vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
-          v   += vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
-          E   += vec[3]/J;
-          el_num += 1.0;
+          vec = this->interpolate_solution_to_node(el, Node{coords[0], coords[1], coords[2]});
+          J = el->calculate_jacobian_at_node(Node{coords[0], coords[1], coords[2]}, mesh->nodes);
+          if (J<=0.0) 
+          {
+            std::cout << "Jacobian :" << J << "\n";
+            std::cout << "Vertice ["<<vertice.id<<"]\n";
+            std::cin.get();
+          }
+          rho      += vec[0]/J;
+          u        += vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
+          v        += vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
+          E        += vec[3]/J;
+          Jacobian += J;
+          el_num   += 1.0;
         }
+        u = u/el_num;
+        v = v/el_num;
+        rho = rho/el_num;
+        E = E/el_num;
+        Jacobian = Jacobian/el_num;
+        Residue = 0.0;
+        P = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+        Mach = std::sqrt(u*u + v*v)/std::sqrt(this->GAMMA*P/rho);
+
+        // std::cout << "u :" << u << "\n";
+        // std::cout << "v :" << v << "\n";
+        // std::cout << "E :" << E << "\n";
+        // std::cout << "P :" << P << "\n";
+        // std::cout << "rho :" << rho << "\n";
+        // std::cout << "Mach :" << Mach << "\n";
+        // if (Mach<=0.0 || isinf(abs(Mach)) || isnan(abs(Mach)))
+        // {
+        //   std::cin.get();
+        // }
+
         //std::cout << "el_num :" << el_num << "\n";
-        point_data[vertice.id+3] = std::to_string(u/el_num) + std::string(" ") +
-                                   std::to_string(v/el_num) + std::string(" ") +
-                                   std::to_string(0.0);
+        
+        point_data[0][v_id] = std::to_string(rho);
+        point_data[1][v_id] = std::to_string(P);
+        point_data[2][v_id] = std::to_string(Mach);
+        point_data[3][v_id] = std::to_string(Jacobian);
+        point_data[4][v_id] = std::to_string(Residue);
+        point_data[5][v_id] = std::to_string(u) + std::string(" ") +
+                              std::to_string(v) + std::string(" ") +
+                              std::to_string(0.0);
       }
+      v_index++;
     }
   }
 
@@ -2200,25 +2543,56 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     /*  0.2.1) Print all solution nodes (id based on local enumeration
                                      and the current total number of vertices)
       [mesh->N + e.id*(this->order*this->order)+0 : mesh->N + (mesh->Nel-1)*(this->order*this->order)] x y z */
-    auto s_index = 0;
+    s_index = 0;
     while (s_index < this->order * this->order)
     {
-      auto n = e->transform(this->snodes[s_index], mesh->nodes);
+      n = e->transform(this->snodes[s_index], mesh->nodes);
       points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
                        std::to_string(n.coords[1]) + std::string(" ") +
                        std::to_string(n.coords[2]));
       
-      auto vec = this->interpolate_solution_to_node(e, this->snodes[s_index]);
-      auto J = e->calculate_jacobian_at_node(this->snodes[s_index], mesh->nodes);
-      
-      auto rho = vec[0]/J;
-      auto   u = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
-      auto   v = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
-      auto   E = vec[3]/J;
-      
-      point_data[pd_index] = std::to_string(u) + std::string(" ") +
-                             std::to_string(v) + std::string(" ") +
-                             std::to_string(0.0);
+      vec = this->interpolate_solution_to_node(e, this->snodes[s_index]);
+      J = e->calculate_jacobian_at_node(this->snodes[s_index], mesh->nodes);
+      if (J<=0.0) 
+      {
+        std::cout << "Jacobian :" << J << "\n";
+        std::cout << "this->snodes["<<s_index<<"]\n";
+        std::cin.get();
+      }
+      rho      = vec[0]/J;
+      u        = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
+      v        = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
+      E        = vec[3]/J;
+      P        = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+      Jacobian = J;
+      Residue  = std::sqrt(
+          e->computational->res[s_index][0]*e->computational->res[s_index][0]+
+          e->computational->res[s_index][1]*e->computational->res[s_index][1]+
+          e->computational->res[s_index][2]*e->computational->res[s_index][2]+
+          e->computational->res[s_index][3]*e->computational->res[s_index][3]
+      );
+      Mach     = std::sqrt(u*u + v*v)/std::sqrt(this->GAMMA*P/rho);
+
+      // std::cout << "u :" << u << "\n";
+      // std::cout << "v :" << v << "\n";
+      // std::cout << "E :" << E << "\n";
+      // std::cout << "P :" << P << "\n";
+      // std::cout << "rho :" << rho << "\n";
+      // std::cout << "Mach :" << Mach << "\n";
+      // if (Mach<=0.0 || isinf(abs(Mach)) || isnan(abs(Mach)))
+      // {
+      //   std::cout << "Solution Point: " << s_index << "\n";
+      //   std::cout << "Element: " << e->id << "\n";
+      //   std::cin.get();
+      // }
+      point_data[0][pd_index] = std::to_string(rho);
+      point_data[1][pd_index] = std::to_string(P);
+      point_data[2][pd_index] = std::to_string(Mach);
+      point_data[3][pd_index] = std::to_string(Jacobian);
+      point_data[4][pd_index] = std::to_string(Residue);
+      point_data[5][pd_index] = std::to_string(u) + std::string(" ") +
+                                std::to_string(v) + std::string(" ") +
+                                std::to_string(0.0);
       s_index++;
       pd_index++;
     }
@@ -2267,26 +2641,55 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
   // }
   for (auto &e : mesh->elems)
   {
-    auto f_index = 0;
+    f_index = 0;
     while (f_index < this->order * (this->order + 1))
     {
-      auto n = e->transform(this->fnodes[0][f_index], mesh->nodes);
-      points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
-                       std::to_string(n.coords[1]) + std::string(" ") +
-                       std::to_string(n.coords[2]));
-      
-      auto vec = this->interpolate_solution_to_node(e, this->fnodes[0][f_index]);
-      auto J = e->calculate_jacobian_at_node(this->fnodes[0][f_index], mesh->nodes);
-      
-      auto rho = vec[0]/J;
-      auto   u = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
-      auto   v = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
-      auto   E = vec[3]/J;
-      
-      point_data[pd_index] = std::to_string(u) + std::string(" ") +
-                             std::to_string(v) + std::string(" ") +
-                             std::to_string(0.0);
-      pd_index++;
+      global_id = nverts + 3 + nsps + xfp_map.find(e->id*(this->order*(this->order+1))+f_index)->second;
+      if (point_data[0][global_id].size() < 1) 
+      {
+        n = e->transform(this->fnodes[0][f_index], mesh->nodes);
+        points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
+                         std::to_string(n.coords[1]) + std::string(" ") +
+                         std::to_string(n.coords[2]));
+        
+        vec = this->interpolate_solution_to_fp(e, this->fnodes[0][f_index], f_index, 0);
+        J = e->calculate_jacobian_at_node(this->fnodes[0][f_index], mesh->nodes);
+        if (J<=0.0) 
+        {
+          std::cout << "Jacobian :" << J << "\n";
+          std::cout << "this->fnodes[0]["<<f_index<<"]\n";
+          std::cin.get();
+        }
+
+        rho      = vec[0]/J;
+        u        = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
+        v        = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
+        E        = vec[3]/J;
+        P        = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+        Jacobian = J;
+        Residue = 0.0;
+        Mach     = std::sqrt(u*u + v*v)/std::sqrt(this->GAMMA*P/rho);
+        
+        // std::cout << "u :" << u << "\n";
+        // std::cout << "v :" << v << "\n";
+        // std::cout << "E :" << E << "\n";
+        // std::cout << "P :" << P << "\n";
+        // std::cout << "rho :" << rho << "\n";
+        // std::cout << "Mach :" << Mach << "\n";
+        // if (Mach<=0.0 || isinf(abs(Mach)) || isnan(abs(Mach)))
+        // {
+        //   std::cin.get();
+        // }
+
+        point_data[0][global_id] = std::to_string(rho);
+        point_data[1][global_id] = std::to_string(P);
+        point_data[2][global_id] = std::to_string(Mach);
+        point_data[3][global_id] = std::to_string(Jacobian);
+        point_data[4][global_id] = std::to_string(Residue);
+        point_data[5][global_id] = std::to_string(u) + std::string(" ") +
+                                   std::to_string(v) + std::string(" ") +
+                                   std::to_string(0.0);
+      }
       f_index++;
     }
   }
@@ -2296,27 +2699,63 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     /* 0.2.3) Print all y-flux nodes (id based on local enumeration
                                        and the current total number of vertices)
               [mesh->N + (mesh->Nel-1)*(this->order*this->order) + e.id*(this->order*(this->order+1)) : mesh->N + (mesh->Nel-1)*(this->order*this->order) + (mesh->Nel-1)*(this->order*(this->order+1)) ] */
-    auto f_index = 0;
+    f_index = 0;
     while (f_index < this->order * (this->order + 1))
     {
-      auto n = e->transform(this->fnodes[1][f_index], mesh->nodes);
-      points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
-                       std::to_string(n.coords[1]) + std::string(" ") +
-                       std::to_string(n.coords[2]));
+      global_id = yfp_map.find(e->id*(this->order*(this->order+1))+f_index)->second;
+      if (global_id<0)
+      {
+        global_id = nverts + 3 + nsps - (global_id+1);
+      }
+      else
+      {
+        global_id = nverts + 3 + nsps + nxfps + global_id;
+      }
       
-      
-      auto vec = this->interpolate_solution_to_node(e, this->fnodes[1][f_index]);
-      auto J = e->calculate_jacobian_at_node(this->fnodes[1][f_index], mesh->nodes);
-      
-      auto rho = vec[0]/J;
-      auto   u = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
-      auto   v = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
-      auto   E = vec[3]/J;
-      
-      point_data[pd_index] = std::to_string(u) + std::string(" ") +
-                             std::to_string(v) + std::string(" ") +
-                             std::to_string(0.0);
-      pd_index++;
+      if (point_data[0][global_id].size() < 1) 
+      {
+        n = e->transform(this->fnodes[1][f_index], mesh->nodes);
+        points.push_back(std::to_string(n.coords[0]) + std::string(" ") +
+                         std::to_string(n.coords[1]) + std::string(" ") +
+                         std::to_string(n.coords[2]));
+        
+        
+        vec = this->interpolate_solution_to_fp(e, this->fnodes[1][f_index], f_index, 1);
+        J = e->calculate_jacobian_at_node(this->fnodes[1][f_index], mesh->nodes);
+        if (J<=0.0) 
+        {
+          std::cout << "Jacobian :" << J << "\n";
+          std::cin.get();
+        }
+        rho      = vec[0]/J;
+        u        = vec[1]/vec[0]; // vec[1]/((vec[0]/J)*J)
+        v        = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
+        E        = vec[3]/J;
+        P        = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+        Jacobian = J;
+        Residue = 0.0;
+        Mach     = std::sqrt(u*u + v*v)/std::sqrt(this->GAMMA*P/rho);
+        
+        // std::cout << "u :" << u << "\n";
+        // std::cout << "v :" << v << "\n";
+        // std::cout << "E :" << E << "\n";
+        // std::cout << "P :" << P << "\n";
+        // std::cout << "rho :" << rho << "\n";
+        // std::cout << "Mach :" << Mach << "\n";
+        // if (Mach<=0.0 || isinf(abs(Mach)) || isnan(abs(Mach)))
+        // {
+        //   std::cin.get();
+        // }
+
+        point_data[0][global_id] = std::to_string(rho);
+        point_data[1][global_id] = std::to_string(P);
+        point_data[2][global_id] = std::to_string(Mach);
+        point_data[3][global_id] = std::to_string(Jacobian);
+        point_data[4][global_id] = std::to_string(Residue);
+        point_data[5][global_id] = std::to_string(u) + std::string(" ") +
+                                   std::to_string(v) + std::string(" ") +
+                                   std::to_string(0.0);
+      }
       f_index++;
     }
   }
@@ -2329,10 +2768,14 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     // 1.1) First row:
     //      - Quad 1:
     auto evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
-    n1 = mesh->get_closest(e->transform(this->fnodes[1][0], mesh->nodes), evertices); // nearest vertice from 0 y-FP
-    n2 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + 0;      // y-FP
-    n3 = nverts + e->id * (this->order * this->order) + 0;                           // SP
-    n4 = nverts + nsps + e->id * (this->order * (this->order + 1)) + 0;              // x-FP
+    n1 = v_map.find(mesh->get_closest(e->transform(this->fnodes[1][0], mesh->nodes), evertices))->second; // nearest vertice from 0 y-FP
+    global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + 0)->second;                        
+    if (global_id<0) 
+      n2 = nverts + nsps - (global_id+1);                                                                    // x-FP
+    else 
+      n2 = nverts + nsps + nxfps + global_id;                                                             // y-FP
+    n3 = nverts + e->id * (this->order * this->order) + 0;                                                // SP
+    n4 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + 0)->second;             // x-FP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2345,11 +2788,19 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     //      - Pentagon k:
     for (auto k = 0; k < this->order - 1; k++)
     {
-      n1 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + k * (this->order + 1);       // y-FP
-      n2 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + (k + 1) * (this->order + 1); // y-FP
-      n3 = nverts + e->id * (this->order * this->order) + (k + 1) * this->order;                            // SP
-      n4 = nverts + nsps + e->id * (this->order * (this->order + 1)) + k + 1;                               // x-FP
-      n5 = nverts + e->id * (this->order * this->order) + k * this->order;                                  // SP
+      global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + k * (this->order + 1))->second;
+      if (global_id<0)
+        n1 = nverts + nsps - (global_id+1);                                                                                           // x-FP
+      else
+        n1 = nverts + nsps + nxfps + global_id;                                                                                   // y-FP
+      global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + (k + 1) * (this->order + 1))->second;
+      if (global_id<0)
+        n2 = nverts + nsps - (global_id+1);                                                                                           // x-FP
+      else
+        n2 = nverts + nsps + nxfps + global_id;                                                                                   // y-FP
+      n3 = nverts + e->id * (this->order * this->order) + (k + 1) * this->order;                                                  // SP
+      n4 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + k + 1)->second;                               // x-FP
+      n5 = nverts + e->id * (this->order * this->order) + k * this->order;                                                        // SP
 
       cells.push_back(std::string{"5 "} +
                       std::to_string(n1) + std::string{" "} +
@@ -2363,10 +2814,14 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
 
     //      - Quad 2:
     evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
-    n1 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + ((this->order + 1) * (this->order - 1));     // y-FP
-    n2 = mesh->get_closest(e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)], mesh->nodes), evertices); // nearest vertice from 0 y-FP
-    n3 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order;                                         // x-FP
-    n4 = nverts + e->id * (this->order * this->order) + this->order * (this->order - 1);                                  // SP
+    global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + ((this->order + 1) * (this->order - 1)))->second;
+    if (global_id<0)
+      n1 = nverts + nsps - (global_id+1);                                                                                                           // x-FP
+    else
+      n1 = nverts + nsps + nxfps + global_id;                                                                                                   // y-FP
+    n2 = v_map.find(mesh->get_closest(e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)], mesh->nodes), evertices))->second;   // nearest vertice from 0 y-FP
+    n3 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + this->order)->second;                                         // x-FP
+    n4 = nverts + e->id * (this->order * this->order) + this->order * (this->order - 1);                                                        // SP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2380,11 +2835,15 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     for (auto m = 0; m < this->order - 1; m++)
     {
       //      - Pentagon m (1):
-      n1 = nverts + nsps + e->id * (this->order * (this->order + 1)) + m * (this->order + 1);       // x-FP
-      n2 = nverts + e->id * (this->order * this->order) + m;                                        // SP
-      n3 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + m + 1;               // y-FP
-      n4 = nverts + e->id * (this->order * this->order) + m + 1;                                    // SP
-      n5 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1); // x-FP
+      n1 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + m * (this->order + 1))->second;       // x-FP
+      n2 = nverts + e->id * (this->order * this->order) + m;                                                              // SP
+      global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + m + 1)->second;
+      if (global_id<0)
+        n3 = nverts + nsps - (global_id+1);                                                                                   // x-FP
+      else
+        n3 = nverts + nsps + nxfps + global_id;                                                                           // y-FP
+      n4 = nverts + e->id * (this->order * this->order) + m + 1;                                                          // SP
+      n5 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1))->second; // x-FP
 
       cells.push_back(std::string{"5 "} +
                       std::to_string(n1) + std::string{" "} +
@@ -2398,14 +2857,23 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
       for (auto k = 0; k < this->order - 1; k++)
       {
         //      - Octogon m-k:
-        n1 = nverts + e->id * (this->order * this->order) + (m + k * this->order);                                    // SP
-        n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + m * (this->order + 1) + k + 1;               // x-FP
-        n3 = nverts + e->id * (this->order * this->order) + (m + (k + 1) * this->order);                              // SP
-        n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + m + 1 + (k + 1) * (this->order + 1); // y-FP
-        n5 = nverts + e->id * (this->order * this->order) + m + 1 + (k + 1) * this->order;                            // SP
-        n6 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1) + k + 1;         // x-FP
-        n7 = nverts + e->id * (this->order * this->order) + m + 1 + k * this->order;                                  // SP
-        n8 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + m + 1 + k * (this->order + 1);       // y-FP
+        n1 = nverts + e->id * (this->order * this->order) + (m + k * this->order);                                                          // SP
+        n2 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + m * (this->order + 1) + k + 1)->second;               // x-FP
+        n3 = nverts + e->id * (this->order * this->order) + (m + (k + 1) * this->order);                                                    // SP
+
+        global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + m + 1 + (k + 1) * (this->order + 1))->second;
+        if (global_id<0) 
+          n4 = nverts + nsps - (global_id+1);                                                                                                   // x-FP
+        else
+          n4 = nverts + nsps + nxfps + global_id;                                                                                           // y-FP
+        n5 = nverts + e->id * (this->order * this->order) + m + 1 + (k + 1) * this->order;                                                  // SP
+        n6 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1) + k + 1)->second;         // x-FP
+        n7 = nverts + e->id * (this->order * this->order) + m + 1 + k * this->order;                                                        // SP
+        global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + m + 1 + k * (this->order + 1))->second;
+        if (global_id<0)
+          n8 = nverts + nsps - (global_id+1);                                                                                                   // x-FP
+        else
+          n8 = nverts + nsps + nxfps + global_id;                                                                                           // y-FP
 
         cells.push_back(std::string{"8 "} +
                         std::to_string(n1) + std::string{" "} +
@@ -2421,11 +2889,15 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
       }
 
       //      - Pentagon m (2):
-      n1 = nverts + e->id * (this->order * this->order) + (this->order * this->order - this->order + m);                          // SP
-      n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + m * (this->order + 1) + this->order;                       // x-FP
-      n3 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1) + this->order;                 // x-FP
-      n4 = nverts + e->id * (this->order * this->order) + (this->order * this->order - this->order + m + 1);                      // SP
-      n5 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + (this->order + 1) * this->order - this->order + m; // y-FP
+      n1 = nverts + e->id * (this->order * this->order) + (this->order * this->order - this->order + m);                                                // SP
+      n2 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + m * (this->order + 1) + this->order)->second;                       // x-FP
+      n3 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + (m + 1) * (this->order + 1) + this->order)->second;                 // x-FP
+      n4 = nverts + e->id * (this->order * this->order) + (this->order * this->order - this->order + m + 1);                                            // SP
+      global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + (this->order + 1) * this->order - this->order + m)->second;
+      if (global_id<0)
+        n5 = nverts + nsps - (global_id+1);                                                                                                                 // x-FP
+      else
+        n5 = nverts + nsps + nxfps + global_id;                                                                                                         // y-FP
 
       cells.push_back(std::string{"5 "} +
                       std::to_string(n1) + std::string{" "} +
@@ -2440,10 +2912,15 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     // 1.3) High row:
     //      - Quad 1:
     evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
-    n1 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (this->order + 1) * (this->order - 1); // x-FP
-    n2 = nverts + e->id * (this->order * this->order) + (this->order - 1);                                  // SP
-    n3 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order;                   // y-FP
-    n4 = mesh->get_closest(e->transform(this->fnodes[1][this->order], mesh->nodes), evertices);              // nearest vertice from n y-FP
+    n1 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + (this->order + 1) * (this->order - 1))->second; // x-FP
+    n2 = nverts + e->id * (this->order * this->order) + (this->order - 1);                                                        // SP
+
+    global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + this->order)->second;
+    if (global_id<0)
+      n3 = nverts + nsps - (global_id+1);                                                                                             // x-FP
+    else
+      n3 = nverts + nsps + nxfps + global_id;                                                                                     // y-FP
+    n4 = v_map.find(mesh->get_closest(e->transform(this->fnodes[1][this->order], mesh->nodes), evertices))->second;               // nearest vertice from n y-FP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2455,11 +2932,19 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     //      - Pentagon k:
     for (auto k = 0; k < this->order - 1; k++)
     {
-      n1 = nverts + e->id * (this->order * this->order) + (k + 1) * this->order - 1;                                    // SP
-      n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + (k + 1) + (this->order - 1) * (this->order + 1); // x-FP
-      n3 = nverts + e->id * (this->order * this->order) + (k + 2) * this->order - 1;                                    // SP
-      n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + (k + 2) * (this->order + 1) - 1;         // y-FP
-      n5 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + (k + 1) * (this->order + 1) - 1;         // y-FP
+      n1 = nverts + e->id * (this->order * this->order) + (k + 1) * this->order - 1;                                                          // SP
+      n2 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + (k + 1) + (this->order - 1) * (this->order + 1))->second; // x-FP
+      n3 = nverts + e->id * (this->order * this->order) + (k + 2) * this->order - 1;                                                          // SP
+      global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + (k + 2) * (this->order + 1) - 1)->second;
+      if (global_id<0)
+        n4 = nverts + nsps - (global_id+1);                                                                                                       // x-FP
+      else
+        n4 = nverts + nsps + nxfps + global_id;                                                                                               // y-FP
+      global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + (k + 1) * (this->order + 1) - 1)->second;
+      if (global_id<0)
+        n5 = nverts + nsps - (global_id+1);                                                                                                       // x-FP
+      else 
+        n5 = nverts + nsps + nxfps + global_id;                                                                                               // y-FP
 
       cells.push_back(std::string{"5 "} +
                       std::to_string(n1) + std::string{" "} +
@@ -2473,10 +2958,14 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
 
     //      - Quad 2:
     evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
-    n1 = nverts + e->id * (this->order * this->order) + this->order * this->order - 1;                                 // SP
-    n2 = nverts + nsps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1;              // x-FP
-    n3 = mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1], mesh->nodes), evertices); // nearest vertice from n*(n+1)-1 x-FP
-    n4 = nverts + nsps + nxfps + e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1;      // y-FP
+    n1 = nverts + e->id * (this->order * this->order) + this->order * this->order - 1;                                                       // SP
+    n2 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1)->second;              // x-FP
+    n3 = v_map.find(mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1], mesh->nodes), evertices))->second;  // nearest vertice from n*(n+1)-1 x-FP
+    global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1)->second;
+    if (global_id<0)
+      n4 = nverts + nsps - (global_id+1);                                                                                                         // x-FP
+    else
+      n4 = nverts + nsps + nxfps + global_id;                                                                                                 // y-FP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2494,40 +2983,32 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
 
   // header, points, point_data, cells, cells_header
   // HEADER
-  for (auto &h : header)
-  {
+  for (auto& h : header)
     output << h << std::endl;
-  }
 
   // POINTS
-  for (auto &p : points)
-  {
+  for (auto& p : points)
     output << p << std::endl;
-  }
 
   // CELLS HEADER
-  for (auto &ch : cells_header)
-  {
+  for (auto& ch : cells_header)
     output << ch << std::endl;
-  }
 
   // CELLS
-  for (auto &c : cells)
-  {
+  for (auto& c : cells)
     output << c << std::endl;
-  }
 
   // CELL_TYPES
-  for (auto &ct : cells_types)
-  {
+  for (auto& ct : cells_types)
     output << ct << std::endl;
-  }
 
   // POINT DATA
-  for (auto & pd : point_data)
+  for (auto& pd_vec : point_data)
   {
-    output << pd << std::endl;
+    for (auto& pd : pd_vec)
+      output << pd << std::endl;
   }
+    
   // CELL_DATA 841
   // SCALARS boundary int 1
   // LOOKUP_TABLE default
