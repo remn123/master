@@ -30,9 +30,15 @@ if (Boost_FOUND)
     # )
 
     # ringleb 
+    # add_executable(
+    #     master_exe 
+    #     src/cases/ringleb/ringleb.cpp
+    # )
+
+    # cylinder 
     add_executable(
         master_exe 
-        src/ringleb.cpp
+        src/cases/cylinder/cylinder.cpp
     )
 
     target_link_libraries(
@@ -78,8 +84,11 @@ if (Boost_FOUND)
     target_include_directories(master_lib PUBLIC include)
     target_include_directories(master_lib PUBLIC src)
     target_include_directories(master_lib PUBLIC ${Boost_INCLUDE_DIRS})
+    
+    find_package (Threads)
 
     target_link_libraries(master_exe ${Boost_LIBRARY_DIRS})
+    target_link_libraries(master_exe ${CMAKE_THREAD_LIBS_INIT})
 
 
     # tests
@@ -98,7 +107,6 @@ if (Boost_FOUND)
         tests/test_ublas.cpp
         tests/test_functional.cpp
     )
-    find_package (Threads)
     
     target_link_libraries(master_test master_lib)
     target_link_libraries(master_test catch_lib)

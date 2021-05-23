@@ -140,7 +140,7 @@ public:
 // Quadrangle High-Order
 class QuadrangleHO : public Element
 {
-  
+public:
   int ORDER;
   std::vector<double> ce_space;
   std::unordered_map<long, std::vector<long>> computational_map;

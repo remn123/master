@@ -338,14 +338,14 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
 
   //this->J = 0.5 * (x2 - x1) + 0.5 * (y4 - y3);
 
-  a1 = x2 - x1 + x3 - x4;
-  b1 = -x2 - x1 + x3 + x4;
-  c1 = -x2 + x1 + x3 - x4;
-  d1 = x2 + x1 + x3 + x4;
-  a2 = y2 - y1 + y3 - y4;
-  b2 = -y2 - y1 + y3 + y4;
-  c2 = -y2 + y1 + y3 - y4;
-  d2 = y2 + y1 + y3 + y4;
+  a1 = 0.25*(x2 - x1 + x3 - x4);
+  b1 = 0.25*(-x2 - x1 + x3 + x4);
+  c1 = 0.25*(-x2 + x1 + x3 - x4);
+  d1 = 0.25*(x2 + x1 + x3 + x4);
+  a2 = 0.25*(y2 - y1 + y3 - y4);
+  b2 = 0.25*(-y2 - y1 + y3 + y4);
+  c2 = 0.25*(-y2 + y1 + y3 - y4);
+  d2 = 0.25*(y2 + y1 + y3 + y4);
 
   this->metrics = {a1, b1, c1, d1, a2, b2, c2, d2};
 
@@ -376,6 +376,11 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
     this->J[index][s_index - 1] = dx_dcsi * dy_deta - dx_deta * dy_dcsi;
     this->Jm[index][s_index - 1] = {dx_dcsi, dx_deta,
                                     dy_dcsi, dy_deta};
+
+    // dcsi_dx = +dy_deta;
+    // dcsi_dy = -dx_deta;
+    // deta_dx = -dy_dcsi;
+    // deta_dy = +dx_dcsi;
 
     dcsi_dx = +dy_deta / this->J[index][s_index - 1];
     dcsi_dy = -dx_deta / this->J[index][s_index - 1];
@@ -417,6 +422,11 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
       this->J[index][f_index - 1] = dx_dcsi * dy_deta - dx_deta * dy_dcsi;
       this->Jm[index][f_index - 1] = {dx_dcsi, dx_deta,
                                       dy_dcsi, dy_deta};
+        
+      // dcsi_dx = +dy_deta;
+      // dcsi_dy = -dx_deta;
+      // deta_dx = -dy_dcsi;
+      // deta_dy = +dx_dcsi;
 
       dcsi_dx = +dy_deta / this->J[index][f_index - 1];
       dcsi_dy = -dx_deta / this->J[index][f_index - 1];
@@ -463,8 +473,8 @@ Node Quadrangle::transform(const Node &n, const std::vector<Vertice> &enodes)
   csi = n.coords[0];
   eta = n.coords[1];
 
-  x = 0.25 * (this->metrics[0] * csi + this->metrics[1] * eta + this->metrics[2] * csi * eta + this->metrics[3]);
-  y = 0.25 * (this->metrics[4] * csi + this->metrics[5] * eta + this->metrics[6] * csi * eta + this->metrics[7]);
+  x = (this->metrics[0] * csi + this->metrics[1] * eta + this->metrics[2] * csi * eta + this->metrics[3]);
+  y = (this->metrics[4] * csi + this->metrics[5] * eta + this->metrics[6] * csi * eta + this->metrics[7]);
   return Node{x, y, z};
 }
 
@@ -481,7 +491,7 @@ std::vector<double> Quadrangle::get_normal_vector(int index, int point, int loca
 
   // nx = (abs(ds_dx) > 1E-15) ? signN*J*ds_dx/abs(ds_dx) : 0.0;
   // ny = (abs(ds_dy) > 1E-15) ? signN*J*ds_dy/abs(ds_dy) : 0.0;
-  double S_norm = sqrt(ds_dx*ds_dx + ds_dy*ds_dy);
+  double S_norm = std::sqrt(ds_dx*ds_dx + ds_dy*ds_dy);
   nx = signN*ds_dx/S_norm;
   ny = signN*ds_dy/S_norm;
   return std::vector<double>{nx, ny};
@@ -703,7 +713,7 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
       if (this->J[index][f_index - 1] <= 0.0)
       {
         std::cout<<" this->J["<<index<<"]["<<f_index - 1<<"] = " << this->J[index][f_index - 1] << "\n";
-        throw "ERROR: Unvalid Jacobian!";
+        throw "ERROR: Invalid Jacobian!";
       }
       this->Jm[index][f_index - 1] = {dx_dcsi, dx_deta,
                                       dy_dcsi, dy_deta};
@@ -898,7 +908,7 @@ std::vector<double> QuadrangleHO::get_normal_vector(int index, int point, int lo
   
   auto signN = ((local_ed==0||local_ed==3)) ? -1 : 1;
 
-  double S_norm = sqrt(ds_dx*ds_dx + ds_dy*ds_dy);
+  double S_norm = std::sqrt(ds_dx*ds_dx + ds_dy*ds_dy);
   nx = signN*ds_dx/S_norm;
   ny = signN*ds_dy/S_norm;
   return std::vector<double>{nx, ny};

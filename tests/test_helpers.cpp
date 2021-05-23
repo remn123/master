@@ -274,6 +274,28 @@ TEST_CASE("1: Test GL and GLL - get_nodes method", "[GL-GLL]")
    Helpers<GL>::delete_nodes();
    nodes_gl.clear();
  }
+
+ TEST_CASE("2: Test Lagrange - dPn method", "[lagrange]")
+ {
+   std::vector<double> nodes = {-1.0, 1.0};
+
+   // I create a Lagrange polynomial using the gauss-legendre roots as nodes
+   Helpers<Lagrange>::init();
+   Helpers<Lagrange>::set_nodes(nodes);
+   REQUIRE( Helpers<Lagrange>::Pn(0, nodes[0]) == 1.0);
+   REQUIRE( Helpers<Lagrange>::Pn(1, nodes[0]) == 0.0);
+   REQUIRE( Helpers<Lagrange>::Pn(0, nodes[1]) == 0.0);
+   REQUIRE( Helpers<Lagrange>::Pn(1, nodes[1]) == 1.0);
+
+   // Derivatives
+   REQUIRE( Helpers<Lagrange>::dPn(0, nodes[0]) == -0.5);
+   REQUIRE( Helpers<Lagrange>::dPn(1, nodes[0]) == 0.5);
+   REQUIRE( Helpers<Lagrange>::dPn(0, nodes[1]) == -0.5);
+   REQUIRE( Helpers<Lagrange>::dPn(1, nodes[1]) == 0.5);
+
+   Helpers<Lagrange>::delete_nodes();
+   nodes.clear();
+ }
 // ----------------------------------------------------------------- //
 
 // Lagrange

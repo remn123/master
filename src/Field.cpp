@@ -3,13 +3,19 @@
 #include <assert.h>
 #include <math.h>
 
+#include <Ghost.h>
 #include <Field.h>
 #include <Numericals.h>
 
 /* Declaring unitary field */
 std::vector<double> FIELDS::DEFAULT_FIELD_MAPPING (const Node& n)
 {
-  std::vector<double> vec(4, 1.0);
+  std::vector<double> vec(4, 0.0); 
+
+  vec[0] = 1.0; 
+  vec[1] = 0.0; 
+  vec[2] = 0.0; 
+  vec[3] = 1.0/(1.4*0.4); 
   return vec;
 };
 
@@ -24,14 +30,14 @@ std::vector<double> FIELDS::GAUSSIAN_FIELD_MAPPING (const Node& n)
   double mux=0.5, muy=0.5;
   double sigmax=0.1, sigmay=0.1;
 
-  double pho = 1.0;
+  double rho = 1.0;
   double u = (1.0/(sigmax*std::sqrt(2.0*M_PI)))*std::exp(-(x-mux)*(x-mux)/(2.0*sigmax));
   double v = (1.0/(sigmay*std::sqrt(2.0*M_PI)))*std::exp(-(y-muy)*(y-muy)/(2.0*sigmay));
   double E = 1.0;
 
-  vec[0] = pho; 
-  vec[1] = pho*u; 
-  vec[2] = pho*v; 
+  vec[0] = rho; 
+  vec[1] = rho*u; 
+  vec[2] = rho*v; 
   vec[3] = E; 
   
   return vec;
@@ -47,20 +53,110 @@ std::vector<double> FIELDS::LINEAR_FIELD_MAPPING (const Node& n)
   double ax=0.5, ay=0.5;
   double bx=0.0, by=0.0;
 
-  double pho = 1.0;
+  double rho = 1.0;
   double u = ax*x + bx;
   double v = ay*y + by;
   double E = 1.0;
 
-  vec[0] = pho; 
-  vec[1] = pho*u; 
-  vec[2] = pho*v; 
+  vec[0] = rho; 
+  vec[1] = rho*u; 
+  vec[2] = rho*v; 
   vec[3] = E; 
   
   return vec;
 };
 
 
+/* CYLINDER FLOW */
+std::vector<double> FIELDS::CYLINDER_FIELD_MAPPING (const Node& n)
+{
+  std::vector<double> vec(4, 0.0);
+  
+  // Coordinates
+  double x = n.coords[0];
+  double y = n.coords[1];
+
+  double epsilon = 1E-2; 
+  // Center 
+  double xc=0.5, yc=0.5;
+  // Outer Circle
+  double R=0.5;
+  // Inner Circle
+  double r=0.5/16.0;
+
+  double radius = std::sqrt(std::pow((x-xc), 2.0) + std::pow((y-yc), 2.0));
+
+  double rho=1.0, u=0.2, v=0.0, E=1.0, p=1.0/1.4;
+  double a=1.0, umag=1.0, q=1.0;
+
+  // Problem specifications
+  double gamma=1.4;
+  double Mach=Ghost::Mach;
+  
+  //Check if it is around the Outer Boundary
+  // if (std::abs(R - radius) < epsilon)
+  // {
+  //   rho = 1.0;
+  //   u = Mach;
+  //   v = 0.0;
+
+  //   q = u*u + v*v;
+  //   umag=std::sqrt(q);
+  //   p = 1.0/gamma;
+  //   E = p/(gamma - 1.0) + 0.5 * rho * (u * u + v * v);
+    
+  // } 
+  // // Check if it is around the Inner Boundary
+  // else if (std::abs(radius - r) < epsilon)
+  // {
+  //   rho = 1.0;
+  //   u = Mach;
+  //   v = 0.0;
+  //   E = p/(gamma - 1.0) + 0.5 * rho * (u * u + v * v);
+  // }
+  // E = p/(gamma - 1.0) + 0.5 * rho * (u * u + v * v);
+
+  rho = 1.0;
+  u = Mach;
+  v = 0.0;
+
+  q = u*u + v*v;
+  umag=std::sqrt(q);
+  p = 1.0/gamma;
+  E = p/(gamma - 1.0) + 0.5 * rho * (u * u + v * v);
+
+  vec[0] = rho; 
+  vec[1] = rho*u; 
+  vec[2] = rho*v; 
+  vec[3] = E; 
+  
+  return vec;
+};
+
+/* IMPLOSION FLOW */
+std::vector<double> FIELDS::IMPLOSION_FIELD_MAPPING (const Node& n)
+{
+  std::vector<double> vec(4, 0.0);
+  
+  // Coordinates
+  double x = n.coords[0];
+  double y = n.coords[1];
+   
+  double ax=0.5, ay=0.5;
+  double bx=0.0, by=0.0;
+
+  double rho = 1.0;
+  double u = ax*x + bx;
+  double v = ay*y + by;
+  double E = 1.0;
+
+  vec[0] = rho; 
+  vec[1] = rho*u; 
+  vec[2] = rho*v; 
+  vec[3] = E; 
+  
+  return vec;
+};
 
 /* RINGLEB FLOW */
 std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)

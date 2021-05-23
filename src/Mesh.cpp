@@ -373,32 +373,35 @@ void Mesh::read_gmsh(const std::string &filename)
           //int dimension = std::stoi(parser[0]);
           int physical_tag_id = std::stoi(parser[1]);
           std::string physical_tag_name = parser[2];
-          // std::cout << "physical_tag_id = " << physical_tag_id << "\n";
-          // std::cout << "physical_tag_name = " << physical_tag_name << "\n";
+          
+          std::regex WALL_r("\"(wall)\"", std::regex::icase);
+          std::regex INLET_r("\"(inlet|inflow)\"", std::regex::icase);
+          std::regex OUTLET_r("\"(outlet|outflow)\"", std::regex::icase);
+          std::regex RINGLEB_WALL_r("\"(ringleb_inner|ringleb_outer)\"", std::regex::icase);
+          std::regex RINGLEB_INLET_r("\"ringleb_(inlet|inflow)\"", std::regex::icase);
+          std::regex RINGLEB_OUTLET_r("\"ringleb_(outlet|outflow)\"", std::regex::icase);
+          // std::cout << physical_tag_name << "\n";
+          // std::cout << physical_tag_id << "\n";
           // std::cin.get();
 
-          std::regex WALL_r(".*(wall|inner|outer).*", std::regex::icase);
-          std::regex INLET_r(".*(inlet|inflow).*", std::regex::icase);
-          std::regex OUTLET_r(".*(outlet|outflow).*", std::regex::icase);
           auto test =  std::regex_match(physical_tag_name, WALL_r);
-          // std::cout << "test = " << test << "\n";
           if (std::regex_match(physical_tag_name, WALL_r))
-          {
-            // std::cout << "WALL" << "\n";
             Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::WALL});
-          }
+          // RINGLEB WALL
+          else if (std::regex_match(physical_tag_name, RINGLEB_WALL_r))
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::RINGLEB_WALL});
+          // RINGLEB INLET
+          else if (std::regex_match(physical_tag_name, RINGLEB_INLET_r))
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::RINGLEB_INLET});
+          // RINGLEB OUTLET
+          else if (std::regex_match(physical_tag_name, RINGLEB_OUTLET_r))
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::RINGLEB_OUTLET});
+          // INLET
           else if (std::regex_match(physical_tag_name, INLET_r))
-          {
-            // std::cout << "INLET" << "\n";
-            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::SUPERSONIC_INLET});
-          }
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::INLET});
+          // OUTLET
           else if (std::regex_match(physical_tag_name, OUTLET_r))
-          {
-            // std::cout << "OUTLET" << "\n";
-            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::SUPERSONIC_OUTLET});
-          }
-          // std::cin.get();
-
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::OUTLET});
         }
       }
       // Getting into the Element Block

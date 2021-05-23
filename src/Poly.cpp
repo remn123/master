@@ -226,7 +226,7 @@ double Lagrange::get_node(unsigned int k)
 double Lagrange::Pn(unsigned int i, double x)
 {
   double xi = 0.0, xk = 0.0, prod = 1.0;
-
+  xi = this->nodes[i];
   int n = this->nodes.size();
   if (n > 0)
   {
@@ -234,7 +234,6 @@ double Lagrange::Pn(unsigned int i, double x)
     {
       if (i != k)
       {
-        xi = this->nodes[i];
         xk = this->nodes[k];
         if (abs(x - xk)<=1E-15)
         {
@@ -254,6 +253,7 @@ double Lagrange::dPn(unsigned int i, double x)
 {
   double xi = 0.0, xk = 0.0, xj = 0.0, prod = 1.0, sum = 0.0;
   unsigned int n = this->nodes.size();
+  xi = this->nodes[i];
   if (n > 0)
   {
     for (auto j = 0; j < n; j++)
@@ -267,7 +267,6 @@ double Lagrange::dPn(unsigned int i, double x)
         {
           if (k != i && k != j)
           {
-            xi = this->nodes[i];
             xk = this->nodes[k];
             if (abs(x - xk)<=1E-15)
             {

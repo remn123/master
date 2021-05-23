@@ -152,65 +152,98 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
   //if (this->iter % 100 == 0)
   //std::cout << "Iter[" << iter << "]: Residue " << log10(L2) << std::endl;
   // std::cin.get();
-  for (size_t i = 1; i <= this->stages; i++)
-  {
-    this->res_sum = 0.0 * this->res_sum; // resets res_sum
-    //std::cout << "res_sum += ";
-    for (size_t k = 0; k < i; k++)
-    {
+
+  this->Q[1] = this->Q[0] + dt * this->res[0];
+  // writes solution into all mesh elements
+  this->write_solution(mesh, 1);
+  // recalculates residue
+  solve(mesh);
+  // reads residue from mesh
+  this->read_residue(mesh, 1);
+
+  this->Q[2] = (3.0/4.0)*this->Q[0] + (1.0/4.0)*this->Q[1] + (1.0/4.0)*dt * this->res[1];
+  // writes solution into all mesh elements
+  this->write_solution(mesh, 2);
+  // recalculates residue
+  solve(mesh);
+  // reads residue from mesh
+  this->read_residue(mesh, 2);
+
+  this->Q[3] = (1.0/3.0)*this->Q[0] + (2.0/3.0)*this->Q[2] + (2.0/3.0)*dt * this->res[2];
+  // writes solution into all mesh elements
+  this->write_solution(mesh, 3);
+  // recalculates residue
+  solve(mesh);
+  // reads residue from mesh
+  this->read_residue(mesh, 3);
+
+  
+  //std::cout << "U[" << i << "] = res_sum; \n";
+  // for (auto &qk : this->Q[i])
+  //   std::cout << "this->Q[" << i << "] = " << qk << "\n";
+  //std::cin.get();
+  // for (size_t i = 1; i <= this->stages; i++)
+  // {
+  //   this->res_sum = 0.0 * this->res_sum; // resets res_sum
+  //   // std::cout << "res_sum += ";
+  //   // for (size_t k = 0; k < i; k++)
+  //   // {
       
-      //std::cout << " c(" << i << ", " << k << ") * res[" << k << "] + \n";
-      //this->res_sum += this->c(i, k) * this->res[k];
-      //std::cout << this->alpha[i*(this->stages+1) + k] << " * U(" << k << ") + " << this->beta[i*(this->stages+1) + k] << " * dt * R(" << k << ")\n";
-      this->res_sum += this->alpha[i*(this->stages+1) + k] * this->Q[k] + dt * this->beta[i*(this->stages+1) + k]*this->res[k];
-      // if (k == i - 1 && k > 0)
-      // {
+  //   //   //std::cout << " c(" << i << ", " << k << ") * res[" << k << "] + \n";
+  //   //   //this->res_sum += this->c(i, k) * this->res[k];
+  //   //   //std::cout << this->alpha[i*(this->stages+1) + k] << " * U(" << k << ") + " << this->beta[i*(this->stages+1) + k] << " * dt * R(" << k << ")\n";
+  //   //   this->res_sum += this->alpha[i*(this->stages+1) + k] * this->Q[k] + dt * this->beta[i*(this->stages+1) + k]*this->res[k];
+  //   //   // if (k == i - 1 && k > 0)
+  //   //   // {
       
-      //}
-      // i = 5
-      // k = 0
-      // i*(s+1)+k => 5*(5+1)+0 => 30
-      // i = 1
-      // k = 0
-      // i*(s+1)+k => 1*(5+1)+0 => 6
-    }
-    // for (auto &qk : this->Q[0])
-    //   std::cout << "qk = " << qk << "\n";
-    // for (auto &qk : this->res_sum)
-    //   std::cout << "res = " << qk << "\n";
-    if (i == this->stages)
-    { 
-      this->res_sum = 0.517231671970585*this->Q[2] + 0.096059710526147*this->Q[3] + 0.063692468666290*dt*this->res[3] + 0.386708617503268*this->Q[4] + 0.226007483236906*dt*this->res[4];
-      this->Q[i] = this->res_sum;
-      // writes solution into all mesh elements
-      this->write_solution(mesh, i);
-      solve(mesh);
-      break;
-    }
-    this->Q[i] = this->res_sum;
-    // writes solution into all mesh elements
-    this->write_solution(mesh, i);
-    // recalculates residue
-    solve(mesh);
-    // reads residue from mesh
-    this->read_residue(mesh, i);
-    //std::cout << "U[" << i << "] = res_sum; \n";
-    // for (auto &qk : this->Q[i])
-    //   std::cout << "this->Q[" << i << "] = " << qk << "\n";
-    //std::cin.get();
-  } 
+  //   //   //}
+  //   //   // i = 5
+  //   //   // k = 0
+  //   //   // i*(s+1)+k => 5*(5+1)+0 => 30
+  //   //   // i = 1
+  //   //   // k = 0
+  //   //   // i*(s+1)+k => 1*(5+1)+0 => 6
+  //   // }
+  //   // // for (auto &qk : this->Q[0])
+  //   // //   std::cout << "qk = " << qk << "\n";
+  //   // // for (auto &qk : this->res_sum)
+  //   // //   std::cout << "res = " << qk << "\n";
+  //   // if (i == this->stages)
+  //   // { 
+  //   //   this->res_sum = 0.517231671970585*this->Q[2] + 0.096059710526147*this->Q[3] + 0.063692468666290*dt*this->res[3] + 0.386708617503268*this->Q[4] + 0.226007483236906*dt*this->res[4];
+  //   //   this->Q[i] = this->res_sum;
+  //   //   // writes solution into all mesh elements
+  //   //   this->write_solution(mesh, i);
+  //   //   solve(mesh);
+  //   //   break;
+  //   // }
+  //   this->Q[i] = this->res_sum;
+  //   // writes solution into all mesh elements
+  //   this->write_solution(mesh, i);
+  //   // recalculates residue
+  //   solve(mesh);
+  //   // reads residue from mesh
+  //   this->read_residue(mesh, i);
+  //   //std::cout << "U[" << i << "] = res_sum; \n";
+  //   // for (auto &qk : this->Q[i])
+  //   //   std::cout << "this->Q[" << i << "] = " << qk << "\n";
+  //   //std::cin.get();
+  // } 
 
   // writes solution into all mesh elements
   //this->write_solution(mesh, this->stages);
   // re-calculates residue
   //solve(mesh);
-  this->iter++;
+  
 
   L1 = mesh->get_residue_norm(0); // L1-norm
   L2 = mesh->get_residue_norm(1); // L2-norm
   Linf = mesh->get_residue_norm(2); // Linf-norm
   if (this->iter % 100 == 0)
     std::cout << "Iter[" << iter << "]: L1 = " << std::log10(L1) << "; L2 = " << log10(L2) << "; Linf = " << log10(Linf) << std::endl;
+  
+  if (isinf(std::abs(log10(L2)))) throw "[Error]: Time iteration has diverged!\n";
+  this->iter++;
   //std::cin.get();
 }
 
@@ -223,7 +256,13 @@ void Time<Method>::loop(std::shared_ptr<Mesh> &mesh,
 {
   while (this->iter <= this->MAX_ITER)
   {
-    this->update(mesh, solve);
+    try {
+      this->update(mesh, solve);
+    } catch (const char* msg) {
+      std::cerr << msg;
+      throw;
+    }
+    
     if (this->iter % 10 == 0)
     {
       std::string tstamp = std::to_string(this->iter);
