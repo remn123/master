@@ -68,6 +68,12 @@ public:
   void interpolate_fp2sp(std::shared_ptr<Element> &);
   void residue(std::shared_ptr<Element> &);
   void update_fluxes(std::shared_ptr<Element> &, std::vector<std::shared_ptr<Element>> &);
+  // For Static_Meshes:
+  void update_overset(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
+  long mark_fringes_and_holes(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
+  void propagate_holes(std::shared_ptr<Static_Mesh>&, long);
+  void update_background_neighboors(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
+  void communicate_data(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
 
 private:
   void _init_dvec(std::vector<DVector> &, size_t);

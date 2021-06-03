@@ -461,6 +461,29 @@ double Quadrangle::calculate_jacobian_at_node(const Node& node, const std::vecto
   return dx_dcsi * dy_deta - dx_deta * dy_dcsi;
 }
 
+std::vector<double> Quadrangle::calculate_jacobian_matrix_at_node(const Node& node, const std::vector<Vertice> &enodes)
+{
+  auto a1 = this->metrics[0];
+  auto b1 = this->metrics[1];
+  auto c1 = this->metrics[2];
+  auto d1 = this->metrics[3];
+  auto a2 = this->metrics[4];
+  auto b2 = this->metrics[5];
+  auto c2 = this->metrics[6];
+  auto d2 = this->metrics[7];
+
+  auto csi = node.coords[0];
+  auto eta = node.coords[1];
+
+  auto dx_dcsi = (a1 + c1 * eta);
+  auto dx_deta = (b1 + c1 * csi);
+  auto dy_dcsi = (a2 + c2 * eta);
+  auto dy_deta = (b2 + c2 * csi);
+  
+  std::vector<double> matrix = {dx_dcsi, dx_deta, dy_dcsi, dy_deta};
+  return matrix;
+}
+
 Node Quadrangle::transform(const Node &n, const std::vector<Vertice> &enodes)
 {
   /* 
@@ -477,7 +500,6 @@ Node Quadrangle::transform(const Node &n, const std::vector<Vertice> &enodes)
   y = (this->metrics[4] * csi + this->metrics[5] * eta + this->metrics[6] * csi * eta + this->metrics[7]);
   return Node{x, y, z};
 }
-
 
   
 std::vector<double> Quadrangle::get_normal_vector(int index, int point, int local_ed)
@@ -856,8 +878,48 @@ Node QuadrangleHO::transform(const Node &n, const std::vector<Vertice> &enodes)
   }
   Helpers<Lagrange>::delete_nodes();
   return Node{x, y, z};
-  //return Node();
 }
+
+std::vector<double> QuadrangleHO::calculate_jacobian_matrix_at_node(const Node& n, const std::vector<Vertice> &enodes)
+{
+  /* 
+    Apply mapping from csi, eta (computational) -> x, y (physical)
+   */
+  double x = 0.0, y = 0.0, z = 0.0;
+  double csi = 0.0, eta = 0.0;
+  double Lcsi = 0.0, Leta = 0.0;
+  double dLcsi = 0.0, dLeta = 0.0;
+
+  Helpers<Lagrange>::init();
+  Helpers<Lagrange>::set_nodes(this->ce_space);
+
+  csi = n.coords[0];
+  eta = n.coords[1];
+  double dx_dcsi=0.0, dx_deta=0.0, dy_dcsi=0.0, dy_deta=0.0;
+
+  // Computational to Physical
+  for (int k = 0; k < this->NUM_NODES; k++)
+  {
+    auto coords = this->computational_map.find(k)->second;
+    int i = coords[0];
+    int j = coords[1];
+
+    Lcsi = Helpers<Lagrange>::Pn(i, csi);
+    Leta = Helpers<Lagrange>::Pn(j, eta);
+    dLcsi = Helpers<Lagrange>::dPn(i, csi);
+    dLeta = Helpers<Lagrange>::dPn(j, eta);
+
+    dx_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[0];
+    dx_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[0];
+    dy_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[1];
+    dy_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[1];
+  }
+  Helpers<Lagrange>::delete_nodes();
+
+  std::vector<double> matrix = {dx_dcsi, dx_deta, dy_dcsi, dy_deta};
+  return matrix;
+}
+
 
 double QuadrangleHO::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
 {

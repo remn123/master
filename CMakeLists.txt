@@ -36,9 +36,15 @@ if (Boost_FOUND)
     # )
 
     # cylinder 
+    # add_executable(
+    #     master_exe 
+    #     src/cases/cylinder/cylinder.cpp
+    # )
+
+    # overset - cylinder 
     add_executable(
         master_exe 
-        src/cases/cylinder/cylinder.cpp
+        src/cases/overset/cylinder/cylinder.cpp
     )
 
     target_link_libraries(

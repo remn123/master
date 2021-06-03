@@ -14,7 +14,7 @@
 #include <Mesh.h>
 #include <Ghost.h>
 
-int Static_Mesh::dim = 0;
+//int Static_Mesh::dim = 0;
 int Mesh::number_meshes = 0;
 long Element::num_elems = -1;
 long Element::num_faces = -1;
@@ -186,21 +186,21 @@ void Mesh::to_vtk(const std::string &filename)
   std::ofstream output;
 
   output.open(filename);
-  output << "# vtk DataFile Version 3.0" << std::endl;
-  output << "My Mesh" << std::endl;
-  output << "ASCII" << std::endl;
-  output << "DATASET UNSTRUCTURED_GRID" << std::endl;
-  output << "POINTS " << this->N << " float" << std::endl;
-  //output << "POINT_DATA " << this->N << std::endl;
+  output << "# vtk DataFile Version 3\n";
+  output << "My Mesh\n";
+  output << "ASCII\n";
+  output << "DATASET UNSTRUCTURED_GRID\n";
+  output << "POINTS " << this->N << " float\n";
+  //output << "POINT_DATA " << this->N << "\n";
 
   // writing vertices
   for (auto &n : this->nodes)
   {
     //output << n.id+1 << " " << n.coords[0] << " " << n.coords[1] << " " << n.coords[2];
     output << n.coords[0] << " " << n.coords[1] << " " << n.coords[2];
-    output << std::endl;
+    output << "\n";
   }
-  output << std::endl;
+  output << "\n";
 
   auto nodes_size = 0;
 
@@ -209,7 +209,7 @@ void Mesh::to_vtk(const std::string &filename)
     nodes_size += 4;
   }
 
-  output << "CELLS " << this->Nel << " " << this->Nel + nodes_size << std::endl;
+  output << "CELLS " << this->Nel << " " << this->Nel + nodes_size << "\n";
 
   // writing elements
   for (auto &e : this->elems)
@@ -219,37 +219,37 @@ void Mesh::to_vtk(const std::string &filename)
     {
       output << " " << enode;
     }
-    output << std::endl;
+    output << "\n";
   }
-  output << std::endl;
+  output << "\n";
 
-  output << "CELL_TYPES " << this->Nel << std::endl;
+  output << "CELL_TYPES " << this->Nel << "\n";
 
   // writing elements type
   for (auto &e : this->elems)
   {
     // temporary "fix"
-    output << 9 << std::endl;
+    output << 9 << "\n";
   }
-  output << std::endl;
+  output << "\n";
 
-  output << "CELL_DATA " << this->Nel << std::endl;
-  output << "SCALARS boundary int 1" << std::endl;
-  output << "LOOKUP_TABLE default" << std::endl;
+  output << "CELL_DATA " << this->Nel << "\n";
+  output << "SCALARS boundary int 1\n";
+  output << "LOOKUP_TABLE default\n";
 
   // writing element kdtree boundary flag
   for (auto &e : this->elems)
   {
-    output << e->boundary << std::endl;
+    output << e->boundary << "\n";
   }
 
-  output << "SCALARS fringe int 1" << std::endl;
-  output << "LOOKUP_TABLE default" << std::endl;
+  output << "SCALARS fringe int 1\n";
+  output << "LOOKUP_TABLE default\n";
 
   // writing element kdtree boundary flag
   for (auto &e : this->elems)
   {
-    output << e->fringe << std::endl;
+    output << e->fringe << "\n";
   }
 
   output.close();
@@ -380,13 +380,13 @@ void Mesh::read_gmsh(const std::string &filename)
           std::regex RINGLEB_WALL_r("\"(ringleb_inner|ringleb_outer)\"", std::regex::icase);
           std::regex RINGLEB_INLET_r("\"ringleb_(inlet|inflow)\"", std::regex::icase);
           std::regex RINGLEB_OUTLET_r("\"ringleb_(outlet|outflow)\"", std::regex::icase);
-          // std::cout << physical_tag_name << "\n";
-          // std::cout << physical_tag_id << "\n";
-          // std::cin.get();
-
-          auto test =  std::regex_match(physical_tag_name, WALL_r);
+          std::regex OVERSET_r("\"(overset)\"", std::regex::icase);
+          
           if (std::regex_match(physical_tag_name, WALL_r))
             Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::WALL});
+          // OVERSET
+          else if (std::regex_match(physical_tag_name, OVERSET_r))
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::OVERSET});
           // RINGLEB WALL
           else if (std::regex_match(physical_tag_name, RINGLEB_WALL_r))
             Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::RINGLEB_WALL});
@@ -554,6 +554,7 @@ void Mesh::read_gmsh(const std::string &filename)
     Ghost::num_ghosts = -1;
     Vertice::num_nodes = -1;
     Element::edges_map.clear();
+    Ghost::tag_name_map.clear();
 
     std::cout << "File <" + filename + "> has been read." << std::endl;
   }
@@ -598,7 +599,7 @@ void Mesh::print_node_by_id(long node_id)
   this->nodes[node_id].print_coords();
 }
 
-double Mesh::get_area(const std::vector<Vertice> &vec)
+double Mesh::get_area(const std::vector<Node> &vec)
 {
   size_t size = 0;
   double crossp = 0.0;
@@ -627,7 +628,7 @@ double Mesh::get_area(const std::vector<Vertice> &vec)
   return crossp;
 }
 
-double Mesh::get_area(const std::vector<long> &vec, const Vertice &n2)
+double Mesh::get_area(const std::vector<long> &vec, const Node &n2)
 {
   size_t size = 0;
   double crossp = 0.0;
@@ -815,6 +816,8 @@ double Mesh::get_residue_norm(int type)
 Static_Mesh::Static_Mesh(int d) : Mesh(d)
 {
   std::cout << "Static_Mesh has been created!" << std::endl;
+  this->dim = 0;
+  this->receivers = {};
 }
 
 Static_Mesh::~Static_Mesh(void)
@@ -900,7 +903,7 @@ void Static_Mesh::build_kdtree(long &root_, std::vector<long> &v_nodes, long k)
     //dim++;
     //dim = dim % this->dimension; // cyclic layer dim
     //std::cout << "Dim = " << dim << std::endl;
-    dim = (k + 1) % this->dimension;
+    this->dim = (k + 1) % this->dimension;
     // Find out left_nodes pivot and traverse it
     this->get_pivot(this->nodes[root_].left, left_nodes);
     if (this->nodes[root_].left > -1)
@@ -973,7 +976,7 @@ void Static_Mesh::get_pivot(long &root_, const std::vector<long> &v_nodes)
   }
 }
 
-long Static_Mesh::mark_fringes(const Vertice &n2)
+long Static_Mesh::mark_fringes(const Node &n2, const PhysicalEnum& type)
 {
   int k = -1;
   double min_dist = std::numeric_limits<double>::max();
@@ -982,7 +985,7 @@ long Static_Mesh::mark_fringes(const Vertice &n2)
   closest = this->_search(n2, this->root, k, min_dist, this->root);
   std::cout << "Test Node: " << n2.id << std::endl;
   std::cout << "Closest: " << closest << std::endl;
-  long find_elm = this->_find_element(n2, this->nodes[closest].elems);
+  long find_elm = this->_find_element(n2, this->nodes[closest].elems, type);
   std::cout << "Find fringe at " << find_elm << std::endl;
   return find_elm;
 }
@@ -998,7 +1001,7 @@ void Static_Mesh::_get_kneighbors(long &sroot, std::vector<long> &kneighbors)
   }
 }
 
-double Static_Mesh::_get_distance(const Vertice &n1, const Vertice &n2)
+double Static_Mesh::_get_distance(const Node &n1, const Node &n2)
 {
   double x1, y1, z1;
   double x2, y2, z2;
@@ -1014,7 +1017,7 @@ double Static_Mesh::_get_distance(const Vertice &n1, const Vertice &n2)
   return sqrt(pow((x1 - x2), 2.0) + pow((y1 - y2), 2.0) + pow((z1 - z2), 2.0));
 }
 
-long Static_Mesh::_search(const Vertice &n2, long &sroot, int k, double min_dist, long closest)
+long Static_Mesh::_search(const Node &n2, long &sroot, int k, double min_dist, long closest)
 {
   k++;
   k = k % this->dimension;
@@ -1119,7 +1122,7 @@ long Static_Mesh::_search(const Vertice &n2, long &sroot, int k, double min_dist
 //	return -2;
 //}
 
-long Static_Mesh::_find_element(const Vertice &n2, std::vector<long> &elm_ids)
+long Static_Mesh::_find_element(const Node &n2, std::vector<long> &elm_ids, const PhysicalEnum& type)
 {
   /*
   Inside the element:
@@ -1185,8 +1188,15 @@ long Static_Mesh::_find_element(const Vertice &n2, std::vector<long> &elm_ids)
         // 	std::cout << "Point(" << n2.coords[0] << "," << n2.coords[1] << ") is inside of the element (" << e_id << ")" << std::endl;
         // 	this->print_element_by_id(e_id);
         // }
-
-        this->elems[e_id]->fringe = 1; // mark as fringed
+        if (type == PhysicalEnum::OVERSET)
+        { 
+          this->elems[e_id]->fringe = 1; // mark as fringed
+        }
+        if (type == PhysicalEnum::WALL)
+        { 
+          this->elems[e_id]->fringe = 2; // mark as hole
+        }
+        
         fringed_elm_id = e_id;
       }
     }

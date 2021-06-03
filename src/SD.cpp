@@ -17,6 +17,7 @@
 #include <Helpers.h>
 #include <Mesh.h>
 #include <Node.h>
+#include <Numericals.h>
 #include <Poly.h>
 #include <SD.h>
 
@@ -2468,6 +2469,212 @@ void SD<NavierStokes>::residue(std::shared_ptr<Element> &e)
     {
       index++;
       e->computational->res[s_index - 1] += (-e->computational->dFcsp[index - 1][s_index - 1] + (this->M / this->Re) * e->computational->dFdsp[index - 1][s_index - 1]);
+    }
+  }
+}
+
+template <typename Equation>
+long SD<Equation>::mark_fringes_and_holes(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+{
+  long elem_id = -1, last_hole_cell = -1;
+  for (auto& g : mesh2->ghosts) 
+  {
+    if (g.type == PhysicalEnum::OVERSET || g.type == PhysicalEnum::WALL)
+    {
+      for (auto& fn : g.fnodes)
+      {
+        elem_id = mesh1->mark_fringes(fn, g.type);
+        fn.donor = elem_id;
+        if (g.type == PhysicalEnum::WALL)
+          last_hole_cell = elem_id;
+        if (g.type == PhysicalEnum::OVERSET)
+          mesh1->receivers.push_back(elem_id);
+      }
+    }
+  }
+  return last_hole_cell;
+}
+
+template <typename Equation>
+void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& mesh1, long root)
+{
+  long child;
+  std::vector<long> stack = {};
+
+  if (root >= 0)
+    stack.push_back(root);
+  
+  // Explicit Breadth-First Search
+  while (!stack.empty())
+  {
+    root = stack.back();
+    std::cout << "Pop: " << root << "\n";
+    mesh1->elems[root]->fringe = 2;
+    std::cout << "Marking as hole: " << root << "\n";
+    stack.pop_back();
+    for (auto& ed : mesh1->elems[root]->edges)
+    {
+      child = ed.right;
+      // fringe:
+      //         - 0: normal fluid
+      //         - 1: overset fringe
+      //         - 2: hole
+      if (child >= 0)
+      {
+        if (mesh1->elems[child]->fringe == 0)
+        {
+          stack.push_back(child);
+          std::cout << "Stacking: " << child << "\n";
+        }
+      }
+    }
+  }
+}
+
+template <typename Equation>
+void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+{
+  /*
+    3) Find Receiver cells from  Near-body mesh to the Background mesh fringe cells
+      - For each fringe cell, find which edges have a hole cell neighboor
+      - if it's true, find which near-body mesh cell envolves its flux points
+  */
+  auto num_ghosts = Ghost::num_ghosts;
+  Ghost::num_ghosts = mesh1->Ngh;
+  std::vector<fNode> fnodes = {};
+  int local_id = -1;
+  long elem_id = -1;
+
+  for (auto& r_id : mesh1->receivers)
+  {
+    local_id = 0;
+    for (auto& ed : mesh1->elems[r_id]->edges)
+    {
+      if (ed.right >=0)
+      {
+        if (mesh1->elems[ed.right]->fringe == 2)
+        {
+          mesh1->ghosts.emplace_back(Ghost{r_id, ed.id, local_id, -1, -1});
+          mesh1->ghosts[mesh1->Ngh].type = PhysicalEnum::OVERSET;
+          ed.ghost = mesh1->Ngh;
+          for (auto& fn1 : ed.fnodes) 
+          {
+            fnodes.push_back(fNode{fn1.id, fn1.local, fn1.local, fn1.coords});
+            auto &fn = fnodes.back();
+
+            elem_id = mesh2->mark_fringes(fn, PhysicalEnum::OVERSET);
+            fn.donor = elem_id;
+            mesh2->receivers.push_back(elem_id);
+          }
+          mesh1->ghosts[mesh1->Ngh].fnodes = fnodes;
+          fnodes.clear();
+          mesh1->Ngh++;
+        }
+      }
+      local_id++;
+    }
+  }
+  Ghost::num_ghosts = num_ghosts;
+}
+
+template <typename Equation>
+void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+{
+
+  /* 
+    1) Mark Fringes and Holes
+      - For each ghost cell flux point from Near-body mesh, find which background mesh cell envolves it.
+      - Save the donor cell id inside ghost cell donors vector
+      - At most, two types of ghost cell is expected in near-body mesh at the moment (OVERSET and WALL)
+      - For OVERSET near-body ghost cells, register the respective donor cell as a "fringe" (overset_type = 1)
+      - For WALL near-body ghost cells, register the respective donor cell as a "hole" (overset_type = 2)
+  */
+  auto last_hole_cell = this->mark_fringes_and_holes(mesh1, mesh2);
+
+  /*
+    2) Propagate hole cells
+      - Starting from any hole cell, visit its neighboor cells
+      - Check if its neighboor is not a hole or a fringe (explicit loop)
+      - If it is a hole or fringe, move to the next neighboor until all interior from the first holes until the fringe bound has been marked as hole.
+      - Else, mark as a hole (fringe = 2)
+  */
+  this->propagate_holes(mesh1, last_hole_cell);
+
+  /*
+    3) Find Receiver cells from  Near-body mesh to the Background mesh fringe cells
+      - For each fringe cell, find which edges have a hole cell neighboor
+      - if it's true, find which near-body mesh cell envolves its  flux points
+  */
+  this->update_background_neighboors(mesh1, mesh2);
+
+}
+
+template <typename Equation>
+void SD<Equation>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+{
+  for (auto& g : mesh1->ghosts)
+  {
+    if (g.type == PhysicalEnum::OVERSET)
+    {
+      for (auto& fn : g.fnodes)
+      {
+        boost::numeric::ublas::vector<double> guess(2);
+        boost::numeric::ublas::vector<double> solution(2);
+
+        auto b = fn.coords;
+        auto& donor = mesh2->elems[fn.donor];
+        // lambda function for ringleb flow x,y, V relation
+        auto f = [&](const boost::numeric::ublas::vector<double>& u, 
+                           boost::numeric::ublas::vector<double>& res) -> bool
+        {
+          auto csi = u(0);
+          auto eta = u(1);
+          auto result = donor->transform(Node{csi, eta}, mesh2->elems);
+
+          res(0) = result[0]-b[0];
+          res(1) = result[1]-b[1];
+
+          return true;
+        };
+
+        // lambda function for ringleb flow x,y, V derivative relation
+        auto df = [&](const boost::numeric::ublas::vector<double>& u, 
+                            boost::numeric::ublas::matrix<double>& res) -> bool
+        {
+          auto csi = u(0);
+          auto eta = u(1);
+          auto Jm = donor->calculate_jacobian_matrix_at_node(Node{csi, eta, 0.0}, mesh2->elems);
+
+          res(0, 0) = Jm[0];
+          res(0, 1) = Jm[1];
+          res(1, 0) = Jm[2];
+          res(1, 1) = Jm[3];
+
+          return true;
+        };
+
+        // Finding
+        bool solved = false;
+        auto MAX_TRIES = 1E+03;
+        auto index = 0;
+
+        while (!solved)
+        {
+          guess(0) = (double) (std::rand() % 10) / 10.0;
+          guess(1) = (double) (std::rand() % 10) / 10.0;
+          solved = newton_raphson(guess, f, df, solution);
+          if (std::abs(solution(0)) > 1.0 || std::abs(solution(1)) > 1.0) solved=false;
+          if (index > MAX_TRIES) throw "ERROR: Max tries limit has been reached!";
+          index++;
+        }
+
+        auto check = donor->transform(Node{solution(0), solution(1), 0.0}, mesh1->elems);
+        if (std::abs(check.coords[0]-fn.coords[0])  > 1E-7 && std::abs(check.coords[1]-fn.coords[1]) > 1E-7) 
+          throw "ERROR: Wrong solution";
+          
+        //DVector Qbnd = DVector(vec);
+      }
+      
     }
   }
 }

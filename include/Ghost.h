@@ -18,6 +18,7 @@ enum PhysicalEnum
   RINGLEB_WALL,
   RINGLEB_INLET,
   RINGLEB_OUTLET,
+  OVERSET
 };
 
 class Ghost

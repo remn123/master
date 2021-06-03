@@ -46,6 +46,7 @@ public:
   inline static long num_nodes = -1;
   long right;
   long local;
+  long donor;
 
 public:
   fNode(const std::vector<std::string> &);

@@ -56,8 +56,8 @@ public:
 	void print_node_by_id(long);
 	void print_node_id(long);
 	void read_gmsh(const std::string &);
-	double get_area(const std::vector<Vertice> &);
-	double get_area(const std::vector<long> &, const Vertice &);
+	double get_area(const std::vector<Node> &);
+	double get_area(const std::vector<long> &, const Node &);
 	double get_volume(const std::vector<Vertice> &);
 	void update_element_neighbors(void);
 	void update_physical_tags(void);
@@ -79,7 +79,9 @@ class Static_Mesh : public Mesh
 {
 public:
 	long root;
-	static int dim;
+	int dim;
+
+	std::vector<long> receivers;
 
 public:
 	Static_Mesh(int);
@@ -88,16 +90,17 @@ public:
 	void create_kdtree(void);
 	void build_kdtree(long &, std::vector<long> &, long);
 	void get_pivot(long &, const std::vector<long> &);
-	long mark_fringes(const Vertice &);
+	long mark_fringes(const Node &, const PhysicalEnum&);
 	void to_graphviz(void);
 	void print_tree(long &, long &, std::string, int &);
+	void update_ghosts(const Node &);
 
 private:
 	//long _search(const Node&, long&, int&, long&);
-	long _search(const Vertice &, long &, int, double, long);
-	long _find_element(const Vertice &, std::vector<long> &);
+	long _search(const Node &, long &, int, double, long);
+	long _find_element(const Node &, std::vector<long> &, const PhysicalEnum&);
 	void _get_kneighbors(long &, std::vector<long> &);
-	double _get_distance(const Vertice &, const Vertice &);
+	double _get_distance(const Node &, const Node &);
 };
 
 // STATUS CLASS
