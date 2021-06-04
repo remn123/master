@@ -66,6 +66,7 @@ public:
                                   const std::vector<std::vector<Node>> &,
                                   const std::vector<Vertice> &) = 0;
   virtual double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&) = 0;
+  virtual std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &) = 0;
   virtual std::vector<double> get_normal_vector(int, int, int) = 0;
   /*
   get_normal_vector: 
@@ -105,6 +106,7 @@ public:
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
   double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<long> get_ordered_nodes_by_local_edge_id(long);
   std::vector<double> get_normal_vector(int, int, int);
 };
@@ -197,6 +199,7 @@ public:
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
   double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
@@ -222,6 +225,7 @@ public:
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
   double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
@@ -247,6 +251,7 @@ public:
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
   double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };
@@ -271,6 +276,7 @@ public:
                           const std::vector<std::vector<Node>> &,
                           const std::vector<Vertice> &);
   double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
+  std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
 };

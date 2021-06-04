@@ -49,6 +49,8 @@ int main()
   );
 
   sd->update_overset(mesh1, mesh2);
+  sd->communicate_data(mesh1, mesh2);
+  sd->communicate_data(mesh2, mesh1);
   
   auto filename1 = (cur_path.parent_path() / "results" / "overset" /  "fringes" / "background.vtk" ).string();
   auto filename2 = (cur_path.parent_path() / "results" / "overset" /  "fringes" / "near_body.vtk"  ).string();
@@ -57,8 +59,8 @@ int main()
   mesh2->to_vtk(filename2);
 
   // std::cout << "Saving Initial Condition ...\n";
-  // auto filename1 = (cur_path.parent_path() / "results" / "overset" / "cylinder" / "pp_cylinder_bkgd_").string();
-  // auto filename2 = (cur_path.parent_path() / "results" / "overset" / "cylinder" / "pp_cylinder_body_").string();
+  // filename1 = (cur_path.parent_path() / "results" / "overset" / "cylinder" / "pp_cylinder_bkgd_").string();
+  // filename2 = (cur_path.parent_path() / "results" / "overset" / "cylinder" / "pp_cylinder_body_").string();
   // std::string tstamp = std::to_string(0);
   // tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
   // sd->to_vtk(mesh1, filename1 + tstamp + std::string{".vtk"});
@@ -73,8 +75,10 @@ int main()
        2.5) Interpolate Fluxes derivatives from FPs to SPs
        2.6) Calculate Residue
   */
-  // std::cout << "Running solver first step\n";
-  // sd->solve(mesh1, mesh2);
+  // std::cout << "Running solver first step for the Background mesh\n";
+  // sd->solve(mesh1);
+  // std::cout << "Running solver first step for the Near-Body mesh\n";
+  // sd->solve(mesh2);
 
   /*
     3) Time Marching Loop
@@ -99,19 +103,20 @@ int main()
   //   mesh1, 
   //   mesh2, 
   //   [&sd](std::shared_ptr<Mesh> & m){sd->solve(m);},
-  //   filename,
+  //   filename1,
+  //   filename2,
   //   [&sd](const std::shared_ptr<Mesh> & m, const std::string & f){sd->to_vtk(m, f);}
   // );
 
   
   // time->save(
   //   mesh1, 
-  //   filename, 
+  //   filename1, 
   //   [&sd](const std::shared_ptr<Mesh> & m, const std::string & f){sd->to_vtk(m, f);}
   // );
   // time->save(
   //   mesh2, 
-  //   filename, 
+  //   filename2, 
   //   [&sd](const std::shared_ptr<Mesh> & m, const std::string & f){sd->to_vtk(m, f);}
   // );
 

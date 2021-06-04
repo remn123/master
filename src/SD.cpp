@@ -2567,6 +2567,7 @@ void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& me
             mesh2->receivers.push_back(elem_id);
           }
           mesh1->ghosts[mesh1->Ngh].fnodes = fnodes;
+          this->initialize_ghost_properties(mesh1->ghosts[mesh1->Ngh]);
           fnodes.clear();
           mesh1->Ngh++;
         }
@@ -2609,10 +2610,15 @@ void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& mesh1, std::shar
 
 }
 
-template <typename Equation>
-void SD<Equation>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+template <>
+void SD<NavierStokes>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
 {
-  for (auto& g : mesh1->ghosts)
+}
+
+template <>
+void SD<Euler>::communicate_data(std::shared_ptr<Static_Mesh>& receiver_msh, std::shared_ptr<Static_Mesh>& donor_msh)
+{
+  for (auto& g : receiver_msh->ghosts)
   {
     if (g.type == PhysicalEnum::OVERSET)
     {
@@ -2622,17 +2628,18 @@ void SD<Equation>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, std::sh
         boost::numeric::ublas::vector<double> solution(2);
 
         auto b = fn.coords;
-        auto& donor = mesh2->elems[fn.donor];
+        auto& receiver = receiver_msh->elems[g.elm_id];
+        auto& donor = donor_msh->elems[fn.donor];
         // lambda function for ringleb flow x,y, V relation
         auto f = [&](const boost::numeric::ublas::vector<double>& u, 
                            boost::numeric::ublas::vector<double>& res) -> bool
         {
           auto csi = u(0);
           auto eta = u(1);
-          auto result = donor->transform(Node{csi, eta}, mesh2->elems);
+          auto result = donor->transform(Node{csi, eta, 0.0}, donor_msh->nodes);
 
-          res(0) = result[0]-b[0];
-          res(1) = result[1]-b[1];
+          res(0) = result.coords[0]-b[0];
+          res(1) = result.coords[1]-b[1];
 
           return true;
         };
@@ -2643,7 +2650,7 @@ void SD<Equation>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, std::sh
         {
           auto csi = u(0);
           auto eta = u(1);
-          auto Jm = donor->calculate_jacobian_matrix_at_node(Node{csi, eta, 0.0}, mesh2->elems);
+          auto Jm = donor->calculate_jacobian_matrix_at_node(Node{csi, eta, 0.0}, donor_msh->nodes);
 
           res(0, 0) = Jm[0];
           res(0, 1) = Jm[1];
@@ -2668,13 +2675,40 @@ void SD<Equation>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, std::sh
           index++;
         }
 
-        auto check = donor->transform(Node{solution(0), solution(1), 0.0}, mesh1->elems);
+        auto check = donor->transform(Node{solution(0), solution(1), 0.0}, donor_msh->nodes);
+        int dir = (g.lr_edge == 0 || g.lr_edge == 2) ? 1 : 0;
+        auto comprec = this->fnodes[dir][fn.local];
+        std::cout << "Receiver physicalNode     : (" << fn.coords[0] << ", " << fn.coords[1] << ")\n";
+        std::cout << "Donor    physicalNode     : (" << check.coords[0] << ", " << check.coords[1] << ")\n";
+        std::cout << "Receiver ComputationalNode: (" << comprec.coords[0] << ", " << comprec.coords[1] << ")\n";
+        std::cout << "Donor    ComputationalNode: (" << solution(0) << ", " << solution(1) << ")\n";
         if (std::abs(check.coords[0]-fn.coords[0])  > 1E-7 && std::abs(check.coords[1]-fn.coords[1]) > 1E-7) 
           throw "ERROR: Wrong solution";
-          
-        //DVector Qbnd = DVector(vec);
+        
+        auto node_donor_ce =  Node{solution(0), solution(1), 0.0};
+        std::cout << "Interpolation Solution within donor domain\n";
+        auto Qc_don = this->interpolate_solution_to_node(donor, node_donor_ce);
+        std::cout << "Calculating Donor Jacobian at the target node\n";
+        auto J_don = donor->calculate_jacobian_at_node(node_donor_ce, donor_msh->nodes);
+        std::cout << "Getting Receiver Jacobian at the target node\n";
+        auto J_rec = receiver->J[dir+1][fn.right];
+        std::cout << "Transforming Solution from computational donor space to physical space at target node\n";
+        auto Q_physical = (1.0/J_don)*Qc_don;
+        std::cout << "Transforming Solution from physical space to computational receiver space at target node\n";
+        auto Qc_rec = J_rec*Q_physical;
+        std::cout << "dir = " << dir << "\n";
+        std::cout << "fn.right = " << fn.right << "\n";
+        std::cout << "Qc_rec[0] = " << Qc_rec[0] << "\n";
+        std::cout << "Qc_rec[1] = " << Qc_rec[1] << "\n";
+        std::cout << "Qc_rec[2] = " << Qc_rec[2] << "\n";
+        std::cout << "Qc_rec[3] = " << Qc_rec[3] << "\n";
+        std::cout << "g.computational->Qfp[dir][fn.right][0] = " << g.computational->Qfp[dir][fn.right][0] << "\n";
+        std::cout << "g.computational->Qfp[dir][fn.right][1] = " << g.computational->Qfp[dir][fn.right][1] << "\n";
+        std::cout << "g.computational->Qfp[dir][fn.right][2] = " << g.computational->Qfp[dir][fn.right][2] << "\n";
+        std::cout << "g.computational->Qfp[dir][fn.right][3] = " << g.computational->Qfp[dir][fn.right][3] << "\n";
+
+        g.computational->Qfp[dir][fn.right] = Qc_rec;
       }
-      
     }
   }
 }
