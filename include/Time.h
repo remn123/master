@@ -37,15 +37,40 @@ public:
   virtual ~Time();
 
   void update(std::shared_ptr<Mesh> &, std::function<void(std::shared_ptr<Mesh> &)>);
+  void update(std::shared_ptr<Static_Mesh> &,
+              std::shared_ptr<Static_Mesh> &,
+              std::function<void(std::shared_ptr<Mesh> &)>,
+              std::function<void(std::shared_ptr<Static_Mesh> &, 
+                                 const std::shared_ptr<Static_Mesh> &)>);
   void loop(
     std::shared_ptr<Mesh> &, 
     std::function<void(std::shared_ptr<Mesh> &)>,
     const std::string &,
     std::function<void(const std::shared_ptr<Mesh> &, const std::string &)>
   );
+  void loop(
+    std::shared_ptr<Static_Mesh> &,
+    std::shared_ptr<Static_Mesh> &, 
+    std::function<void(std::shared_ptr<Mesh> &)>,
+    std::function<void(std::shared_ptr<Static_Mesh> &, 
+                       const std::shared_ptr<Static_Mesh> &)>,
+    const std::string &,
+    const std::string &,
+    std::function<void(const std::shared_ptr<Mesh> &, const std::string &)>
+  );
   void read_solution(const std::shared_ptr<Mesh> &, size_t);
   void read_residue(const std::shared_ptr<Mesh> &, size_t);
   void write_solution(std::shared_ptr<Mesh> &, size_t);
+
+  void read_solution(const std::shared_ptr<Static_Mesh> &,
+                     const std::shared_ptr<Static_Mesh> &,
+                     size_t);
+  void read_residue(const std::shared_ptr<Static_Mesh> &,
+                    const std::shared_ptr<Static_Mesh> &,
+                    size_t);
+  void write_solution(std::shared_ptr<Static_Mesh> &,
+                      std::shared_ptr<Static_Mesh> &,
+                      size_t);
   void save(const std::shared_ptr<Mesh> &,
             const std::string &,
             std::function<void(const std::shared_ptr<Mesh> &, const std::string &)>);

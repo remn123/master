@@ -1934,16 +1934,7 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       nx = normal[0];
       ny = normal[1];
 
-      if (ed.right != -1) // if not a boundary
-      {
-        J_R = elems[ed.right]->J[dirR+1][fn.right];
-        // Physical Primitive Properties for edge's right side
-        rhoR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][0];
-        uR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][1] / rhoR;
-        vR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][2] / rhoR;
-        ER = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][3];
-      }
-      else
+      if (ed.ghost != -1)
       {
         J_R = J_L; // mirror
         dirR = (ghosts[ed.ghost].lr_edge == 0 || ghosts[ed.ghost].lr_edge == 2) ? 1 : 0; // 0: x, 1: y
@@ -1958,7 +1949,15 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
         // std::cout << "ghosts[ed.ghost].computational->Qfp[dirR][fn.right][1] = " << ghosts[ed.ghost].computational->Qfp[dirR][fn.right][1] << "\n";
         // std::cout << "ghosts[ed.ghost].computational->Qfp[dirR][fn.right][2] = " << ghosts[ed.ghost].computational->Qfp[dirR][fn.right][2] << "\n";
         // std::cout << "ghosts[ed.ghost].computational->Qfp[dirR][fn.right][3] = " << ghosts[ed.ghost].computational->Qfp[dirR][fn.right][3] << "\n";
-
+      }
+      else
+      {
+        J_R = elems[ed.right]->J[dirR+1][fn.right];
+        // Physical Primitive Properties for edge's right side
+        rhoR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][0];
+        uR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][1] / rhoR;
+        vR = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][2] / rhoR;
+        ER = (1.0/J_R)*elems[ed.right]->computational->Qfp[dirR][fn.right][3];
       }
       
       pR = (gamma - 1.0) * (ER - 0.5 * rhoR * (uR * uR + vR * vR));
@@ -2411,7 +2410,7 @@ void SD<Euler>::update_fluxes(std::shared_ptr<Element> &e, std::vector<std::shar
         
       e->computational->Fcfp[dir][fn.local] = ed.computational->Fcfp[dir][fn.id];
       
-      if (ed.right != -1)
+      if (ed.right != -1 && elems[ed.right]->fringe != 2)
         elems[ed.right]->computational->Fcfp[dirR][fn.right] = ed.computational->Fcfp[dir][fn.id];
     }
       
@@ -2457,7 +2456,7 @@ template <>
 void SD<NavierStokes>::residue(std::shared_ptr<Element> &e)
 {
   unsigned int index, s_index;
-
+  
   s_index = 0;
   for (auto &node : this->snodes)
   {
@@ -2474,21 +2473,21 @@ void SD<NavierStokes>::residue(std::shared_ptr<Element> &e)
 }
 
 template <typename Equation>
-long SD<Equation>::mark_fringes_and_holes(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+long SD<Equation>::mark_fringes_and_holes(std::shared_ptr<Static_Mesh>& background_msh, std::shared_ptr<Static_Mesh>& nearbody_msh)
 {
   long elem_id = -1, last_hole_cell = -1;
-  for (auto& g : mesh2->ghosts) 
+  for (auto& g : nearbody_msh->ghosts) 
   {
     if (g.type == PhysicalEnum::OVERSET || g.type == PhysicalEnum::WALL)
     {
       for (auto& fn : g.fnodes)
       {
-        elem_id = mesh1->mark_fringes(fn, g.type);
+        elem_id = background_msh->mark_fringes(fn, g.type);
         fn.donor = elem_id;
         if (g.type == PhysicalEnum::WALL)
           last_hole_cell = elem_id;
         if (g.type == PhysicalEnum::OVERSET)
-          mesh1->receivers.push_back(elem_id);
+          background_msh->receivers.push_back(elem_id);
       }
     }
   }
@@ -2496,7 +2495,7 @@ long SD<Equation>::mark_fringes_and_holes(std::shared_ptr<Static_Mesh>& mesh1, s
 }
 
 template <typename Equation>
-void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& mesh1, long root)
+void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& background_msh, long root)
 {
   long child;
   std::vector<long> stack = {};
@@ -2509,10 +2508,10 @@ void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& mesh1, long roo
   {
     root = stack.back();
     std::cout << "Pop: " << root << "\n";
-    mesh1->elems[root]->fringe = 2;
+    background_msh->elems[root]->fringe = 2;
     std::cout << "Marking as hole: " << root << "\n";
     stack.pop_back();
-    for (auto& ed : mesh1->elems[root]->edges)
+    for (auto& ed : background_msh->elems[root]->edges)
     {
       child = ed.right;
       // fringe:
@@ -2521,7 +2520,7 @@ void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& mesh1, long roo
       //         - 2: hole
       if (child >= 0)
       {
-        if (mesh1->elems[child]->fringe == 0)
+        if (background_msh->elems[child]->fringe == 0)
         {
           stack.push_back(child);
           std::cout << "Stacking: " << child << "\n";
@@ -2532,7 +2531,7 @@ void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& mesh1, long roo
 }
 
 template <typename Equation>
-void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& background_msh, std::shared_ptr<Static_Mesh>& nearbody_msh)
 {
   /*
     3) Find Receiver cells from  Near-body mesh to the Background mesh fringe cells
@@ -2540,36 +2539,36 @@ void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& me
       - if it's true, find which near-body mesh cell envolves its flux points
   */
   auto num_ghosts = Ghost::num_ghosts;
-  Ghost::num_ghosts = mesh1->Ngh;
+  Ghost::num_ghosts = background_msh->Ngh;
   std::vector<fNode> fnodes = {};
   int local_id = -1;
   long elem_id = -1;
 
-  for (auto& r_id : mesh1->receivers)
+  for (auto& r_id : background_msh->receivers)
   {
     local_id = 0;
-    for (auto& ed : mesh1->elems[r_id]->edges)
+    for (auto& ed : background_msh->elems[r_id]->edges)
     {
       if (ed.right >=0)
       {
-        if (mesh1->elems[ed.right]->fringe == 2)
+        if (background_msh->elems[ed.right]->fringe == 2)
         {
-          mesh1->ghosts.emplace_back(Ghost{r_id, ed.id, local_id, -1, -1});
-          mesh1->ghosts[mesh1->Ngh].type = PhysicalEnum::OVERSET;
-          ed.ghost = mesh1->Ngh;
+          background_msh->ghosts.emplace_back(Ghost{r_id, ed.id, local_id, -1, -1});
+          background_msh->ghosts[background_msh->Ngh].type = PhysicalEnum::OVERSET;
+          ed.ghost = background_msh->Ngh;
           for (auto& fn1 : ed.fnodes) 
           {
             fnodes.push_back(fNode{fn1.id, fn1.local, fn1.local, fn1.coords});
             auto &fn = fnodes.back();
 
-            elem_id = mesh2->mark_fringes(fn, PhysicalEnum::OVERSET);
+            elem_id = nearbody_msh->mark_fringes(fn, PhysicalEnum::OVERSET);
             fn.donor = elem_id;
-            mesh2->receivers.push_back(elem_id);
+            nearbody_msh->receivers.push_back(elem_id);
           }
-          mesh1->ghosts[mesh1->Ngh].fnodes = fnodes;
-          this->initialize_ghost_properties(mesh1->ghosts[mesh1->Ngh]);
+          background_msh->ghosts[background_msh->Ngh].fnodes = fnodes;
+          this->initialize_ghost_properties(background_msh->ghosts[background_msh->Ngh]);
           fnodes.clear();
-          mesh1->Ngh++;
+          background_msh->Ngh++;
         }
       }
       local_id++;
@@ -2579,7 +2578,7 @@ void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& me
 }
 
 template <typename Equation>
-void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& background_msh, std::shared_ptr<Static_Mesh>& nearbody_msh)
 {
 
   /* 
@@ -2590,7 +2589,7 @@ void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& mesh1, std::shar
       - For OVERSET near-body ghost cells, register the respective donor cell as a "fringe" (overset_type = 1)
       - For WALL near-body ghost cells, register the respective donor cell as a "hole" (overset_type = 2)
   */
-  auto last_hole_cell = this->mark_fringes_and_holes(mesh1, mesh2);
+  auto last_hole_cell = this->mark_fringes_and_holes(background_msh, nearbody_msh);
 
   /*
     2) Propagate hole cells
@@ -2599,24 +2598,24 @@ void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& mesh1, std::shar
       - If it is a hole or fringe, move to the next neighboor until all interior from the first holes until the fringe bound has been marked as hole.
       - Else, mark as a hole (fringe = 2)
   */
-  this->propagate_holes(mesh1, last_hole_cell);
+  this->propagate_holes(background_msh, last_hole_cell);
 
   /*
     3) Find Receiver cells from  Near-body mesh to the Background mesh fringe cells
       - For each fringe cell, find which edges have a hole cell neighboor
       - if it's true, find which near-body mesh cell envolves its  flux points
   */
-  this->update_background_neighboors(mesh1, mesh2);
+  this->update_background_neighboors(background_msh, nearbody_msh);
 
 }
 
 template <>
-void SD<NavierStokes>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, std::shared_ptr<Static_Mesh>& mesh2)
+void SD<NavierStokes>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, const std::shared_ptr<Static_Mesh>& mesh2)
 {
 }
 
 template <>
-void SD<Euler>::communicate_data(std::shared_ptr<Static_Mesh>& receiver_msh, std::shared_ptr<Static_Mesh>& donor_msh)
+void SD<Euler>::communicate_data(std::shared_ptr<Static_Mesh>& receiver_msh, const std::shared_ptr<Static_Mesh>& donor_msh)
 {
   for (auto& g : receiver_msh->ghosts)
   {
@@ -2696,16 +2695,16 @@ void SD<Euler>::communicate_data(std::shared_ptr<Static_Mesh>& receiver_msh, std
         auto Q_physical = (1.0/J_don)*Qc_don;
         std::cout << "Transforming Solution from physical space to computational receiver space at target node\n";
         auto Qc_rec = J_rec*Q_physical;
-        std::cout << "dir = " << dir << "\n";
-        std::cout << "fn.right = " << fn.right << "\n";
-        std::cout << "Qc_rec[0] = " << Qc_rec[0] << "\n";
-        std::cout << "Qc_rec[1] = " << Qc_rec[1] << "\n";
-        std::cout << "Qc_rec[2] = " << Qc_rec[2] << "\n";
-        std::cout << "Qc_rec[3] = " << Qc_rec[3] << "\n";
-        std::cout << "g.computational->Qfp[dir][fn.right][0] = " << g.computational->Qfp[dir][fn.right][0] << "\n";
-        std::cout << "g.computational->Qfp[dir][fn.right][1] = " << g.computational->Qfp[dir][fn.right][1] << "\n";
-        std::cout << "g.computational->Qfp[dir][fn.right][2] = " << g.computational->Qfp[dir][fn.right][2] << "\n";
-        std::cout << "g.computational->Qfp[dir][fn.right][3] = " << g.computational->Qfp[dir][fn.right][3] << "\n";
+        // std::cout << "dir = " << dir << "\n";
+        // std::cout << "fn.right = " << fn.right << "\n";
+        // std::cout << "Qc_rec[0] = " << Qc_rec[0] << "\n";
+        // std::cout << "Qc_rec[1] = " << Qc_rec[1] << "\n";
+        // std::cout << "Qc_rec[2] = " << Qc_rec[2] << "\n";
+        // std::cout << "Qc_rec[3] = " << Qc_rec[3] << "\n";
+        // std::cout << "g.computational->Qfp[dir][fn.right][0] = " << g.computational->Qfp[dir][fn.right][0] << "\n";
+        // std::cout << "g.computational->Qfp[dir][fn.right][1] = " << g.computational->Qfp[dir][fn.right][1] << "\n";
+        // std::cout << "g.computational->Qfp[dir][fn.right][2] = " << g.computational->Qfp[dir][fn.right][2] << "\n";
+        // std::cout << "g.computational->Qfp[dir][fn.right][3] = " << g.computational->Qfp[dir][fn.right][3] << "\n";
 
         g.computational->Qfp[dir][fn.right] = Qc_rec;
       }
@@ -2793,9 +2792,13 @@ void SD<Equation>::solve(std::shared_ptr<Mesh> &mesh)
   // Step 0)
   for (auto &e : mesh->elems)
   {
-    this->interpolate_sp2fp(e);
-    //this->calculate_fluxes_sp(e);
-    this->calculate_fluxes_fp(e);
+    if (e->fringe != 2) // not a hole
+    {
+      this->interpolate_sp2fp(e);
+      //this->calculate_fluxes_sp(e);
+      this->calculate_fluxes_fp(e);
+    }
+    
   }
 
   // Step 1)
@@ -2808,15 +2811,19 @@ void SD<Equation>::solve(std::shared_ptr<Mesh> &mesh)
   // Step 2)
   for (auto &e : mesh->elems)
   {
-    this->riemann_solver(e, mesh->elems, mesh->ghosts);
+    if (e->fringe != 2) // not a hole
+      this->riemann_solver(e, mesh->elems, mesh->ghosts);
   }
 
   // Step 3)
   for (auto &e : mesh->elems)
   {
-    this->update_fluxes(e, mesh->elems);
-    this->interpolate_fp2sp(e);
-    this->residue(e);
+    if (e->fringe != 2) // not a hole
+    {
+      this->update_fluxes(e, mesh->elems);
+      this->interpolate_fp2sp(e);
+      this->residue(e);
+    }
   }
 }
 

@@ -247,6 +247,79 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
   //std::cin.get();
 }
 
+template <>
+void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &background_msh,
+                                           std::shared_ptr<Static_Mesh> &nearbody_msh,
+                                           std::function<void(std::shared_ptr<Mesh> &)> solve,
+                                           std::function<void(std::shared_ptr<Static_Mesh> &, 
+                                                              const std::shared_ptr<Static_Mesh> &)> communicate_data)
+{
+  // Strong-Stability-Preserving Runge Kutta(s,o) s-stage, o-order
+  double L1 = 0.0;
+  double L2 = 0.0;
+  double Linf = 0.0;
+
+  // U(0)   = U(n)
+  // for i in [1, ..., s]; for k in [0, 1, ..., i-1];
+  // U(i)   = U(0) + dt*SUM(cik*Residue(U(k)))
+  // U(n+1) = U(s)
+
+  //this->dt = CFL * dx / (U * (2.0 * p + 1.0)); // TO DO
+  this->dt = 0.001 * CFL;
+
+  // Deep Copy U(n) solution into a contiguous vector
+  this->read_solution(background_msh, nearbody_msh, 0);
+  this->read_residue(background_msh, nearbody_msh, 0);
+
+  this->Q[1] = this->Q[0] + dt * this->res[0];
+  // writes solution into all mesh elements
+  this->write_solution(background_msh, nearbody_msh, 1);
+  // Communicate data
+  communicate_data(background_msh, nearbody_msh);
+  communicate_data(nearbody_msh, background_msh);
+  // recalculates residue
+  solve(std::static_pointer_cast<Mesh>(background_msh));
+  solve(std::static_pointer_cast<Mesh>(nearbody_msh));
+  // reads residue from meshes
+  this->read_residue(background_msh, nearbody_msh, 1);
+
+  this->Q[2] = (3.0/4.0)*this->Q[0] + (1.0/4.0)*this->Q[1] + (1.0/4.0)*dt * this->res[1];
+  // writes solution into all mesh elements
+  this->write_solution(background_msh, nearbody_msh, 2);
+  // Communicate data
+  communicate_data(background_msh, nearbody_msh);
+  communicate_data(nearbody_msh, background_msh);
+  // recalculates residue
+  solve(std::static_pointer_cast<Mesh>(background_msh));
+  solve(std::static_pointer_cast<Mesh>(nearbody_msh));
+  // reads residue from meshes
+  this->read_residue(background_msh, nearbody_msh, 2);
+
+  this->Q[3] = (1.0/3.0)*this->Q[0] + (2.0/3.0)*this->Q[2] + (2.0/3.0)*dt * this->res[2];
+  // writes solution into all mesh elements
+  this->write_solution(background_msh, nearbody_msh, 3);
+  // Communicate data
+  communicate_data(background_msh, nearbody_msh);
+  communicate_data(nearbody_msh, background_msh);
+  // recalculates residue
+  solve(std::static_pointer_cast<Mesh>(background_msh));
+  solve(std::static_pointer_cast<Mesh>(nearbody_msh));
+  // reads residue from mesh
+  this->read_residue(background_msh, nearbody_msh, 3);
+
+  L1  = background_msh->get_residue_norm(0); // L1-norm
+  L1 += nearbody_msh->get_residue_norm(0); // L1-norm
+  L2  = background_msh->get_residue_norm(1); // L2-norm
+  L2 += nearbody_msh->get_residue_norm(1); // L2-norm
+  Linf  = background_msh->get_residue_norm(2); // Linf-norm
+  Linf += nearbody_msh->get_residue_norm(2); // Linf-norm
+  if (this->iter % 100 == 0)
+    std::cout << "Iter[" << iter << "]: L1 = " << std::log10(L1) << "; L2 = " << log10(L2) << "; Linf = " << log10(Linf) << std::endl;
+  
+  if (isinf(std::abs(log10(L2)))) throw "[Error]: Time iteration has diverged!\n";
+  this->iter++;
+}
+
 // Main time step loop
 template <typename Method>
 void Time<Method>::loop(std::shared_ptr<Mesh> &mesh,
@@ -268,6 +341,35 @@ void Time<Method>::loop(std::shared_ptr<Mesh> &mesh,
       std::string tstamp = std::to_string(this->iter);
       tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
       this->save(mesh, filename + tstamp + std::string{".vtk"}, to_vtk);
+      //std::cin.get();
+    }
+  }
+}
+
+template <typename Method>
+void Time<Method>::loop(std::shared_ptr<Static_Mesh> &background_msh,
+                        std::shared_ptr<Static_Mesh> &nearbody_msh,
+                        std::function<void(std::shared_ptr<Mesh> &)> solve,
+                        std::function<void(std::shared_ptr<Static_Mesh> &, const std::shared_ptr<Static_Mesh> &)> communicate_data,
+                        const std::string &filename_bkg,
+                        const std::string &filename_nbd,
+                        std::function<void(const std::shared_ptr<Mesh> &, const std::string &)> to_vtk)
+{
+  while (this->iter <= this->MAX_ITER)
+  {
+    try {
+      this->update(background_msh, nearbody_msh, solve, communicate_data);
+    } catch (const char* msg) {
+      std::cerr << msg;
+      throw;
+    }
+    
+    if (this->iter % 10 == 0)
+    {
+      std::string tstamp = std::to_string(this->iter);
+      tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
+      this->save(std::static_pointer_cast<Mesh>(background_msh), filename_bkg + tstamp + std::string{".vtk"}, to_vtk);
+      this->save(std::static_pointer_cast<Mesh>(nearbody_msh), filename_nbd + tstamp + std::string{".vtk"}, to_vtk);
       //std::cin.get();
     }
   }
@@ -323,6 +425,108 @@ void Time<Method>::read_residue(const std::shared_ptr<Mesh> &mesh, size_t k)
   size_t index = 0;
 
   for (auto &e : mesh->elems)
+  {
+    for (auto s_index=0; s_index<e->computational->res.size(); s_index++)
+    {
+      for (auto j=0; j<e->computational->res[s_index].size(); j++)
+      {
+        //std::cout << "e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
+        this->res[k][index] = e->computational->res[s_index][j];
+        //std::cout << "this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
+        index++;
+      }
+    }
+  }
+  //std::cin.get();
+}
+
+template <typename Method>
+void Time<Method>::read_solution(const std::shared_ptr<Static_Mesh> &background_msh, 
+                                 const std::shared_ptr<Static_Mesh> &nearbody_msh, 
+                                 size_t k)
+{
+  size_t index = 0;
+  // Background
+  for (auto &e : background_msh->elems)
+  {
+    for (auto s_index=0; s_index<e->computational->Qsp.size(); s_index++)
+    {
+      for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
+      {
+        this->Q[k][index] = e->computational->Qsp[s_index][j];
+        index++;
+      }
+    }
+  }
+  // Nearbody
+  for (auto &e : nearbody_msh->elems)
+  {
+    for (auto s_index=0; s_index<e->computational->Qsp.size(); s_index++)
+    {
+      for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
+      {
+        this->Q[k][index] = e->computational->Qsp[s_index][j];
+        index++;
+      }
+    }
+  }
+}
+
+template <typename Method>
+void Time<Method>::write_solution(std::shared_ptr<Static_Mesh> &background_msh,
+                                  std::shared_ptr<Static_Mesh> &nearbody_msh,
+                                  size_t k)
+{
+  size_t index = 0;
+  // Background
+  for (auto &e : background_msh->elems)
+  {
+    for (auto s_index=0; s_index<e->computational->Qsp.size(); s_index++)
+    {
+      for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
+      {
+        e->computational->Qsp[s_index][j] = this->Q[k][index];
+        index++;
+      }
+    }
+  }
+
+  // Nearbody
+  for (auto &e : nearbody_msh->elems)
+  {
+    for (auto s_index=0; s_index<e->computational->Qsp.size(); s_index++)
+    {
+      for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
+      {
+        e->computational->Qsp[s_index][j] = this->Q[k][index];
+        index++;
+      }
+    }
+  }
+}
+
+template <typename Method>
+void Time<Method>::read_residue(const std::shared_ptr<Static_Mesh> &background_msh,
+                                const std::shared_ptr<Static_Mesh> &nearbody_msh, size_t k)
+{
+  size_t index = 0;
+  // Background
+  for (auto &e : background_msh->elems)
+  {
+    for (auto s_index=0; s_index<e->computational->res.size(); s_index++)
+    {
+      for (auto j=0; j<e->computational->res[s_index].size(); j++)
+      {
+        //std::cout << "e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
+        this->res[k][index] = e->computational->res[s_index][j];
+        //std::cout << "this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
+        index++;
+      }
+    }
+  }
+
+  // Nearbody
+  for (auto &e : nearbody_msh->elems)
   {
     for (auto s_index=0; s_index<e->computational->res.size(); s_index++)
     {
