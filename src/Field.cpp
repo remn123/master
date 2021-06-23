@@ -141,20 +141,34 @@ std::vector<double> FIELDS::IMPLOSION_FIELD_MAPPING (const Node& n)
   // Coordinates
   double x = n.coords[0];
   double y = n.coords[1];
-   
-  double ax=0.5, ay=0.5;
-  double bx=0.0, by=0.0;
 
   double rho = 1.0;
-  double u = ax*x + bx;
-  double v = ay*y + by;
+  double u = 0.0;
+  double v = 0.0;
+  double p = 0.0;
   double E = 1.0;
+  
+  double L = 0.5;
+
+  // For x+y > 0.15, the initial density and pressure is 1.0, otherwise ρ = 0.125 and P = 0.14
+  if (x + y > L)
+  {
+    p = 1.0;
+    rho = 1.0;
+  }
+  else
+  {
+    rho = 0.125;
+    p = 0.14;
+  }
+
+  E = p/0.4;
 
   vec[0] = rho; 
   vec[1] = rho*u; 
   vec[2] = rho*v; 
   vec[3] = E; 
-  
+
   return vec;
 };
 
@@ -298,8 +312,11 @@ std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)
   double k = 1.0/std::sqrt(1.0/(2.0*q*q) + rho*(x+L/2.0));
   double theta = std::asin(q/k);
   assert (rho > 0.0);
+
   double u = q*std::cos(theta);
-  double v = q*std::sin(theta);
+  if (y < 0)
+    u = -u;
+  double v = -q*std::sin(theta);
   double p = (1.0/gamma)*std::pow(b, (2.0*gamma/(gamma-1.0)));
   double E = p/(gamma-1.0) + rho*(std::pow(q, 2.0))/2.0;
 

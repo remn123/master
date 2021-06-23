@@ -17,7 +17,7 @@ int main()
   fs::path cur_path = fs::current_path();
   auto mesh = std::make_shared<Mesh>(2);
 
-  mesh->read_gmsh((cur_path.parent_path() / "resources" / "mesh_implosion.msh").string());
+  mesh->read_gmsh((cur_path.parent_path() / "resources" / "implosion" / "implosion.msh").string());
   
 
   int order = 2;
@@ -27,7 +27,6 @@ int main()
       1.1) Calculate solution and fluxes points
       1.2) Initialize solution and fluxes
   */
-  //Ghost::analytical_solution = FIELDS::IMPLOSION_FIELD_MAPPING;
 
   sd->setup(
     mesh, 

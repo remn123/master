@@ -45,8 +45,8 @@ bool newton_raphson (boost::numeric::ublas::vector<T>& guess,
                      U&& f,
                      M&& df,
                      boost::numeric::ublas::vector<T>& root,
-                     double MAX_ERROR = 1E-7,
-                     double MAX_ITER = 1E+3) {
+                     double MAX_ERROR = 1E-15,
+                     double MAX_ITER = 1E+5) {
   //std::cout <<"Initial guess" << guess << "\n";
   boost::numeric::ublas::vector<T> f_mat(guess.size()); // copy constructor
   boost::numeric::ublas::vector<T> guess_0 = guess; // copy constructor

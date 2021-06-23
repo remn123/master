@@ -2,9 +2,10 @@ cmake_minimum_required(VERSION 3.10)
 
 set(CMAKE_CXX_COMPILER "g++-9")
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -lstdc++fs -g -lm")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -lpthread -O -Wall -Wextra -g -lm")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -lpthread -O2 -Wall -Wextra -g -lm")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -lpthread -O2 -Wall -Wextra -lm")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pedantic -O -Wall -Wextra -g -lm")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -lm")
 #link_libraries(stdc++fs)
@@ -30,10 +31,10 @@ if (Boost_FOUND)
     # )
 
     # ringleb 
-    # add_executable(
-    #     master_exe 
-    #     src/cases/ringleb/ringleb.cpp
-    # )
+    add_executable(
+        ringleb 
+        src/cases/ringleb/ringleb.cpp
+    )
 
     # cylinder 
     # add_executable(
@@ -41,14 +42,20 @@ if (Boost_FOUND)
     #     src/cases/cylinder/cylinder.cpp
     # )
 
+    # implosion 
+    # add_executable(
+    #     master_exe 
+    #     src/cases/implosion/implosion.cpp
+    # )
+
     # overset - cylinder 
-    add_executable(
-        master_exe 
-        src/cases/overset/cylinder/cylinder.cpp
-    )
+    # add_executable(
+    #     overset_v2 
+    #     src/cases/overset/cylinder/cylinder.cpp
+    # )
 
     target_link_libraries(
-        master_exe
+        ringleb
         master_lib   
     )
 
@@ -93,8 +100,8 @@ if (Boost_FOUND)
     
     find_package (Threads)
 
-    target_link_libraries(master_exe ${Boost_LIBRARY_DIRS})
-    target_link_libraries(master_exe ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(ringleb ${Boost_LIBRARY_DIRS})
+    target_link_libraries(ringleb ${CMAKE_THREAD_LIBS_INIT})
 
 
     # tests

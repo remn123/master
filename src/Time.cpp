@@ -136,7 +136,7 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
   // U(n+1) = U(s)
 
   //this->dt = CFL * dx / (U * (2.0 * p + 1.0)); // TO DO
-  this->dt = 0.001 * CFL;
+  this->dt = 0.01 * CFL;
 
   // Diferentes abordagens (preproc):
   // - const dx -> weak
@@ -267,6 +267,9 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
   //this->dt = CFL * dx / (U * (2.0 * p + 1.0)); // TO DO
   this->dt = 0.001 * CFL;
 
+  auto background_msh_ = std::static_pointer_cast<Mesh>(background_msh);
+  auto nearbody_msh_   = std::static_pointer_cast<Mesh>(nearbody_msh);
+
   // Deep Copy U(n) solution into a contiguous vector
   this->read_solution(background_msh, nearbody_msh, 0);
   this->read_residue(background_msh, nearbody_msh, 0);
@@ -278,8 +281,8 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
   communicate_data(background_msh, nearbody_msh);
   communicate_data(nearbody_msh, background_msh);
   // recalculates residue
-  solve(std::static_pointer_cast<Mesh>(background_msh));
-  solve(std::static_pointer_cast<Mesh>(nearbody_msh));
+  solve(background_msh_);
+  solve(nearbody_msh_);
   // reads residue from meshes
   this->read_residue(background_msh, nearbody_msh, 1);
 
@@ -290,8 +293,8 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
   communicate_data(background_msh, nearbody_msh);
   communicate_data(nearbody_msh, background_msh);
   // recalculates residue
-  solve(std::static_pointer_cast<Mesh>(background_msh));
-  solve(std::static_pointer_cast<Mesh>(nearbody_msh));
+  solve(background_msh_);
+  solve(nearbody_msh_);
   // reads residue from meshes
   this->read_residue(background_msh, nearbody_msh, 2);
 
@@ -302,8 +305,8 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
   communicate_data(background_msh, nearbody_msh);
   communicate_data(nearbody_msh, background_msh);
   // recalculates residue
-  solve(std::static_pointer_cast<Mesh>(background_msh));
-  solve(std::static_pointer_cast<Mesh>(nearbody_msh));
+  solve(background_msh_);
+  solve(nearbody_msh_);
   // reads residue from mesh
   this->read_residue(background_msh, nearbody_msh, 3);
 
@@ -336,7 +339,7 @@ void Time<Method>::loop(std::shared_ptr<Mesh> &mesh,
       throw;
     }
     
-    if (this->iter % 10 == 0)
+    if (this->iter % 100 == 0)
     {
       std::string tstamp = std::to_string(this->iter);
       tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
@@ -355,6 +358,9 @@ void Time<Method>::loop(std::shared_ptr<Static_Mesh> &background_msh,
                         const std::string &filename_nbd,
                         std::function<void(const std::shared_ptr<Mesh> &, const std::string &)> to_vtk)
 {
+  auto background_msh_ = std::static_pointer_cast<Mesh>(background_msh);
+  auto nearbody_msh_   = std::static_pointer_cast<Mesh>(nearbody_msh);
+
   while (this->iter <= this->MAX_ITER)
   {
     try {
@@ -368,8 +374,8 @@ void Time<Method>::loop(std::shared_ptr<Static_Mesh> &background_msh,
     {
       std::string tstamp = std::to_string(this->iter);
       tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
-      this->save(std::static_pointer_cast<Mesh>(background_msh), filename_bkg + tstamp + std::string{".vtk"}, to_vtk);
-      this->save(std::static_pointer_cast<Mesh>(nearbody_msh), filename_nbd + tstamp + std::string{".vtk"}, to_vtk);
+      this->save(background_msh_, filename_bkg + tstamp + std::string{".vtk"}, to_vtk);
+      this->save(nearbody_msh_, filename_nbd + tstamp + std::string{".vtk"}, to_vtk);
       //std::cin.get();
     }
   }
@@ -394,6 +400,8 @@ void Time<Method>::read_solution(const std::shared_ptr<Mesh> &mesh, size_t k)
     {
       for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
       {
+        // if (std::isnan(e->computational->Qsp[s_index][j]))
+        //   std::cout << "Iter (" << this->iter << ") \n" << "Solution = e->computational->Qsp[" << s_index << "]["<<j<<"] = " << e->computational->Qsp[s_index][j] << "\n";
         this->Q[k][index] = e->computational->Qsp[s_index][j];
         index++;
       }
@@ -412,6 +420,8 @@ void Time<Method>::write_solution(std::shared_ptr<Mesh> &mesh, size_t k)
     {
       for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
       {
+        // if (std::isnan(this->Q[k][index]))
+        //   std::cout << "Iter (" << this->iter << ") \n" << "Solution = this->Q[" << k << "]["<<index<<"] = " << this->Q[k][index] << "\n";
         e->computational->Qsp[s_index][j] = this->Q[k][index];
         index++;
       }
@@ -431,6 +441,9 @@ void Time<Method>::read_residue(const std::shared_ptr<Mesh> &mesh, size_t k)
       for (auto j=0; j<e->computational->res[s_index].size(); j++)
       {
         //std::cout << "e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
+        // if (std::isnan(e->computational->res[s_index][j]))
+        //   std::cout << "Iter (" << this->iter << ") \n" << "Residue = e->computational->res[" << s_index << "]["<<j<<"] = " << e->computational->res[s_index][j] << "\n";
+        
         this->res[k][index] = e->computational->res[s_index][j];
         //std::cout << "this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
         index++;
@@ -446,6 +459,7 @@ void Time<Method>::read_solution(const std::shared_ptr<Static_Mesh> &background_
                                  size_t k)
 {
   size_t index = 0;
+  // std::cout << "\nRead BACKGROUND SOLUTION \n";
   // Background
   for (auto &e : background_msh->elems)
   {
@@ -453,11 +467,18 @@ void Time<Method>::read_solution(const std::shared_ptr<Static_Mesh> &background_
     {
       for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
       {
+        // std::cout << "BKG: " << e->computational->Qsp[s_index][j] << "\n";
+        if (isnan(e->computational->Qsp[s_index][j])) 
+          throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan solution " + std::to_string(j) + "\n";
+        if (isinf(std::abs(e->computational->Qsp[s_index][j]))) 
+          throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf solution " + std::to_string(j) + "\n";
         this->Q[k][index] = e->computational->Qsp[s_index][j];
         index++;
       }
     }
   }
+  // std::cin.get();
+  // std::cout << "\nRead NEAR-BODY SOLUTION \n";
   // Nearbody
   for (auto &e : nearbody_msh->elems)
   {
@@ -465,11 +486,17 @@ void Time<Method>::read_solution(const std::shared_ptr<Static_Mesh> &background_
     {
       for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
       {
+        // std::cout << "NRB: " << e->computational->Qsp[s_index][j] << "\n";
+        if (isnan(e->computational->Qsp[s_index][j])) 
+          throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan solution " + std::to_string(j) + "\n";
+        if (isinf(std::abs(e->computational->Qsp[s_index][j]))) 
+          throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf solution " + std::to_string(j) + "\n";
         this->Q[k][index] = e->computational->Qsp[s_index][j];
         index++;
       }
     }
   }
+  // std::cin.get();
 }
 
 template <typename Method>
@@ -478,6 +505,7 @@ void Time<Method>::write_solution(std::shared_ptr<Static_Mesh> &background_msh,
                                   size_t k)
 {
   size_t index = 0;
+  // std::cout << "\nWrite BACKGROUND SOLUTION \n";
   // Background
   for (auto &e : background_msh->elems)
   {
@@ -485,12 +513,14 @@ void Time<Method>::write_solution(std::shared_ptr<Static_Mesh> &background_msh,
     {
       for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
       {
+        // std::cout << "wBKG: " << this->Q[k][index] << "\n";
         e->computational->Qsp[s_index][j] = this->Q[k][index];
         index++;
       }
     }
   }
-
+  // std::cin.get();
+  // std::cout << "\nWrite NEAR-BODY SOLUTION \n";
   // Nearbody
   for (auto &e : nearbody_msh->elems)
   {
@@ -498,11 +528,13 @@ void Time<Method>::write_solution(std::shared_ptr<Static_Mesh> &background_msh,
     {
       for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
       {
+        // std::cout << "wNRB: " << this->Q[k][index] << "\n";
         e->computational->Qsp[s_index][j] = this->Q[k][index];
         index++;
       }
     }
   }
+  // std::cin.get();
 }
 
 template <typename Method>
@@ -510,21 +542,104 @@ void Time<Method>::read_residue(const std::shared_ptr<Static_Mesh> &background_m
                                 const std::shared_ptr<Static_Mesh> &nearbody_msh, size_t k)
 {
   size_t index = 0;
+  // std::cout << "\nBACKGROUND RESIDUE \n";
   // Background
   for (auto &e : background_msh->elems)
   {
+    // std::cout << "[BACKGROUND] Element: " << e->id << "\n";
+    // std::cout << "               Boundary: " << e->boundary << "\n";
+    // std::cout << "               Fringe: " << e->fringe << "\n";
+    // std::cout << "               Nodes: \n" ;
+    // std::cout << "                   0: (" << background_msh->nodes[e->nodes[0]].coords[0] << ", " <<  background_msh->nodes[e->nodes[0]].coords[1] << ")\n";
+    // std::cout << "                   1: (" << background_msh->nodes[e->nodes[1]].coords[0] << ", " <<  background_msh->nodes[e->nodes[1]].coords[1] << ")\n";
+    // std::cout << "                   2: (" << background_msh->nodes[e->nodes[2]].coords[0] << ", " <<  background_msh->nodes[e->nodes[2]].coords[1] << ")\n";
+    // std::cout << "                   3: (" << background_msh->nodes[e->nodes[3]].coords[0] << ", " <<  background_msh->nodes[e->nodes[3]].coords[1] << ")\n";
+    // std::cout << "               Edges: \n";
+    // std::cout << "                      0 -> " << e->edges[0].ghost << "\n";
+    // std::cout << "                      1 -> " << e->edges[1].ghost << "\n";
+    // std::cout << "                      2 -> " << e->edges[2].ghost << "\n";
+    // std::cout << "                      3 -> " << e->edges[3].ghost << "\n";
+    // std::cout << "               Ghosts: \n";
+    // if (e->edges[0].ghost != -1)
+    // {
+    //   std::cout << "                      0 -> 0: " << background_msh->ghosts[e->edges[0].ghost].fnodes[0].donor << "\n";
+    //   std::cout << "                      0 -> 1: " << background_msh->ghosts[e->edges[0].ghost].fnodes[1].donor << "\n";
+    // }
+    // if (e->edges[1].ghost != -1)
+    // {
+    //   std::cout << "                      1 -> 0: " << background_msh->ghosts[e->edges[1].ghost].fnodes[0].donor << "\n";
+    //   std::cout << "                      1 -> 1: " << background_msh->ghosts[e->edges[1].ghost].fnodes[1].donor << "\n";
+    // }
+    // if (e->edges[2].ghost != -1)
+    // {
+    //   std::cout << "                      2 -> 0: " << background_msh->ghosts[e->edges[2].ghost].fnodes[0].donor << "\n";
+    //   std::cout << "                      2 -> 1: " << background_msh->ghosts[e->edges[2].ghost].fnodes[1].donor << "\n";
+    // }
+    // if (e->edges[3].ghost != -1)
+    // {
+    //   std::cout << "                      3 -> 0: " << background_msh->ghosts[e->edges[3].ghost].fnodes[0].donor << "\n";
+    //   std::cout << "                      3 -> 1: " << background_msh->ghosts[e->edges[3].ghost].fnodes[1].donor << "\n";
+    // }
+    // std::cout << "               Solution: \n";
+    // std::cout << "                   Densities: \n";
+    // std::cout << "                             " << e->computational->Qsp[0][0] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[1][0] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[2][0] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[3][0] << "\n";
+    // std::cout << "                  x-Momentum: \n";
+    // std::cout << "                             " << e->computational->Qsp[0][1] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[1][1] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[2][1] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[3][1] << "\n";
+    // std::cout << "                  y-Momentum: \n";
+    // std::cout << "                             " << e->computational->Qsp[0][2] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[1][2] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[2][2] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[3][2] << "\n";
+    // std::cout << "                      Energy: \n";
+    // std::cout << "                             " << e->computational->Qsp[0][3] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[1][3] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[2][3] << "\n";
+    // std::cout << "                             " << e->computational->Qsp[3][3] << "\n";
+    // std::cout << "               Residue: \n";
+    // std::cout << "                   Densities: \n";
+    // std::cout << "                             " << e->computational->res[0][0] << "\n";
+    // std::cout << "                             " << e->computational->res[1][0] << "\n";
+    // std::cout << "                             " << e->computational->res[2][0] << "\n";
+    // std::cout << "                             " << e->computational->res[3][0] << "\n";
+    // std::cout << "                  x-Momentum: \n";
+    // std::cout << "                             " << e->computational->res[0][1] << "\n";
+    // std::cout << "                             " << e->computational->res[1][1] << "\n";
+    // std::cout << "                             " << e->computational->res[2][1] << "\n";
+    // std::cout << "                             " << e->computational->res[3][1] << "\n";
+    // std::cout << "                  y-Momentum: \n";
+    // std::cout << "                             " << e->computational->res[0][2] << "\n";
+    // std::cout << "                             " << e->computational->res[1][2] << "\n";
+    // std::cout << "                             " << e->computational->res[2][2] << "\n";
+    // std::cout << "                             " << e->computational->res[3][2] << "\n";
+    // std::cout << "                      Energy: \n";
+    // std::cout << "                             " << e->computational->res[0][3] << "\n";
+    // std::cout << "                             " << e->computational->res[1][3] << "\n";
+    // std::cout << "                             " << e->computational->res[2][3] << "\n";
+    // std::cout << "                             " << e->computational->res[3][3] << "\n";
     for (auto s_index=0; s_index<e->computational->res.size(); s_index++)
     {
       for (auto j=0; j<e->computational->res[s_index].size(); j++)
       {
-        //std::cout << "e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
+        // std::cout << "rrBKG: e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
+        if (isnan(e->computational->res[s_index][j])) 
+          throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan residue\n";
+        if (isinf(std::abs(e->computational->res[s_index][j]))) 
+          throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf residue\n";
+        
         this->res[k][index] = e->computational->res[s_index][j];
-        //std::cout << "this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
+        // std::cout << "rrBKG: this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
         index++;
       }
     }
   }
-
+  // std::cin.get();
+  // std::cout << "\nNEAR-BODY RESIDUE \n";
   // Nearbody
   for (auto &e : nearbody_msh->elems)
   {
@@ -532,14 +647,18 @@ void Time<Method>::read_residue(const std::shared_ptr<Static_Mesh> &background_m
     {
       for (auto j=0; j<e->computational->res[s_index].size(); j++)
       {
-        //std::cout << "e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
+        // std::cout << "rrNRB: e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
+        if (isnan(e->computational->res[s_index][j])) 
+          throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan residue\n";
+        if (isinf(std::abs(e->computational->res[s_index][j]))) 
+          throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf residue\n";
         this->res[k][index] = e->computational->res[s_index][j];
-        //std::cout << "this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
+        // std::cout << "rrNRB: this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
         index++;
       }
     }
   }
-  //std::cin.get();
+  // std::cin.get();
 }
 
 template <typename Method>

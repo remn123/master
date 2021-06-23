@@ -831,13 +831,30 @@ void Static_Mesh::create_kdtree(void)
   std::vector<long> nodes_ptr;
   long k = -1;
   //std::vector<Node *> nodes_ptr;
-
+  std::unordered_map<long, bool> vertice_map = {};
+  for (auto &e : this->elems)
+  {
+    long size = e->nodes.size();
+    // long order = static_cast<long>(std::sqrt(size));
+    long order = 2;
+    for (auto n_id=0; n_id<((order-2)*4+4); n_id++)
+    {
+      vertice_map.insert({e->nodes[n_id], true});
+    }
+  }
+  
   for (auto &n : this->nodes)
   {
     //std::cout << "Node(" << n.id << "): " << " n->coords ={" << n.coords[0] << " " << n.coords[1] << " " << n.coords[2] << std::endl;
     //std::cout << "Node Address: " << &n << std::endl;
-    nodes_ptr.emplace_back(n.id);
+    auto is_found = vertice_map.find(n.id);
+    if (is_found != vertice_map.end())
+      nodes_ptr.emplace_back(n.id);
   }
+
+  /* old */
+  // for (auto &n : this->nodes)
+  //   nodes_ptr.emplace_back(n.id);
 
   //std::cout << "1) Size of v_nodes = " << nodes_ptr.size() << " and Size of nodes = " << this->nodes.size() << std::endl;
   this->get_pivot(this->root, nodes_ptr);

@@ -26,7 +26,8 @@ public:
 
   std::vector<std::vector<Node>> fnodes; // flux points (FP)
   std::vector<Node> snodes;              // solution points (SP)
-  std::vector<std::vector<double>> weights;
+  std::vector<std::vector<std::vector<std::vector<double>>>> weights;
+  std::vector<std::vector<std::vector<std::vector<double>>>> d_weights;
   
 
 private:
@@ -63,7 +64,7 @@ public:
   //                                 const std::vector<Ghost>&);
   void calculate_fluxes_sp(std::shared_ptr<Element> &);
   void calculate_fluxes_fp(std::shared_ptr<Element> &);
-  void calculate_fluxes_fp(Ghost &, const std::vector<std::shared_ptr<Element>> &);
+  void calculate_fluxes_gfp(Ghost &, const std::vector<std::shared_ptr<Element>> &);
   void riemann_solver(std::shared_ptr<Element> &, const std::vector<std::shared_ptr<Element>> &, const std::vector<Ghost> &);
   void interpolate_fp2sp(std::shared_ptr<Element> &);
   void residue(std::shared_ptr<Element> &);
@@ -74,7 +75,7 @@ public:
   void propagate_holes(std::shared_ptr<Static_Mesh>&, long);
   void update_background_neighboors(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
   void communicate_data(std::shared_ptr<Static_Mesh>&, const std::shared_ptr<Static_Mesh>&);
-
+  void print_element(std::shared_ptr<Element> &);
 private:
   void _init_dvec(std::vector<DVector> &, size_t);
   void _init_dvec(std::vector<std::vector<DVector>> &, size_t);

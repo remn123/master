@@ -6,6 +6,7 @@
 #include <vector>
 
 #include <Node.h>
+#include <DVector.h>
 
 // Nodes
 Node::Node(const std::vector<std::string> &coordinates)
@@ -107,12 +108,16 @@ fNode::fNode(const std::vector<std::string> &coordinates) : Node(coordinates)
   this->id = num_nodes;
 
   this->right = -1;
+  this->analytical_solution = DVector{};
+  this->has_analytical_solution = false;
 }
 
 fNode::fNode(double x, double y, double z) : Node(x, y, z)
 {
   this->id = -1;
   this->right = -1;
+  this->analytical_solution = DVector{};
+  this->has_analytical_solution = false;
 }
 
 fNode::fNode(long id, long local, const Node &n)
@@ -124,6 +129,8 @@ fNode::fNode(long id, long local, const Node &n)
   this->coords[0] = n.coords[0];
   this->coords[1] = n.coords[1];
   this->coords[2] = n.coords[2];
+  this->analytical_solution = DVector{};
+  this->has_analytical_solution = false;
 }
 
 fNode::fNode(long id, long local, long right, const std::vector<double> &coords)
@@ -135,12 +142,16 @@ fNode::fNode(long id, long local, long right, const std::vector<double> &coords)
   this->coords[0] = coords[0];
   this->coords[1] = coords[1];
   this->coords[2] = coords[2];
+  this->analytical_solution = DVector{};
+  this->has_analytical_solution = false;
 }
 
 fNode::fNode() : Node()
 {
   this->id = -1;
   this->right = -1;
+  this->analytical_solution = DVector{};
+  this->has_analytical_solution = false;
 }
 
 fNode::~fNode(void)

@@ -17,7 +17,7 @@ void Poly::newton_raphson(double a, double b, unsigned int k, unsigned int n, do
       S += 1.0 / (x0 - this->nodes[i]);
     }
     xn = x0 - this->Pn(a, b, n, x0) / (this->dPn(a, b, n, x0) - this->Pn(a, b, n, x0) * S);
-    dx = abs(xn - x0);
+    dx = std::abs(xn - x0);
     x0 = xn;
     // if (counter % 100 == 0)
     // {
@@ -235,7 +235,7 @@ double Lagrange::Pn(unsigned int i, double x)
       if (i != k)
       {
         xk = this->nodes[k];
-        if (abs(x - xk)<=1E-15)
+        if (std::abs(x - xk)<=1E-15)
         {
           prod = 0.0;
         }
@@ -268,7 +268,7 @@ double Lagrange::dPn(unsigned int i, double x)
           if (k != i && k != j)
           {
             xk = this->nodes[k];
-            if (abs(x - xk)<=1E-15)
+            if (std::abs(x - xk)<=1E-15)
             {
               prod = 0.0;
             }

@@ -17,10 +17,12 @@ int main()
   fs::path cur_path = fs::current_path();
   auto mesh = std::make_shared<Mesh>(2);
 
-  mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_3rd.msh").string());
+  //mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_16x16_Q4.msh").string());
+  mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_32x32_lo.msh").string());
+  //mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_32x32_ho.msh").string());
   
 
-  int order = 4;
+  int order = 5;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
   /*
     1) Setup (all element in Mesh)
@@ -52,7 +54,8 @@ int main()
   );
 
   std::cout << "Saving Initial Condition ...\n";
-  auto filename = (cur_path.parent_path() / "results" / "cylinder" / "pp_cylinder_").string();
+  // auto filename = (cur_path.parent_path() / "results" / "cylinder" / "lo_32" / "pp_cylinder_").string();
+  auto filename = (cur_path.parent_path() / "results" / "cylinder" / "lo_32_hosd" / "pp_cylinder_").string();
   std::string tstamp = std::to_string(0);
   tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
   sd->to_vtk(mesh, filename + tstamp + std::string{".vtk"});
@@ -75,8 +78,8 @@ int main()
       3.2) Check if it's already converged
       3.3) (if not) Apply time iteration then go to (2)
   */
-  double CFL = 0.1;
-  long MAX_ITER = 3E+4;
+  double CFL = 0.04;
+  long MAX_ITER = 5E+5;
   int rk_order = 3;
   int stages = 3;
   int size = mesh->Nel * (order * order)*4; // overall number of solution points

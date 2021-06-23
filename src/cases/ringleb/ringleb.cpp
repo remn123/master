@@ -30,7 +30,7 @@ int main()
   mesh->read_gmsh((cur_path.parent_path() / "resources" / "ringleb_v0.msh").string());
   
 
-  int order = 3;
+  int order = 4;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
   /*
     1) Setup (all element in Mesh)
@@ -45,7 +45,10 @@ int main()
     FIELDS::RINGLEB_FIELD_MAPPING
   );
 
-  auto filename = (cur_path.parent_path() / "results" / "ringleb" / "pp_mesh_ringleb_v0_").string();
+  auto filename1 = (cur_path.parent_path() / "results" / "ringleb_v3" / "boundary"/ "ringleb_v0.vtk").string();
+  mesh->to_vtk(filename1);
+
+  auto filename = (cur_path.parent_path() / "results" / "ringleb_v3" / "pp_mesh_ringleb_v0_").string();
   std::string tstamp = std::to_string(0);
   tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
   sd->to_vtk(mesh, filename + tstamp + std::string{".vtk"});
@@ -87,8 +90,8 @@ int main()
       3.2) Check if it's already converged
       3.3) (if not) Apply time iteration then go to (2)
   */
-  double CFL = 0.5;
-  long MAX_ITER = 3E+4;
+  double CFL = 0.4;
+  long MAX_ITER = 3E+6;
   int rk_order = 3;
   int stages = 3;
   int size = mesh->Nel * (order * order)*4; // overall number of solution points

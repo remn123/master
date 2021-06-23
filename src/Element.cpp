@@ -616,7 +616,7 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
                                       const std::vector<std::vector<Node>> &fnodes,
                                       const std::vector<Vertice> &enodes)
 {
-  this->ce_space.reserve(sqrt(this->NUM_NODES));
+  this->ce_space.reserve(std::sqrt(this->NUM_NODES));
   double ds = 2.0 / double(this->ORDER);
   double Lcsi = 0.0, Leta = 0.0, dLcsi = 0.0, dLeta = 0.0;
 
@@ -724,6 +724,7 @@ void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,
         dy_dcsi += dLcsi * Leta * enodes[this->nodes[k]].coords[1];
         dy_deta += Lcsi * dLeta * enodes[this->nodes[k]].coords[1];
       }
+      
       /* 
         Jm = [dx_dcsi  dx_deta;
               dy_dcsi  dy_deta]

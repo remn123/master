@@ -3,6 +3,8 @@
 #include <vector>
 #include <string>
 
+#include <DVector.h>
+
 // Node Interface
 class Node
 {
@@ -47,6 +49,8 @@ public:
   long right;
   long local;
   long donor;
+  DVector analytical_solution;
+  bool has_analytical_solution;
 
 public:
   fNode(const std::vector<std::string> &);
