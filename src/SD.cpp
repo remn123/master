@@ -1590,34 +1590,49 @@ void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& ba
   auto num_ghosts = Ghost::num_ghosts;
   Ghost::num_ghosts = background_msh->Ngh;
   std::vector<fNode> fnodes = {};
+  std::vector<long> receivers = {};
   int local_id = -1;
   long elem_id = -1;
+  bool create_ghost;
 
   for (auto& r_id : background_msh->receivers)
   {
     local_id = 0;
     for (auto& ed : background_msh->elems[r_id]->edges)
     {
-      if (ed.right >=0)
+      if (ed.right >= 0 && background_msh->elems[ed.right]->fringe == 2)
       {
-        if (background_msh->elems[ed.right]->fringe == 2)
+        create_ghost = true;
+        for (auto& fn1 : ed.fnodes) 
+        {
+          fnodes.push_back(fNode{fn1.id, fn1.local, fn1.local, fn1.coords});
+          auto &fn = fnodes.back();
+
+          elem_id = nearbody_msh->mark_fringes(fn, PhysicalEnum::OVERSET);
+          if (elem_id == -1) // not found
+          {
+            background_msh->elems[ed.right]->fringe = 1;
+            background_msh->receivers.push_back(ed.right);
+            fnodes.clear();
+            create_ghost = false;
+            break; // next edge
+          }
+          fn.donor = elem_id;
+          receivers.push_back(elem_id);
+        }
+        if (create_ghost)
         {
           background_msh->ghosts.emplace_back(Ghost{r_id, ed.id, local_id, -1, -1});
           background_msh->ghosts[background_msh->Ngh].type = PhysicalEnum::OVERSET;
           ed.ghost = background_msh->Ngh;
-          for (auto& fn1 : ed.fnodes) 
-          {
-            fnodes.push_back(fNode{fn1.id, fn1.local, fn1.local, fn1.coords});
-            auto &fn = fnodes.back();
-
-            elem_id = nearbody_msh->mark_fringes(fn, PhysicalEnum::OVERSET);
-            fn.donor = elem_id;
-            nearbody_msh->receivers.push_back(elem_id);
-          }
           background_msh->ghosts[background_msh->Ngh].fnodes = fnodes;
           this->initialize_ghost_properties(background_msh->ghosts[background_msh->Ngh]);
           fnodes.clear();
           background_msh->Ngh++;
+
+          for (auto rec : receivers)
+            nearbody_msh->receivers.push_back(rec);
+          receivers.clear();
         }
       }
       local_id++;
