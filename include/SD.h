@@ -75,7 +75,7 @@ public:
   void propagate_holes(std::shared_ptr<Static_Mesh>&, long);
   void update_background_neighboors(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
   void communicate_data(std::shared_ptr<Static_Mesh>&, const std::shared_ptr<Static_Mesh>&);
-  void print_element(std::shared_ptr<Element> &);
+  
 private:
   void _init_dvec(std::vector<DVector> &, size_t);
   void _init_dvec(std::vector<std::vector<DVector>> &, size_t);

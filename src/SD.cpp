@@ -840,7 +840,6 @@ void SD<Euler>::boundary_condition(
       if (!fn.has_analytical_solution)
       {
         auto vec = std::any_cast<std::vector<double>(*)(const Node&)> (Ghost::analytical_solution)(fn);
-        //std::transform(vec.begin(), vec.end(), vec.begin(), [&J](auto &c) { return c * J; });
         fn.analytical_solution = DVector{vec};
         fn.has_analytical_solution = true;
       }
@@ -851,7 +850,6 @@ void SD<Euler>::boundary_condition(
     break;
   // Supersonic Inlet BC or Far Field
   case PhysicalEnum::RINGLEB_INLET:
-    // std::cout << "PhysicalEnum::SUPERSONIC_INLET\n";
     for (auto &fn : g.fnodes)
     {
       auto normal = elems[g.elm_id]->get_normal_vector(dir+1, fn.right, g.lr_edge);
@@ -876,12 +874,7 @@ void SD<Euler>::boundary_condition(
       DVector Qbnd = fn.analytical_solution;
 
       auto Qint = elems[g.elm_id]->computational->Qfp[dir][fn.right];
-      //auto un = std::abs((Qbnd[1]/Qbnd[0])*nx) + std::abs((Qbnd[2]/Qbnd[0])*ny);
-      //auto un = std::sqrt(u*u + v*v);
-      //auto un = std::abs(u*nx + v*ny);
-      //auto un = std::abs((Qbnd[1]/Qbnd[0])*nx) + std::abs((Qbnd[2]/Qbnd[0])*ny);
       auto un = std::abs(u*nx + v*ny);
-      //auto un = u*nx + v*ny;
       if (un < a) // Subsonic Inlet
       {
         rho = 2.0*Qbnd[0] - rho;
@@ -890,7 +883,6 @@ void SD<Euler>::boundary_condition(
         
         ek = (0.5*(uface*uface+vface*vface));
         
-
         g.computational->Qfp[dir][fn.local][0] = J*rho;
         g.computational->Qfp[dir][fn.local][1] = J*rho*uface;
         g.computational->Qfp[dir][fn.local][2] = J*rho*vface;
@@ -902,7 +894,6 @@ void SD<Euler>::boundary_condition(
     break;
   // Supersonic Outlet BC (Neumann BC)
   case PhysicalEnum::RINGLEB_OUTLET:
-    // std::cout << "PhysicalEnum::SUPERSONIC_OUTLET\n";
     for (auto &fn : g.fnodes)
     {
       auto normal = elems[g.elm_id]->get_normal_vector(dir+1, fn.right, g.lr_edge);
@@ -928,12 +919,8 @@ void SD<Euler>::boundary_condition(
       DVector Qbnd = fn.analytical_solution;
 
       auto un = std::abs(u*nx + v*ny);
-      //auto un = std::abs(u*nx) + std::abs(v*ny);
-      //auto un = u*nx + v*ny;
-      //auto un = std::sqrt(u*u + v*v);
       if (un >= a) // Supersonic Outlet
       {
-        //std::cout << "Ringleb Supersonic Outlet \n";
         auto Qint = elems[g.elm_id]->computational->Qfp[dir][fn.right];
         g.computational->Qfp[dir][fn.local] = Qint;
       }
@@ -1083,7 +1070,6 @@ void SD<Equation>::interpolate_sp2fp(std::shared_ptr<Element> &e)
     for (auto &node : vec_lines) // line nodes for a specific direction (x, y)
     {
       e->computational->Qfp[index][f_index] = 0.0;
-      //auto vec = this->interpolate_solution_to_node(e, this->fnodes[index][f_index]);
       auto vec = this->interpolate_solution_to_fp(e, this->fnodes[index][f_index], f_index, index);
       e->computational->Qfp[index][f_index] = vec;
 
@@ -1195,41 +1181,28 @@ void SD<Euler>::calculate_fluxes_fp(std::shared_ptr<Element> &e)
       q3 = e->physical->Qfp[index][f_index][2];
       q4 = e->physical->Qfp[index][f_index][3];
       p = (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1);
-      if (this->dimension + 2 == 4)
-      {
-        /*
-          Ji = [a b; = [dcsi_dx  dcsi_dy; =  [ (1,1)   (1,2);
-                c d]    deta_dx  deta_dy]      (2,1)   (2,2)]
+      
+      /*
+        Ji = [a b; = [dcsi_dx  dcsi_dy; =  [ (1,1)   (1,2);
+              c d]    deta_dx  deta_dy]      (2,1)   (2,2)]
 
-          Fc = [a b; c d].[Fxc; Fyc] = [a*Fxc + b*Fyc; c*Fxc + d*Fyc]
-          Fc = [dcsi_dx*Fxc + dcsi_dy*Fyc; 
-                deta_dx*Fxc + deta_dy*Fyc]
+        Fc = [a b; c d].[Fxc; Fyc] = [a*Fxc + b*Fyc; c*Fxc + d*Fyc]
+        Fc = [dcsi_dx*Fxc + dcsi_dy*Fyc; 
+              deta_dx*Fxc + deta_dy*Fyc]
 
-          Fcsic = dcsi_dx*Fxc + dcsi_dy*Fyc
-          Fetac = deta_dx*Fxc + deta_dy*Fyc
+        Fcsic = dcsi_dx*Fxc + dcsi_dy*Fyc
+        Fetac = deta_dx*Fxc + deta_dy*Fyc
 
-          Fcsic = e->Fc[0]
-          Fetac = e->Fc[1]
-        */
-        ds_dx = e->Ji[index+1][f_index][2 * (index)];
-        ds_dy = e->Ji[index+1][f_index][2 * (index) + 1];
-        
-        e->computational->Fcfp[index][f_index] = {ds_dx * q2 + ds_dy * q3,
-                                                  ds_dx * (q2 * q2 / q1 + p) + ds_dy * q3 * q2 / q1,
-                                                  ds_dx * (q2 * q3 / q1) + ds_dy * (q3 * q3 / q1 + p),
-                                                  ds_dx * ((q2 / q1) * (q4 + p)) + ds_dy * ((q3 / q1) * (q4 + p))};
-        
-        // e->computational->Fcfp[index][f_index] = {ds_dx * q2 + ds_dy * q3,
-        //                                           ds_dx * (q2 * q2 / q1 + p) + ds_dy * q3 * q2 / q1,
-        //                                           ds_dx * (q2 * q3 / q1) + ds_dy * (q3 * q3 / q1 + p),
-        //                                           ds_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + ds_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
-
-
-      }
-      else if (this->dimension + 2 == 5)
-      {
-       
-      }
+        Fcsic = e->Fc[0]
+        Fetac = e->Fc[1]
+      */
+      ds_dx = e->Ji[index+1][f_index][2 * (index)];
+      ds_dy = e->Ji[index+1][f_index][2 * (index) + 1];
+      
+      e->computational->Fcfp[index][f_index] = {ds_dx * q2 + ds_dy * q3,
+                                                ds_dx * (q2 * q2 / q1 + p) + ds_dy * q3 * q2 / q1,
+                                                ds_dx * (q2 * q3 / q1) + ds_dy * (q3 * q3 / q1 + p),
+                                                ds_dx * ((q2 / q1) * (q4 + p)) + ds_dy * ((q3 / q1) * (q4 + p))};
       f_index++;
     }
     index++;
@@ -1284,13 +1257,7 @@ void SD<Euler>::calculate_fluxes_gfp(Ghost &g, const std::vector<std::shared_ptr
                                            ds_dx * (q2 * q2 / q1 + p) + ds_dy * q3 * q2 / q1,
                                            ds_dx * (q2 * q3 / q1) + ds_dy * (q3 * q3 / q1 + p),
                                            ds_dx * ((q2 / q1) * (q4 + p)) + ds_dy * ((q3 / q1) * (q4 + p))};
-
-    // g.computational->Fcfp[dir][f_index] = {ds_dx * q2 + ds_dy * q3,
-    //                                        ds_dx * (q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)) + ds_dy * q3 * q2 / q1,
-    //                                        ds_dx * (q2 * q3 / q1) + ds_dy * (q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1)),
-    //                                        ds_dx * ((q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)) + ds_dy * ((q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1))};
-    
-  }
+    }
 }
 
 // 4) RIEMANN SOLVER
@@ -1313,7 +1280,6 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
   auto gamma = this->GAMMA;
   std::vector<double> normal;
   std::vector<std::vector<double>> T;
-  bool must_print = false;
 
 
   for (auto &ed : e->edges)
@@ -1321,14 +1287,6 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
     dirL = (ll_edge == 0 || ll_edge == 2) ? 1 : 0; // 0: x, 1: y
     dirR = (ed.lr_edge == 0 || ed.lr_edge == 2) ? 1 : 0; // 0: x, 1: y
     auto signN = ((ll_edge==0||ll_edge==3)) ? -1 : 1;
-    if (must_print)
-    {
-      std::cout << "Edge = " << ed.id << "\n";
-      std::cout << "ll_edge = " << ll_edge << "\n";
-      std::cout << "dirL = " << dirL << "\n";
-      std::cout << "ed.right = " << ed.right << "\n";
-      std::cout << "ed.ghost = " << ed.ghost << "\n";
-    }
 
     for (auto &fn : ed.fnodes)
     {
@@ -1344,28 +1302,11 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       pL = (gamma - 1.0) * (EL - 0.5 * rhoL * (uL * uL + vL * vL));
       hL = (EL + pL) / rhoL;
 
-      if (must_print)
-      {
-        std::cout << "fn.id = " << fn.id << "\n";
-        std::cout << "fn.local = " << fn.local << "\n";
-        std::cout << "fn.right = " << fn.right << "\n";
-        std::cout << "J_L = " << J_L << "\n";
-        std::cout << "ds_dxL = " << ds_dxL << "\n";
-        std::cout << "ds_dyL = " << ds_dyL << "\n";
-        std::cout << "Solution: \n";
-        std::cout << "   rhoL = " << rhoL << "\n";
-        std::cout << "   uL = " << uL << "\n";
-        std::cout << "   vL = " << vL << "\n";
-        std::cout << "   EL = " << EL << "\n";
-        std::cout << "   pL = " << pL << "\n";
-        std::cout << "\n";
-      }
       // Physical Conserved Properties
       q1 = rhoL;
       q2 = rhoL*uL;
       q3 = rhoL*vL;
       q4 = EL;
-
 
       // Physical Fcfp_x
       fxL = DVector{{rhoL*uL,
@@ -1373,22 +1314,12 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
                      rhoL*uL*vL,
                      uL*(EL + pL)}};
 
-      // fxL = DVector{{q2,
-      //                q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-      //                q2 * q3 / q1,
-      //                (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
-      
-      // Physical Fcfp_y
+     // Physical Fcfp_y
       fyL = DVector{{rhoL*vL,
                      rhoL*uL*vL,
                      rhoL*vL*vL + pL,
                      vL*(EL + pL)}};
-      // fyL = DVector{{q3,
-      //                q3 * q2 / q1,
-      //                q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-      //                (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
-
-
+      
       // Normal unit vector in Physical Space
       normal = e->get_normal_vector(dirL+1, fn.local, ll_edge);
       nx = normal[0];
@@ -1431,21 +1362,13 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
                      rhoR*uR*uR + pR,
                      rhoR*uR*vR,
                      uR*(ER + pR)}};
-      // fxR = DVector{{q2,
-      //                q2 * q2 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-      //                q2 * q3 / q1,
-      //                (q2 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
-
+     
       // Physical Fcfp_y
       fyR = DVector{{rhoR*vR,
                      rhoR*uR*vR,
                      rhoR*vR*vR + pR,
                      vR*(ER + pR)}};
-      // fyR = DVector{{q3,
-      //                q3 * q2 / q1,
-      //                q3 * q3 / q1 + (gamma - 1.0) * (q4 - 0.5 * (q2 * q2 + q3 * q3) / q1),
-      //                (q3 / q1) * (gamma * q4 - 0.5 * (gamma - 1.0) * (q2 * q2 + q3 * q3) / q1)}};
-
+     
       // Roe-averages
       rho_ROE = std::sqrt(rhoL)*std::sqrt(rhoR);
       ux_ROE = (uL * std::sqrt(rhoL) + uR * std::sqrt(rhoR)) / (std::sqrt(rhoL)+std::sqrt(rhoR));
@@ -1470,11 +1393,6 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       if (std::abs(l4) >= delta) l4 = std::abs(l4);
       else l4 = (l4*l4 + delta*delta)/(2.0*delta);
 
-      // T = {{  1.0,             0.0,              1.0,                1.0         },
-      //      { ux_ROE,           ny,         ux_ROE+c_ROE*nx,     ux_ROE-c_ROE*nx  },
-      //      { uy_ROE,          -nx,         uy_ROE+c_ROE*ny,     uy_ROE-c_ROE*ny  },
-      //      { ek_ROE, ux_ROE*ny-uy_ROE*nx, h_ROE+c_ROE*un_ROE, h_ROE-c_ROE*un_ROE }};
-      
       T = {{  1.0,             0.0,              1.0,                1.0         },
            { ux_ROE,          -ny,         ux_ROE+c_ROE*nx,     ux_ROE-c_ROE*nx  },
            { uy_ROE,           nx,         uy_ROE+c_ROE*ny,     uy_ROE-c_ROE*ny  },
@@ -1484,7 +1402,6 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       alp2 = rho_ROE * ((-uR*ny + vR*nx) - (-uL*ny + vL*nx));
       alp3 = ((pR - pL) + rho_ROE * c_ROE * ((uR*nx + vR*ny) - (uL*nx + vL*ny))) / (2.0 * c_ROE * c_ROE);
       alp4 = ((pR - pL) - rho_ROE * c_ROE * ((uR*nx + vR*ny) - (uL*nx + vL*ny))) / (2.0 * c_ROE * c_ROE);
-
 
       // Flux reconstruction
       central_term = 0.5 * ((fxL*nx + fyL*ny) + (fxR*nx + fyR*ny));
@@ -1527,9 +1444,7 @@ void SD<Euler>::interpolate_fp2sp(std::shared_ptr<Element> &e)
     // for each solution point
     // I will calculate the lagrange polynomial at its position
     // interpolate the flux in (x/y) direction from fps
-    // csi = node.coords[0];
-    // eta = node.coords[1];
-
+    
     index = 0;
     for (auto &vec_lines : this->fnodes)
     {
@@ -1583,8 +1498,7 @@ void SD<Euler>::update_fluxes(std::shared_ptr<Element> &e, std::vector<std::shar
       if (ed.right != -1 && elems[ed.right]->fringe != 2)
         elems[ed.right]->computational->Fcfp[dirR][fn.right] = ed.computational->Fcfp[dir][fn.id];
     }
-      
-      
+
     local_edge_id++;
   }
 }
@@ -1606,7 +1520,6 @@ void SD<Euler>::residue(std::shared_ptr<Element> &e)
     s_index++;
   }
 }
-
 
 template <typename Equation>
 long SD<Equation>::mark_fringes_and_holes(std::shared_ptr<Static_Mesh>& background_msh, std::shared_ptr<Static_Mesh>& nearbody_msh)
@@ -1812,151 +1725,21 @@ void SD<Euler>::communicate_data(std::shared_ptr<Static_Mesh>& receiver_msh, con
           throw "ERROR: Wrong solution";
         
         auto node_donor_ce =  Node{solution(0), solution(1), 0.0};
-        // std::cout << "Interpolation Solution within donor domain\n";
+        // Interpolation Solution within donor domain
         auto Qc_don = this->interpolate_solution_to_node(donor, node_donor_ce);
-        // std::cout << "Calculating Donor Jacobian at the target node\n";
+        // Calculating Donor Jacobian at the target node
         auto J_don = donor->calculate_jacobian_at_node(node_donor_ce, donor_msh->nodes);
-        // std::cout << "Getting Receiver Jacobian at the target node\n";
+        // Getting Receiver Jacobian at the target node
         auto J_rec = receiver->J[dir+1][fn.right];
-        // std::cout << "Transforming Solution from computational donor space to physical space at target node\n";
+        // Transforming Solution from computational donor space to physical space at target node
         auto Q_physical = (1.0/J_don)*Qc_don;
-        // std::cout << "Transforming Solution from physical space to computational receiver space at target node\n";
+        // Transforming Solution from physical space to computational receiver space at target node
         auto Qc_rec = J_rec*Q_physical;
         
         g.computational->Qfp[dir][fn.right] = Qc_rec;
       }
     }
   }
-}
-
-
-template <typename Equation>
-void SD<Equation>::print_element(std::shared_ptr<Element> &e)
-{
-  long index=0, s_index=0, f_index=0;
-  auto gamma = this->GAMMA;
-  bool must_print = false;
-
-  for (auto& snode : this->snodes)
-  {
-    auto rho = e->computational->Qsp[s_index][0];
-    auto u = e->computational->Qsp[s_index][1]/rho;
-    auto v = e->computational->Qsp[s_index][2]/rho;
-    auto E = e->computational->Qsp[s_index][3];
-    auto p = (gamma - 1.0) * (E - 0.5 * rho * (u * u + v * v));
-    auto r_rho = e->computational->res[s_index][0];
-    auto r_mu = e->computational->res[s_index][1];
-    auto r_mv = e->computational->res[s_index][2];
-    auto r_E = e->computational->res[s_index][3];
-    auto dfc_rho = e->computational->dFcsp[0][s_index][0];
-    auto dfc_mu = e->computational->dFcsp[0][s_index][1];
-    auto dfc_mv = e->computational->dFcsp[0][s_index][2];
-    auto dfc_E = e->computational->dFcsp[0][s_index][3];
-    auto dfe_rho = e->computational->dFcsp[1][s_index][0];
-    auto dfe_mu = e->computational->dFcsp[1][s_index][1];
-    auto dfe_mv = e->computational->dFcsp[1][s_index][2];
-    auto dfe_E = e->computational->dFcsp[1][s_index][3];
-    auto is_weird = (rho + u + v + E + p + r_rho + r_mu + r_mv + r_E + dfc_rho + dfc_mu + dfc_mv + dfc_E + dfe_rho + dfe_mu + dfe_mv + dfe_E);
-    if (std::isnan(is_weird))
-    {
-      must_print = true;
-      break;
-    }
-  }
-
-  if (must_print)
-  {
-    std::cout << "Element (" << e-> id << "):" << "\n";
-    s_index = 0;
-    for (auto& snode : this->snodes)
-    {
-      auto rho = e->computational->Qsp[s_index][0];
-      auto u = e->computational->Qsp[s_index][1]/rho;
-      auto v = e->computational->Qsp[s_index][2]/rho;
-      auto E = e->computational->Qsp[s_index][3];
-      auto p = (gamma - 1.0) * (E - 0.5 * rho * (u * u + v * v));
-      auto r_rho = e->computational->res[s_index][0];
-      auto r_mu = e->computational->res[s_index][1];
-      auto r_mv = e->computational->res[s_index][2];
-      auto r_E = e->computational->res[s_index][3];
-      auto dfc_rho = e->computational->dFcsp[0][s_index][0];
-      auto dfc_mu = e->computational->dFcsp[0][s_index][1];
-      auto dfc_mv = e->computational->dFcsp[0][s_index][2];
-      auto dfc_E = e->computational->dFcsp[0][s_index][3];
-      auto dfe_rho = e->computational->dFcsp[1][s_index][0];
-      auto dfe_mu = e->computational->dFcsp[1][s_index][1];
-      auto dfe_mv = e->computational->dFcsp[1][s_index][2];
-      auto dfe_E = e->computational->dFcsp[1][s_index][3];
-     
-      std::cout << "  Solution Point (" << s_index << "): \n";
-      std::cout << "     Computational: \n";
-      std::cout << "        rho   = " << rho << "\n";
-      std::cout << "        u     = " << u << "\n";
-      std::cout << "        v     = " << v << "\n";
-      std::cout << "        E     = " << E << "\n";
-      std::cout << "        p     = " << p << "\n";
-      std::cout << "\n";
-      std::cout << "     Residue: \n";
-      std::cout << "        rho   = " << r_rho << "\n";
-      std::cout << "        rho*u = " << r_mu << "\n";
-      std::cout << "        rho*v = " << r_mv << "\n";
-      std::cout << "        E     = " << r_E << "\n";
-      std::cout << "     csi-Flux Divergent: \n";
-      std::cout << "        dfcsi[0] = " << dfc_rho << "\n";
-      std::cout << "        dfcsi[1] = " << dfc_mu << "\n";
-      std::cout << "        dfcsi[2] = " << dfc_mv << "\n";
-      std::cout << "        dfcsi[3] = " << dfc_E << "\n";
-      std::cout << "     eta-Flux Divergent: \n";
-      std::cout << "        dfeta[0] = " << dfe_rho << "\n";
-      std::cout << "        dfeta[1] = " << dfe_mu << "\n";
-      std::cout << "        dfeta[2] = " << dfe_mv << "\n";
-      std::cout << "        dfeta[3] = " << dfe_E << "\n";
-      s_index++;
-    }
-    
-    for (auto& vec_lines : this->fnodes)
-    {
-      f_index = 0;
-      for (auto& fnode : vec_lines)
-      {
-        auto rho = e->computational->Qfp[index][f_index][0];
-        auto u = e->computational->Qfp[index][f_index][1]/rho;
-        auto v = e->computational->Qfp[index][f_index][2]/rho;
-        auto E = e->computational->Qfp[index][f_index][3];
-        auto p = (gamma - 1.0) * (E - 0.5 * rho * (u * u + v * v));
-
-        if (index == 0)
-          std::cout << "  csi-Flux Point (" << f_index << "): \n";
-        if (index == 1)
-          std::cout << "  eta-Flux Point (" << f_index << "): \n";
-        std::cout << "     Computational: \n";
-        std::cout << "        rho   = " << rho << "\n";
-        std::cout << "        u     = " << u << "\n";
-        std::cout << "        v     = " << v << "\n";
-        std::cout << "        E     = " << E << "\n";
-        std::cout << "        p     = " << p << "\n";
-        if (index == 0)
-        {
-          std::cout << "  csi-Flux: \n";
-          std::cout << "      fcsi[0] = " << e->computational->Fcfp[index][f_index][0] << "\n";
-          std::cout << "      fcsi[1] = " << e->computational->Fcfp[index][f_index][1] << "\n";
-          std::cout << "      fcsi[2] = " << e->computational->Fcfp[index][f_index][2] << "\n";
-          std::cout << "      fcsi[3] = " << e->computational->Fcfp[index][f_index][3] << "\n";
-        }
-        else
-        {
-          std::cout << "  eta-Flux: \n";
-          std::cout << "      feta[0] = " << e->computational->Fcfp[index][f_index][0] << "\n";
-          std::cout << "      feta[1] = " << e->computational->Fcfp[index][f_index][1] << "\n";
-          std::cout << "      feta[2] = " << e->computational->Fcfp[index][f_index][2] << "\n";
-          std::cout << "      feta[3] = " << e->computational->Fcfp[index][f_index][3] << "\n";
-        }
-        f_index++;
-      }
-      index++;
-    }
-  }
-  
 }
 
 // 7) SOLVE
