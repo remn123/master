@@ -20,14 +20,15 @@ int main()
 
   // background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "cylinder_r100_bkgd_64x64.msh").string());
   // nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "cylinder_r100_body_64x64.msh").string());
-  background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "cylinder_r100_bkgd_64x64.msh").string());
-  nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "cylinder_r100_body_64x64_ho.msh").string());
+  background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "ho" / "cylinder_bkgd_16x16_ho.msh").string());
+  nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "ho" / "cylinder_body_16x16_4th.msh").string());
   
   // Creating kd-tree
   background_msh->create_kdtree();
   nearbody_msh->create_kdtree();
 
-  int order = 3;
+  int p = 5;
+  int order = p+1;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
   /*
     1) Setup (all element in Mesh)
@@ -64,7 +65,7 @@ int main()
   background_msh->to_vtk(filename_bkgd);
   nearbody_msh->to_vtk(filename_body);
 
-  // std::cout << "Saving Initial Condition ...\n";
+  std::cout << "Saving Initial Condition ...\n";
   // filename_bkgd = (cur_path.parent_path() / "results" / "overset" / "low" / "iterations" / "pp_cylinder_bkgd_").string();
   // filename_body = (cur_path.parent_path() / "results" / "overset" / "low" / "iterations" / "pp_cylinder_body_").string();
   filename_bkgd = (cur_path.parent_path() / "results" / "overset" / "ho_v2" / "iterations" / "pp_cylinder_bkgd_").string();

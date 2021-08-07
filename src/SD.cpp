@@ -830,6 +830,114 @@ void SD<Euler>::boundary_condition(
       }
     }
     break;
+  // Riemann Invariant Inlet BC or Far Field
+  case PhysicalEnum::FARFIELD:
+    for (auto &fn : g.fnodes)
+    {
+      //std::cin.get();
+      auto normal = elems[g.elm_id]->get_normal_vector(dir+1, fn.right, g.lr_edge);
+      auto nx = normal[0];
+      auto ny = normal[1];
+      auto J = elems[g.elm_id]->J[dir+1][fn.right];
+
+      // Ghost's Computational Properties
+      auto rho = (1.0/J)*elems[g.elm_id]->computational->Qfp[dir][fn.right][0];
+      auto u = (1.0/J)*elems[g.elm_id]->computational->Qfp[dir][fn.right][1] / rho;
+      auto v = (1.0/J)*elems[g.elm_id]->computational->Qfp[dir][fn.right][2] / rho;
+      auto E = (1.0/J)*elems[g.elm_id]->computational->Qfp[dir][fn.right][3];
+      auto p = (gamma - 1.0) * (E - 0.5 * rho * (u * u + v * v));
+
+      auto u_inf   = Ghost::U;
+      auto v_inf   = Ghost::V;
+      auto rho_inf = Ghost::rho;
+      auto p_inf   = Ghost::p;
+
+      auto a_in = std::sqrt(gamma*p/rho);
+      auto a_inf = std::sqrt(gamma*p_inf/rho_inf);
+      auto Vn_in = u*nx + v*ny;
+      auto Vn_inf = u_inf*nx + v_inf*ny;
+      auto R_p=0.0, R_m=0.0, Vb=0.0, a_bc=0.0;
+      auto u_bc=0.0, v_bc=0.0, s_bc=0.0, rho_bc=0.0;
+      auto un = std::abs(u*nx + v*ny);
+
+      // Riemann Invariants
+      R_m = Vn_in - 2.0*a_in/(gamma-1.0);
+      R_p = Vn_inf + 2.0*a_inf/(gamma-1.0);
+
+      Vb   = (R_p + R_m)/2.0;
+      a_bc = (gamma-1.0)*(R_p - R_m)/4.0;
+
+      auto Mach = std::abs(Vb/a_bc);
+
+      if (Mach > 1.0) // Supersonic
+      {
+        if (Vb > 0.0) // Outflow
+        {
+          rho_bc = rho;
+          u_bc = u;
+          v_bc = v;
+        }
+        else // Inflow
+        {
+          rho_bc = rho_inf;
+          u_bc = u_inf;
+          v_bc = v_inf;
+        }
+      }
+      else // Subsonic
+      {
+        if (Vb > 0.0) // Outflow
+        {
+          s_bc = a_in*a_in/(gamma*(std::pow(rho, gamma-1.0))); 
+          rho_bc = a_bc*a_bc/(gamma*s_bc);
+          u_bc = u + (Vb - Vn_in)*nx;
+          v_bc = v + (Vb - Vn_in)*ny;
+        }
+        else // Inflow
+        {
+          s_bc = a_inf*a_inf/(gamma*(std::pow(rho_inf, gamma-1.0))); 
+          rho_bc = a_bc*a_bc/(gamma*s_bc);
+          u_bc = u_inf + (Vb - Vn_inf)*nx;
+          v_bc = v_inf + (Vb - Vn_inf)*ny;
+        }
+      }
+
+      // if (Vn_inf < 0) // INLET
+      // {
+      //   if (un < a_in) // Subsonic
+      //     R_p = Vn_in  + 2.0*a_in/(gamma-1.0);
+      //   else           // Supersonic
+      //     R_p = Vn_inf + 2.0*a_inf/(gamma-1.0);
+      //   R_m = Vn_inf - 2.0*a_inf/(gamma-1.0);
+      //   Vb   = (R_p + R_m)/2.0;
+      //   a_bc = (gamma-1.0)*(R_p - R_m)/4.0;
+      //   u_bc = u_inf + (Vb - Vn_inf)*nx;
+      //   v_bc = v_inf + (Vb - Vn_inf)*ny;
+      //   s_bc = a_inf*a_inf/(gamma*(std::pow(rho_inf, gamma-1.0)));
+      // }
+      // else // OUTLET
+      // {
+      //   if (un < a_in) // Subsonic
+      //     R_m = Vn_inf - 2.0*a_inf/(gamma-1.0);
+      //   else           // Supersonic
+      //     R_m = Vn_in - 2.0*a_in/(gamma-1.0);
+      //   R_p  = Vn_in  + 2.0*a_in/(gamma-1.0);
+      //   Vb   = (R_p + R_m)/2.0;
+      //   a_bc = (gamma-1.0)*(R_p - R_m)/4.0;
+      //   u_bc = u + (Vb - Vn_in)*nx;
+      //   v_bc = v + (Vb - Vn_in)*ny;
+      //   s_bc = a_in*a_in/(gamma*(std::pow(rho, gamma-1.0)));
+      // }
+      
+      auto p_bc   = rho_bc*a_bc*a_bc/gamma;
+      auto E_bc   = p_bc/(gamma - 1.0) + 0.5 * rho_bc * (u_bc * u_bc + v_bc * v_bc);
+
+      g.computational->Qfp[dir][fn.local][0] = J*(2.0*rho_bc - rho);
+      g.computational->Qfp[dir][fn.local][1] = J*(2.0*rho_bc*u_bc - rho*u);
+      g.computational->Qfp[dir][fn.local][2] = J*(2.0*rho_bc*v_bc - rho*v);
+      g.computational->Qfp[dir][fn.local][3] = J*(2.0*E_bc - E);
+    }
+    break;
   case PhysicalEnum::RINGLEB_WALL:
     // Un - Uwall,n = (U-Uwall).n = 0
     // Qn

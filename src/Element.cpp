@@ -29,6 +29,7 @@ Edge::Edge(const std::vector<long> &e_nodes,
 
   // copying edge[edge_id] vector of nodes to the new edge object
   this->nodes = e_nodes;
+  this->ho_nodes = e_nodes;
 
   // neighbors
   this->left = left;
@@ -541,6 +542,28 @@ std::vector<long> QuadrangleHO::get_nodes_by_local_edge_id(long edge_id, bool so
   return edge_vertices;
 }
 
+std::vector<long> QuadrangleHO::get_ho_nodes_by_local_edge_id(long edge_id)
+{
+  // This functions returns a vector of vertices ids
+  // of a required local edge.
+  // First it gets the vertice at the edge_id position
+  // Then validates if it's
+  // Example:
+  //   cell.nodes = {5, 12, 4, 0, ....} // only the first NUM_VERTICES are vertices
+  long k=0;
+  std::vector<long> edge_vertices;
+  edge_vertices.push_back(this->nodes[edge_id]);
+  for (auto n=0; n<this->ORDER-1; n++)
+  {
+    k = (this->NUM_VERTICES*(edge_id+1) - edge_id) + n;
+    edge_vertices.push_back(this->nodes[k]);
+  }
+  edge_vertices.push_back(this->nodes[(edge_id == NUM_VERTICES - 1) ? 0 : edge_id + 1]);
+
+  return edge_vertices;
+}
+
+
 void QuadrangleHO::enumerate_edges(void)
 {
   // 2D Quad with N nodes
@@ -564,9 +587,11 @@ void QuadrangleHO::enumerate_edges(void)
   while (local_id < this->NUM_FACES)
   {
     std::vector<long> ordered_vertices(
-        this->get_nodes_by_local_edge_id(local_id, true)); // true returns sorted vector
+      this->get_nodes_by_local_edge_id(local_id, true)
+    ); // true returns sorted vector
     std::vector<long> unordered_vertices(
-        this->get_nodes_by_local_edge_id(local_id, false)); // false returns unsorted vector
+      this->get_nodes_by_local_edge_id(local_id, false)
+    ); // false returns unsorted vector
 
     if (!was_enumerated(ordered_vertices))
     {
@@ -585,6 +610,11 @@ void QuadrangleHO::enumerate_edges(void)
 
       this->edges.emplace_back(Edge{unordered_vertices, edge_id, this->id, neighbor_id});
     }
+    // append high-order nodes
+    auto& ed = this->edges.back();
+    ed.ho_nodes.clear();
+    ed.ho_nodes = this->get_ho_nodes_by_local_edge_id(local_id);
+
     ordered_vertices.clear();
     unordered_vertices.clear();
     local_id++;

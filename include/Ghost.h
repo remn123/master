@@ -18,7 +18,8 @@ enum PhysicalEnum
   RINGLEB_WALL,
   RINGLEB_INLET,
   RINGLEB_OUTLET,
-  OVERSET
+  OVERSET,
+  FARFIELD
 };
 
 class Ghost
@@ -32,6 +33,9 @@ public:
   inline static double T = -1.0;
   inline static double p = -1.0;
   inline static double Mach = -1.0;
+  inline static double U = -1.0;
+  inline static double V = -1.0;
+  inline static double rho = -1.0;
   
   inline static std::any analytical_solution = {};
   inline static std::unordered_map<int, std::any> Qbnds = {};

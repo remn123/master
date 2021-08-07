@@ -137,6 +137,7 @@ public:
   double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
   std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_ho_nodes_by_local_edge_id(long);
   std::vector<double> get_normal_vector(int, int, int);
 };
 
@@ -171,6 +172,7 @@ public:
   double calculate_jacobian_at_node(const Node&, const std::vector<Vertice>&);
   std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &);
   std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  std::vector<long> get_ho_nodes_by_local_edge_id(long);
   std::vector<double> get_normal_vector(int, int, int);
 
 private:
@@ -202,6 +204,7 @@ public:
   std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_ho_nodes_by_local_edge_id(long);
 };
 
 // Hexahedron
@@ -228,6 +231,7 @@ public:
   std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_ho_nodes_by_local_edge_id(long);
 };
 
 // Prism
@@ -254,6 +258,7 @@ public:
   std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_ho_nodes_by_local_edge_id(long);
 };
 
 // Pyramid
@@ -279,6 +284,7 @@ public:
   std::vector<double> calculate_jacobian_matrix_at_node(const Node&, const std::vector<Vertice> &){};
   std::vector<double> get_normal_vector(int, int, int);
   // std::vector<long> get_nodes_by_local_edge_id(long, bool);
+  // std::vector<long> get_ho_nodes_by_local_edge_id(long);
 };
 
 // https://gitlab.onelab.info/gmsh/gmsh/-/blob/gmsh_4_5_6/Common/GmshDefines.h

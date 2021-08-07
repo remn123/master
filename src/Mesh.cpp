@@ -214,11 +214,9 @@ void Mesh::to_vtk(const std::string &filename)
   // writing elements
   for (auto &e : this->elems)
   {
-    output << e->nodes.size();
-    for (auto &enode : e->nodes)
-    {
-      output << " " << enode;
-    }
+    output << e->NUM_VERTICES;
+    for (auto v=0; v < e->NUM_VERTICES; v++)
+      output << " " << e->nodes[v];
     output << "\n";
   }
   output << "\n";
@@ -375,6 +373,7 @@ void Mesh::read_gmsh(const std::string &filename)
           std::string physical_tag_name = parser[2];
           
           std::regex WALL_r("\"(wall)\"", std::regex::icase);
+          std::regex FARFIELD_r("\"(farfield)\"", std::regex::icase);
           std::regex INLET_r("\"(inlet|inflow)\"", std::regex::icase);
           std::regex OUTLET_r("\"(outlet|outflow)\"", std::regex::icase);
           std::regex RINGLEB_WALL_r("\"(ringleb_inner|ringleb_outer)\"", std::regex::icase);
@@ -384,6 +383,9 @@ void Mesh::read_gmsh(const std::string &filename)
           
           if (std::regex_match(physical_tag_name, WALL_r))
             Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::WALL});
+          // FAR FIELD
+          else if (std::regex_match(physical_tag_name, FARFIELD_r))
+            Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::FARFIELD});
           // OVERSET
           else if (std::regex_match(physical_tag_name, OVERSET_r))
             Ghost::tag_name_map.insert({physical_tag_id, PhysicalEnum::OVERSET});
@@ -1183,18 +1185,17 @@ long Static_Mesh::_find_element(const Node &n2, std::vector<long> &elm_ids, cons
       min_area = 10.0;
       for (auto &ed : this->elems[e_id]->edges)
       {
-        //auto n = ed.nodes;
-        //auto last_node = n2;
-        //n.push_back(last_node);
-
-        area = this->get_area(ed.nodes, n2);
-        //n.clear();
-        min_area = (min_area >= area) ? area : min_area;
-        // if the triangle formed by an edge and the n2 point has negative area,
-        // it means that n2 is outside of the element.
-        if (min_area <= 0.0)
+        for (auto k=0; k<ed.ho_nodes.size()-1; k++)
         {
-          break;
+          std::vector<long> vec = {ed.ho_nodes[k], ed.ho_nodes[k+1]};
+          area = this->get_area(vec, n2);
+          vec.clear();
+
+          min_area = (min_area >= area) ? area : min_area;
+          // if the triangle formed by an edge and the n2 point has negative area,
+          // it means that n2 is outside of the element.
+          if (min_area <= 0.0)
+            break;
         }
       }
 

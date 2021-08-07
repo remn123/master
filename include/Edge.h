@@ -13,6 +13,7 @@ public:
   std::shared_ptr<Property> physical;
   std::shared_ptr<Property> computational;
   std::vector<long> nodes;
+  std::vector<long> ho_nodes;
   std::vector<fNode> fnodes;
 
   long left;

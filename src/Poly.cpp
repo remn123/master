@@ -1,5 +1,6 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <iomanip>
 
 #include <Helpers.h>
 #include <Poly.h>
@@ -19,10 +20,10 @@ void Poly::newton_raphson(double a, double b, unsigned int k, unsigned int n, do
     xn = x0 - this->Pn(a, b, n, x0) / (this->dPn(a, b, n, x0) - this->Pn(a, b, n, x0) * S);
     dx = std::abs(xn - x0);
     x0 = xn;
-    // if (counter % 100 == 0)
-    // {
-    //std::cout << std::setprecision(36)<< "[newton_raphson] - Iter(" << counter << "): Residue = " << log10(dx) << "; xn = " << xn << "; r = " << r << "\n";
-    // }
+    if (counter % 1000 == 500)
+    {
+      std::cout << std::setprecision(15)<< "[newton_raphson] - Iter(" << counter << "): Residue = " << log10(dx) << "; xn = " << xn << "; r = " << r << "\n";
+    }
     counter++;
   }
   this->nodes[k] = xn;

@@ -17,12 +17,9 @@ int main()
   fs::path cur_path = fs::current_path();
   auto mesh = std::make_shared<Mesh>(2);
 
-  //mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_16x16_Q4.msh").string());
-  //mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_32x32_lo.msh").string());
-  mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_32x32_ho.msh").string());
-  
+  mesh->read_gmsh((cur_path.parent_path() / "resources" / "airfoil" / "airfoil.msh").string());
 
-  int order = 5;
+  int order = 3;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
   /*
     1) Setup (all element in Mesh)
@@ -45,25 +42,19 @@ int main()
   Ghost::Mach = 0.2;
   Ghost::U = 0.2;
   Ghost::V = 0.0;
-  Ghost::rho = 1.0;
   //Ghost::T = (1.0 + Ghost::Mach*Ghost::Mach*(gamma-1.0)/2.0));
-  Ghost::p = 1.0/gamma; 
+  Ghost::p = 1.0/gamma;
+  Ghost::rho = 1.0;
   Ghost::T = (1.0/(gamma*Ghost::R));
-  Ghost::analytical_solution = FIELDS::CYLINDER_FIELD_MAPPING;
+  //Ghost::analytical_solution = FIELDS::CYLINDER_FIELD_MAPPING;
 
   sd->setup(
     mesh, 
-    FIELDS::CYLINDER_FIELD_MAPPING
+    FIELDS::DEFAULT_FIELD_MAPPING
   );
 
-  std::cout << "Saving Boundary Condition ...\n";
-  auto filename_bc = (cur_path.parent_path() / "results" / "cylinder" / "ho_ff" /  "bc" / "cylinder.vtk"  ).string();
-  mesh->to_vtk(filename_bc);
-
   std::cout << "Saving Initial Condition ...\n";
-  // auto filename = (cur_path.parent_path() / "results" / "cylinder" / "lo_32" / "pp_cylinder_").string();
-  //auto filename = (cur_path.parent_path() / "results" / "cylinder" / "lo_32_hosd" / "pp_cylinder_").string();
-  auto filename = (cur_path.parent_path() / "results" / "cylinder" / "ho_ff" / "pp_cylinder_").string();
+  auto filename = (cur_path.parent_path() / "results" / "airfoil" / "pp_airfoil_").string();
   std::string tstamp = std::to_string(0);
   tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
   sd->to_vtk(mesh, filename + tstamp + std::string{".vtk"});
@@ -86,7 +77,7 @@ int main()
       3.2) Check if it's already converged
       3.3) (if not) Apply time iteration then go to (2)
   */
-  double CFL = 0.1;
+  double CFL = 0.5;
   long MAX_ITER = 5E+5;
   int rk_order = 3;
   int stages = 3;
