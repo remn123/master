@@ -38,7 +38,7 @@ if (Boost_FOUND)
 
     # cylinder 
     add_executable(
-        master_exe 
+        cylinder_opt
         src/cases/cylinder/cylinder.cpp
     )
 
@@ -61,7 +61,7 @@ if (Boost_FOUND)
     # )
 
     target_link_libraries(
-        master_exe
+        cylinder_opt
         master_lib   
     )
 
@@ -78,6 +78,7 @@ if (Boost_FOUND)
         src/Poly.cpp
         src/SD.cpp
         src/Time.cpp
+        src/Weights.cpp
         #src/Solver.cpp
         include/Dict.h
         include/DVector.h
@@ -96,6 +97,7 @@ if (Boost_FOUND)
         include/Poly.h
         include/SD.h
         include/Time.h
+        include/Weights.h
         #include/Solver.h
 
     )
@@ -106,8 +108,8 @@ if (Boost_FOUND)
     
     find_package (Threads)
 
-    target_link_libraries(master_exe ${Boost_LIBRARY_DIRS})
-    target_link_libraries(master_exe ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(cylinder_opt ${Boost_LIBRARY_DIRS})
+    target_link_libraries(cylinder_opt ${CMAKE_THREAD_LIBS_INIT})
 
 
     # tests

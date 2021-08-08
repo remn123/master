@@ -56,14 +56,10 @@ int main()
     FIELDS::CYLINDER_FIELD_MAPPING
   );
 
-  std::cout << "Saving Boundary Condition ...\n";
-  auto filename_bc = (cur_path.parent_path() / "results" / "cylinder" / "ho_ff" /  "bc" / "cylinder.vtk"  ).string();
-  mesh->to_vtk(filename_bc);
-
   std::cout << "Saving Initial Condition ...\n";
   // auto filename = (cur_path.parent_path() / "results" / "cylinder" / "lo_32" / "pp_cylinder_").string();
   //auto filename = (cur_path.parent_path() / "results" / "cylinder" / "lo_32_hosd" / "pp_cylinder_").string();
-  auto filename = (cur_path.parent_path() / "results" / "cylinder" / "ho_ff" / "pp_cylinder_").string();
+  auto filename = (cur_path.parent_path() / "results" / "cylinder" / "ho_ff_opt" / "pp_cylinder_").string();
   std::string tstamp = std::to_string(0);
   tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
   sd->to_vtk(mesh, filename + tstamp + std::string{".vtk"});
@@ -87,7 +83,8 @@ int main()
       3.3) (if not) Apply time iteration then go to (2)
   */
   double CFL = 0.1;
-  long MAX_ITER = 5E+5;
+  //long MAX_ITER = 5E+5;
+  long MAX_ITER = 300;
   int rk_order = 3;
   int stages = 3;
   int size = mesh->Nel * (order * order)*4; // overall number of solution points

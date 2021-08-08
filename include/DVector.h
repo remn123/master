@@ -1,6 +1,9 @@
 #pragma once
 
 #include <vector>
+#include <boost/numeric/ublas/vector.hpp>
+
+typedef boost::numeric::ublas::vector<double> uvector;
 
 // Solution Class
 class DVector
@@ -15,9 +18,24 @@ public:
     this->q = std::vector<double>(4, 0.0);
     this->q = rhs.q; 
   };
+  DVector(const uvector &rhs) { 
+    auto size = rhs.size();
+    this->q = std::vector<double>(size, 0.0);
+    for (auto i=0; i<size; i++)
+      this->q[i] = rhs(i);
+  };
   ~DVector() { this->q.clear(); };
 
-  size_t size(void)
+  uvector as_uvector(void)
+  {
+    auto size = this->q.size();
+    uvector uQ = uvector(size);
+    for (auto i=0; i<size; i++)
+      uQ(i) = this->q[i];
+    return uQ;
+  }
+
+  std::size_t size(void)
   {
     return this->q.size();
   }

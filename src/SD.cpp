@@ -157,35 +157,182 @@ void SD<Equation>::create_nodes(void)
   }
 }
 
+// template <typename Equation>
+// void SD<Equation>::create_weights(void)
+// {
+//   typedef std::vector<double> DoubleArr1D;
+//   typedef std::vector<DoubleArr1D> DoubleArr2D;
+//   typedef std::vector<DoubleArr2D> DoubleArr3D;
+//   typedef std::vector<DoubleArr3D> DoubleArr4D;
+
+//   this->weights = DoubleArr4D(
+//       4,
+//       DoubleArr3D(
+//         (this->order + 1) * this->order, 
+//         DoubleArr2D(
+//           (this->order + 1) * this->order, 
+//           DoubleArr1D(2, 0.0)
+//         )
+//       )
+//   );
+
+//   this->d_weights = DoubleArr4D(
+//       4,
+//       DoubleArr3D(
+//         (this->order + 1) * this->order, 
+//         DoubleArr2D(
+//           (this->order + 1) * this->order, 
+//           DoubleArr1D(2, 0.0)
+//         )
+//       )
+//   );
+//   /* 
+//     weights[type][from][to]
+//       type:
+//         0: sp   -> x-fp
+//         1: sp   -> y-fp
+//         2: x-fp -> sp
+//         3: y-fp -> sp
+//       from, to:
+//         0:order*(order+1)-1
+//   */
+
+//   double csi, eta;
+//   double Lcsi, Leta;
+//   double dLcsi, dLeta;
+//   unsigned int i, j;
+//   unsigned int from=0, to=0, type=0;
+
+//   // type: 0/1) Interpolate from SP -> x-FP
+//   // Solution nodes
+//   Helpers<GL>::init();
+//   Helpers<GL>::set_nodes(this->order);
+
+//   Helpers<Lagrange>::init();
+//   Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
+//   for (auto &sp : this->snodes)
+//   {
+//     i = (int)from / this->order;
+//     j = from % this->order;
+    
+//     type = 0;
+//     for (auto &direction : this->fnodes)
+//     {
+//       to = 0;
+//       for (auto &fp : direction)
+//       {
+//         csi = fp.coords[0];
+//         eta = fp.coords[1];
+//         Lcsi = Helpers<Lagrange>::Pn(i, csi);
+//         Leta = Helpers<Lagrange>::Pn(j, eta);
+//         dLcsi = Helpers<Lagrange>::dPn(i, csi);
+//         dLeta = Helpers<Lagrange>::dPn(j, eta);
+
+//         this->weights[type][from][to][0] = Lcsi;
+//         this->weights[type][from][to][1] = Leta;
+//         this->d_weights[type][from][to][0] = dLcsi;
+//         this->d_weights[type][from][to][1] = dLeta;
+//         to++;
+//       }
+//       type++;
+//     }
+//     from++;
+//   }
+//   Helpers<Lagrange>::delete_nodes();
+//   Helpers<GL>::delete_nodes();
+
+//   // type: 2/3) Interpolate from x/y-FP -> SP
+//   // Flux nodes
+//   to = 0;
+//   for (auto &sp : this->snodes)
+//   {
+//     csi = sp.coords[0];
+//     eta = sp.coords[1];
+//     type = 2;
+//     for (auto &vec_lines : this->fnodes)
+//     {
+//       from = 0;
+//       for (auto &fp : vec_lines)
+//       {
+//         // index-1 is related to the flux direction (x/0 or y/1)
+//         if (type == 2) // csi
+//         { 
+//           // csi
+//           Helpers<GLL>::init();
+//           Helpers<GLL>::set_nodes(this->order+1);
+//           Helpers<Lagrange>::init();
+//           Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
+
+//           i = (int)from % (this->order + 1);
+//           Lcsi  = Helpers<Lagrange>::Pn(i, csi);
+//           dLcsi = Helpers<Lagrange>::dPn(i, csi);
+
+//           Helpers<Lagrange>::delete_nodes();
+//           Helpers<GLL>::delete_nodes();
+
+//           // eta
+//           Helpers<GL>::init();
+//           Helpers<GL>::set_nodes(this->order);
+
+//           Helpers<Lagrange>::init();
+//           Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
+
+//           j = (int)from / (this->order+1);
+//           Leta  = Helpers<Lagrange>::Pn(j, eta);
+//           dLeta = Helpers<Lagrange>::dPn(j, eta);
+          
+//           Helpers<Lagrange>::delete_nodes();
+//           Helpers<GL>::delete_nodes();
+//         } 
+//         else // eta
+//         {
+//           // csi
+//           Helpers<GL>::init();
+//           Helpers<GL>::set_nodes(this->order);
+
+//           Helpers<Lagrange>::init();
+//           Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
+
+//           i = (int)from / (this->order+1);
+//           Lcsi  = Helpers<Lagrange>::Pn(i, csi);
+//           dLcsi = Helpers<Lagrange>::dPn(i, csi);
+
+//           Helpers<Lagrange>::delete_nodes();
+//           Helpers<GL>::delete_nodes();
+
+//           // eta
+//           Helpers<GLL>::init();
+//           Helpers<GLL>::set_nodes(this->order+1);
+//           Helpers<Lagrange>::init();
+//           Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
+
+//           j = from % (this->order+1);
+//           Leta  = Helpers<Lagrange>::Pn(j, eta);
+//           dLeta = Helpers<Lagrange>::dPn(j, eta);
+          
+//           Helpers<Lagrange>::delete_nodes();
+//           Helpers<GLL>::delete_nodes();
+//         }
+//         this->weights[type][from][to][0] = Lcsi;
+//         this->weights[type][from][to][1] = Leta;
+//         this->d_weights[type][from][to][0] = dLcsi;
+//         this->d_weights[type][from][to][1] = dLeta;
+//         from++;
+//       }
+//       type++;
+//     }
+//     to++;
+//   }
+// }
+
 template <typename Equation>
 void SD<Equation>::create_weights(void)
 {
-  typedef std::vector<double> DoubleArr1D;
-  typedef std::vector<DoubleArr1D> DoubleArr2D;
-  typedef std::vector<DoubleArr2D> DoubleArr3D;
-  typedef std::vector<DoubleArr3D> DoubleArr4D;
+  auto fp_size = (this->order + 1) * this->order;
+  auto sp_size = this->order * this->order;
 
-  this->weights = DoubleArr4D(
-      4,
-      DoubleArr3D(
-        (this->order + 1) * this->order, 
-        DoubleArr2D(
-          (this->order + 1) * this->order, 
-          DoubleArr1D(2, 0.0)
-        )
-      )
-  );
+  this->weights = std::make_shared<Weights>(sp_size, fp_size);
 
-  this->d_weights = DoubleArr4D(
-      4,
-      DoubleArr3D(
-        (this->order + 1) * this->order, 
-        DoubleArr2D(
-          (this->order + 1) * this->order, 
-          DoubleArr1D(2, 0.0)
-        )
-      )
-  );
   /* 
     weights[type][from][to]
       type:
@@ -196,10 +343,11 @@ void SD<Equation>::create_weights(void)
       from, to:
         0:order*(order+1)-1
   */
-
+  
   double csi, eta;
   double Lcsi, Leta;
   double dLcsi, dLeta;
+  double value;
   unsigned int i, j;
   unsigned int from=0, to=0, type=0;
 
@@ -210,12 +358,13 @@ void SD<Equation>::create_weights(void)
 
   Helpers<Lagrange>::init();
   Helpers<Lagrange>::set_nodes(Helpers<GL>::get_nodes());
-  for (auto &sp : this->snodes)
+  for (auto &sp : this->snodes) // j
   {
     i = (int)from / this->order;
     j = from % this->order;
     
     type = 0;
+
     for (auto &direction : this->fnodes)
     {
       to = 0;
@@ -227,11 +376,13 @@ void SD<Equation>::create_weights(void)
         Leta = Helpers<Lagrange>::Pn(j, eta);
         dLcsi = Helpers<Lagrange>::dPn(i, csi);
         dLeta = Helpers<Lagrange>::dPn(j, eta);
+        value = Lcsi*Leta;
+        this->weights->set(type, to, from, value);
 
-        this->weights[type][from][to][0] = Lcsi;
-        this->weights[type][from][to][1] = Leta;
-        this->d_weights[type][from][to][0] = dLcsi;
-        this->d_weights[type][from][to][1] = dLeta;
+        // this->weights[type][from][to][0] = Lcsi;
+        // this->weights[type][from][to][1] = Leta;
+        // this->d_weights[type][from][to][0] = dLcsi;
+        // this->d_weights[type][from][to][1] = dLeta;
         to++;
       }
       type++;
@@ -264,7 +415,7 @@ void SD<Equation>::create_weights(void)
           Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
 
           i = (int)from % (this->order + 1);
-          Lcsi  = Helpers<Lagrange>::Pn(i, csi);
+          //Lcsi  = Helpers<Lagrange>::Pn(i, csi);
           dLcsi = Helpers<Lagrange>::dPn(i, csi);
 
           Helpers<Lagrange>::delete_nodes();
@@ -279,10 +430,12 @@ void SD<Equation>::create_weights(void)
 
           j = (int)from / (this->order+1);
           Leta  = Helpers<Lagrange>::Pn(j, eta);
-          dLeta = Helpers<Lagrange>::dPn(j, eta);
+          //dLeta = Helpers<Lagrange>::dPn(j, eta);
           
           Helpers<Lagrange>::delete_nodes();
           Helpers<GL>::delete_nodes();
+
+          value = dLcsi * Leta;
         } 
         else // eta
         {
@@ -295,7 +448,7 @@ void SD<Equation>::create_weights(void)
 
           i = (int)from / (this->order+1);
           Lcsi  = Helpers<Lagrange>::Pn(i, csi);
-          dLcsi = Helpers<Lagrange>::dPn(i, csi);
+          //dLcsi = Helpers<Lagrange>::dPn(i, csi);
 
           Helpers<Lagrange>::delete_nodes();
           Helpers<GL>::delete_nodes();
@@ -307,16 +460,16 @@ void SD<Equation>::create_weights(void)
           Helpers<Lagrange>::set_nodes(Helpers<GLL>::get_nodes());
 
           j = from % (this->order+1);
-          Leta  = Helpers<Lagrange>::Pn(j, eta);
+          //Leta  = Helpers<Lagrange>::Pn(j, eta);
           dLeta = Helpers<Lagrange>::dPn(j, eta);
           
           Helpers<Lagrange>::delete_nodes();
           Helpers<GLL>::delete_nodes();
+
+          value = Lcsi * dLeta;
         }
-        this->weights[type][from][to][0] = Lcsi;
-        this->weights[type][from][to][1] = Leta;
-        this->d_weights[type][from][to][0] = dLcsi;
-        this->d_weights[type][from][to][1] = dLeta;
+
+        this->weights->set(type, to, from, value);
         from++;
       }
       type++;
@@ -324,7 +477,6 @@ void SD<Equation>::create_weights(void)
     to++;
   }
 }
-
 
 // Auxiliar function
 template <typename Equation>
@@ -1100,8 +1252,10 @@ DVector SD<Equation>::interpolate_solution_to_fp(std::shared_ptr<Element> &e, co
   from = 0;
   for (auto &sp : this->snodes)
   {
-    Lcsi = this->weights[dir][from][to][0];
-    Leta = this->weights[dir][from][to][1];
+    // Lcsi = this->weights[dir][from][to][0];
+    // Leta = this->weights[dir][from][to][1];
+    Lcsi = 0.0;
+    Leta = 0.0;
     solution += ((Lcsi *Leta) * e->computational->Qsp[from]);
     from++;
   }
@@ -1170,21 +1324,35 @@ DVector SD<Equation>::interpolate_solution_to_fp(std::shared_ptr<Element> &e, co
 template <typename Equation>
 void SD<Equation>::interpolate_sp2fp(std::shared_ptr<Element> &e)
 {
-  unsigned int index, f_index;
-  index = 0;
+  int type;
+  type = 0;
   for (auto &vec_lines : this->fnodes)
   {
-    f_index = 0;
-    for (auto &node : vec_lines) // line nodes for a specific direction (x, y)
-    {
-      e->computational->Qfp[index][f_index] = 0.0;
-      auto vec = this->interpolate_solution_to_fp(e, this->fnodes[index][f_index], f_index, index);
-      e->computational->Qfp[index][f_index] = vec;
-
-      f_index++;
-    }
-    index++;
+    auto results = this->weights->prod(type, e->computational->Qsp); 
+    for (auto f_index=0; f_index<results.size(); f_index++)
+      e->computational->Qfp[type][f_index] = results[f_index];
+    type++;
   }
+
+  // index = 0;
+  // for (auto &vec_lines : this->fnodes)
+  // {
+  //   f_index = 0;
+  //   for (auto &node : vec_lines) // line nodes for a specific direction (x, y)
+  //   {
+  //     e->computational->Qfp[index][f_index] = 0.0;
+  //     auto vec = this->interpolate_solution_to_fp(
+  //       e, 
+  //       this->fnodes[index][f_index], 
+  //       f_index, 
+  //       index
+  //     );
+  //     e->computational->Qfp[index][f_index] = vec;
+
+  //     f_index++;
+  //   }
+  //   index++;
+  // }
 }
 
 // 3) Calculate Fluxes
@@ -1539,49 +1707,61 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
 template <>
 void SD<Euler>::interpolate_fp2sp(std::shared_ptr<Element> &e)
 {
-  double w=0.0;
-  double Lcsi, Leta;
-  double dLcsi, dLeta;
-  unsigned int i, j;
-  unsigned int index, s_index, f_index;
-  double J=0;
-
-  s_index = 0;
-  for (auto &node : this->snodes)
+  int type;
+  type = 0;
+  for (auto &vec_lines : this->fnodes)
   {
-    // for each solution point
-    // I will calculate the lagrange polynomial at its position
-    // interpolate the flux in (x/y) direction from fps
-    
-    index = 0;
-    for (auto &vec_lines : this->fnodes)
-    {
-      f_index = 0;
-      w = 0.0;
-      e->computational->dFcsp[index][s_index] = 0.0;
-      for (auto &point : vec_lines)
-      {
-        J = e->J[index+1][f_index];
-        if (index == 0) // csi
-        { 
-          dLcsi = this->d_weights[index+2][f_index][s_index][0];
-          Leta  = this->weights[index+2][f_index][s_index][1];  
-          w = dLcsi * Leta * J;
-        }
-        else
-        {
-          Lcsi = this->weights[index+2][f_index][s_index][0];
-          dLeta  = this->d_weights[index+2][f_index][s_index][1];  
-          w = Lcsi * dLeta * J;
-        }
-        
-        e->computational->dFcsp[index][s_index] += (w * e->computational->Fcfp[index][f_index]);
-        f_index++;
-      }
-      index++;
-    }
-    s_index++;
+    auto J = e->J[type+1];
+    auto results = this->weights->prod(type+2, e->computational->Fcfp[type], J); 
+    for (auto s_index=0; s_index<results.size(); s_index++)
+      e->computational->dFcsp[type][s_index] = results[s_index];
+      //(w * e->computational->Fcfp[index][f_index]);
+    type++;
   }
+
+  // double w=0.0;
+  // double Lcsi, Leta;
+  // double dLcsi, dLeta;
+  // unsigned int i, j;
+  // unsigned int index, s_index, f_index;
+  // double J=0;
+
+  // s_index = 0;
+  // for (auto &node : this->snodes)
+  // {
+  //   // for each solution point
+  //   // I will calculate the lagrange polynomial at its position
+  //   // interpolate the flux in (x/y) direction from fps
+    
+  //   index = 0;
+  //   for (auto &vec_lines : this->fnodes)
+  //   {
+  //     f_index = 0;
+  //     w = 0.0;
+  //     e->computational->dFcsp[index][s_index] = 0.0;
+  //     for (auto &point : vec_lines)
+  //     {
+  //       J = e->J[index+1][f_index];
+  //       if (index == 0) // csi
+  //       { 
+  //         dLcsi = this->d_weights[index+2][f_index][s_index][0];
+  //         Leta  = this->weights[index+2][f_index][s_index][1];  
+  //         w = dLcsi * Leta * J;
+  //       }
+  //       else
+  //       {
+  //         Lcsi = this->weights[index+2][f_index][s_index][0];
+  //         dLeta  = this->d_weights[index+2][f_index][s_index][1];  
+  //         w = Lcsi * dLeta * J;
+  //       }
+        
+  //       e->computational->dFcsp[index][s_index] += (w * e->computational->Fcfp[index][f_index]);
+  //       f_index++;
+  //     }
+  //     index++;
+  //   }
+  //   s_index++;
+  // }
 }
 
 template <>

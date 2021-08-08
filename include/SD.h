@@ -10,6 +10,7 @@
 #include <Ghost.h>
 #include <Mesh.h>
 #include <Node.h>
+#include <Weights.h>
 
 template <typename Equation>
 class SD
@@ -26,7 +27,8 @@ public:
 
   std::vector<std::vector<Node>> fnodes; // flux points (FP)
   std::vector<Node> snodes;              // solution points (SP)
-  std::vector<std::vector<std::vector<std::vector<double>>>> weights;
+  std::shared_ptr<Weights> weights;
+  //std::vector<std::vector<std::vector<std::vector<double>>>> weights;
   std::vector<std::vector<std::vector<std::vector<double>>>> d_weights;
   
 
