@@ -51,6 +51,8 @@ public:
   long donor;
   DVector analytical_solution;
   bool has_analytical_solution;
+  bool solved;
+  Node p_node;
 
 public:
   fNode(const std::vector<std::string> &);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <vector>
 #include <boost/numeric/ublas/vector.hpp>
 
@@ -15,8 +16,12 @@ public:
   DVector() { this->q = std::vector<double>(4, 0.0); };
   DVector(const std::vector<double> &sol) : q(sol){};
   DVector(const DVector &rhs) { 
-    this->q = std::vector<double>(4, 0.0);
-    this->q = rhs.q; 
+    // this->q = std::vector<double>(4, 0.0);
+    // this->q = {0.0, 0.0, 0.0, 0.0};
+    //this->q.clear();
+    // this->q.resize(rhs.q.size());
+    this->q = rhs.q;
+    // std::copy(rhs.q.begin(), rhs.q.end(), this->q.begin());
   };
   DVector(const uvector &rhs) { 
     auto size = rhs.size();
@@ -66,10 +71,16 @@ public:
 
     if (q_size > 0)
     {
-      for (unsigned int i = 0; i < this->q.size(); i++)
-      {
-        this->q[i] = (double)scalar;
-      }
+      // for (unsigned int i = 0; i < this->q.size(); i++)
+      // {
+      //   this->q[i] = (double)scalar;
+      // }
+      std::transform(
+        this->q.begin(), 
+        this->q.end(), 
+        this->q.begin(), 
+        [&scalar](auto& c){return scalar;}
+      );
     }
     else
     {
@@ -81,13 +92,13 @@ public:
   // Assigning a DVector
   DVector &operator=(const DVector &rhs)
   {
-    auto rhs_size = rhs.q.size();
+    // auto rhs_size = rhs.q.size();
 
     this->q.clear();
-    this->q.resize(rhs_size);
+    this->q.resize(rhs.q.size());
 
     this->q = rhs.q; // copy
-
+    // std::copy(rhs.q.begin(), rhs.q.end(),this->q.begin());
     return *this;
   }
 
@@ -109,10 +120,16 @@ public:
   template <typename T>
   DVector &operator+=(const T &scalar)
   {
-    for (unsigned int index = 0; index < this->q.size(); index++)
-    {
-      this->q[index] += scalar;
-    }
+    // for (unsigned int index = 0; index < this->q.size(); index++)
+    // {
+    //   this->q[index] += scalar;
+    // }
+    std::transform(
+        this->q.begin(), 
+        this->q.end(), 
+        this->q.begin(), 
+        [&scalar](auto& c){return c+scalar;}
+      );
     return *this;
   }
 
@@ -120,11 +137,14 @@ public:
   template <typename T>
   DVector &operator-=(const T &scalar)
   {
-    for (unsigned int index = 0; index < this->q.size(); index++)
-    {
-      this->q[index] -= (double)scalar;
-    }
-
+    // for (unsigned int index = 0; index < this->q.size(); index++)
+    // {
+    //   this->q[index] -= (double)scalar;
+    // }
+    std::transform(
+      this->q.begin(), this->q.end(), 
+      this->q.begin(), [&scalar](auto& c){return c-scalar;}
+    );
     return *this;
   }
 
@@ -134,13 +154,16 @@ public:
     {
       this->q.resize(rhs.q.size());
     }
-    unsigned int index = 0;
-    for (auto &val : rhs.q)
-    {
-      index++;
-      this->q[index - 1] += val;
-    }
-
+    // unsigned int index = 0;
+    // for (auto &val : rhs.q)
+    // {
+    //   index++;
+    //   this->q[index - 1] += val;
+    // }
+    std::transform(
+      this->q.begin(), this->q.end(), rhs.q.begin(), 
+      this->q.begin(), std::plus<double>()
+    );
     return *this;
   }
 
@@ -188,10 +211,14 @@ public:
   template <typename T>
   DVector &operator*=(const T &scalar)
   {
-    for (unsigned int index = 0; index < this->q.size(); index++)
-    {
-      this->q[index] *= (double)scalar;
-    }
+    // for (unsigned int index = 0; index < this->q.size(); index++)
+    // {
+    //   this->q[index] *= (double)scalar;
+    // }
+    std::transform(
+      this->q.begin(), this->q.end(), 
+      this->q.begin(), [&scalar](auto& c){return c*scalar;}
+    );
     return *this;
   }
 

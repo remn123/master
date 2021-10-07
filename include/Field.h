@@ -10,4 +10,5 @@ namespace FIELDS {
   std::vector<double> CYLINDER_FIELD_MAPPING (const Node&);
   std::vector<double> IMPLOSION_FIELD_MAPPING (const Node&);
   std::vector<double> RINGLEB_FIELD_MAPPING (const Node&);
+  std::vector<double> VORTEX_FIELD_MAPPING (const Node&);
 }

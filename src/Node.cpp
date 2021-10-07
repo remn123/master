@@ -110,6 +110,7 @@ fNode::fNode(const std::vector<std::string> &coordinates) : Node(coordinates)
   this->right = -1;
   this->analytical_solution = DVector{};
   this->has_analytical_solution = false;
+  this->solved = false;
 }
 
 fNode::fNode(double x, double y, double z) : Node(x, y, z)
@@ -118,6 +119,7 @@ fNode::fNode(double x, double y, double z) : Node(x, y, z)
   this->right = -1;
   this->analytical_solution = DVector{};
   this->has_analytical_solution = false;
+  this->solved = false;
 }
 
 fNode::fNode(long id, long local, const Node &n)
@@ -131,6 +133,7 @@ fNode::fNode(long id, long local, const Node &n)
   this->coords[2] = n.coords[2];
   this->analytical_solution = DVector{};
   this->has_analytical_solution = false;
+  this->solved = false;
 }
 
 fNode::fNode(long id, long local, long right, const std::vector<double> &coords)
@@ -144,6 +147,7 @@ fNode::fNode(long id, long local, long right, const std::vector<double> &coords)
   this->coords[2] = coords[2];
   this->analytical_solution = DVector{};
   this->has_analytical_solution = false;
+  this->solved = false;
 }
 
 fNode::fNode() : Node()
@@ -152,6 +156,7 @@ fNode::fNode() : Node()
   this->right = -1;
   this->analytical_solution = DVector{};
   this->has_analytical_solution = false;
+  this->solved = false;
 }
 
 fNode::~fNode(void)

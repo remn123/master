@@ -33,7 +33,7 @@ public:
   DVector beta;
 
   Time(double, long);
-  Time(double, long, int, int, size_t);
+  Time(double, long, int, int, size_t, int, double, double);
   virtual ~Time();
 
   void update(std::shared_ptr<Mesh> &, std::function<void(std::shared_ptr<Mesh> &)>);

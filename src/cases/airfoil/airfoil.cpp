@@ -19,7 +19,8 @@ int main()
 
   mesh->read_gmsh((cur_path.parent_path() / "resources" / "airfoil" / "airfoil.msh").string());
 
-  int order = 3;
+  int p = 1;
+  int order = p+1;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
   /*
     1) Setup (all element in Mesh)
@@ -50,11 +51,15 @@ int main()
 
   sd->setup(
     mesh, 
-    FIELDS::DEFAULT_FIELD_MAPPING
+    FIELDS::CYLINDER_FIELD_MAPPING
   );
 
+  auto filename_msh = (cur_path.parent_path() / "results" / "airfoil_v2" / "mesh" / "airfoil.vtk"  ).string();
+  mesh->to_vtk(filename_msh);
+
+
   std::cout << "Saving Initial Condition ...\n";
-  auto filename = (cur_path.parent_path() / "results" / "airfoil" / "pp_airfoil_").string();
+  auto filename = (cur_path.parent_path() / "results" / "airfoil_v2" / "pp_airfoil_").string();
   std::string tstamp = std::to_string(0);
   tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
   sd->to_vtk(mesh, filename + tstamp + std::string{".vtk"});
@@ -71,23 +76,24 @@ int main()
   std::cout << "Running solver first step\n";
   sd->solve(mesh);
 
+  double min_dx = sd->get_min_dx(mesh);
+  std::cout << "Minimum dx = " << min_dx << "\n";
+
   /*
     3) Time Marching Loop
       3.1) Calculate residue norm
       3.2) Check if it's already converged
       3.3) (if not) Apply time iteration then go to (2)
   */
-  double CFL = 0.5;
+  double CFL = 0.8;
   long MAX_ITER = 5E+5;
   int rk_order = 3;
   int stages = 3;
   int size = mesh->Nel * (order * order)*4; // overall number of solution points
 
-  auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>(CFL,
-                                                              MAX_ITER,
-                                                              stages,
-                                                              rk_order,
-                                                              size);
+  auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>(
+    CFL, MAX_ITER, stages, rk_order, size, p, Ghost::U, min_dx
+  );
   
   std::cout << "Time integration\n";
   time->loop(

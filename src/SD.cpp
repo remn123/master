@@ -4,6 +4,7 @@
 #include <any>
 #include <fstream>
 #include <functional>
+#include <future>
 #include <memory>
 #include <string>
 #include <sstream>
@@ -1013,13 +1014,16 @@ void SD<Euler>::boundary_condition(
       auto un = std::abs(u*nx + v*ny);
 
       // Riemann Invariants
-      R_m = Vn_in - 2.0*a_in/(gamma-1.0);
-      R_p = Vn_inf + 2.0*a_inf/(gamma-1.0);
+      // R_m = Vn_in - 2.0*a_in/(gamma-1.0);
+      // R_p = Vn_inf + 2.0*a_inf/(gamma-1.0);
+      R_p = Vn_in + 2.0*a_in/(gamma-1.0);
+      R_m = Vn_inf - 2.0*a_inf/(gamma-1.0);
 
       Vb   = (R_p + R_m)/2.0;
       a_bc = (gamma-1.0)*(R_p - R_m)/4.0;
 
-      auto Mach = std::abs(Vb/a_bc);
+      //auto Mach = std::abs(Vb/a_bc);
+      auto Mach = std::abs(Vn_in/a_in);
 
       if (Mach > 1.0) // Supersonic
       {
@@ -1054,33 +1058,6 @@ void SD<Euler>::boundary_condition(
         }
       }
 
-      // if (Vn_inf < 0) // INLET
-      // {
-      //   if (un < a_in) // Subsonic
-      //     R_p = Vn_in  + 2.0*a_in/(gamma-1.0);
-      //   else           // Supersonic
-      //     R_p = Vn_inf + 2.0*a_inf/(gamma-1.0);
-      //   R_m = Vn_inf - 2.0*a_inf/(gamma-1.0);
-      //   Vb   = (R_p + R_m)/2.0;
-      //   a_bc = (gamma-1.0)*(R_p - R_m)/4.0;
-      //   u_bc = u_inf + (Vb - Vn_inf)*nx;
-      //   v_bc = v_inf + (Vb - Vn_inf)*ny;
-      //   s_bc = a_inf*a_inf/(gamma*(std::pow(rho_inf, gamma-1.0)));
-      // }
-      // else // OUTLET
-      // {
-      //   if (un < a_in) // Subsonic
-      //     R_m = Vn_inf - 2.0*a_inf/(gamma-1.0);
-      //   else           // Supersonic
-      //     R_m = Vn_in - 2.0*a_in/(gamma-1.0);
-      //   R_p  = Vn_in  + 2.0*a_in/(gamma-1.0);
-      //   Vb   = (R_p + R_m)/2.0;
-      //   a_bc = (gamma-1.0)*(R_p - R_m)/4.0;
-      //   u_bc = u + (Vb - Vn_in)*nx;
-      //   v_bc = v + (Vb - Vn_in)*ny;
-      //   s_bc = a_in*a_in/(gamma*(std::pow(rho, gamma-1.0)));
-      // }
-      
       auto p_bc   = rho_bc*a_bc*a_bc/gamma;
       auto E_bc   = p_bc/(gamma - 1.0) + 0.5 * rho_bc * (u_bc * u_bc + v_bc * v_bc);
 
@@ -1328,9 +1305,11 @@ void SD<Equation>::interpolate_sp2fp(std::shared_ptr<Element> &e)
   type = 0;
   for (auto &vec_lines : this->fnodes)
   {
-    auto results = this->weights->prod(type, e->computational->Qsp); 
-    for (auto f_index=0; f_index<results.size(); f_index++)
-      e->computational->Qfp[type][f_index] = results[f_index];
+    //auto results = this->weights->prod(type, e->computational->Qsp); 
+    this->weights->prod(type, e->computational->Qsp, e->computational->Qfp[type]);
+    //e->computational->Qfp[type] = this->weights->prod(type, e->computational->Qsp);
+    // for (auto f_index=0; f_index<results.size(); f_index++)
+    //   e->computational->Qfp[type][f_index] = results[f_index];
     type++;
   }
 
@@ -1542,7 +1521,7 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
 {
   double rhoL, uL, vL, EL, pL, hL;
   double rhoR, uR, vR, ER, pR, hR;
-  double q1, q2, q3, q4;
+  // double q1, q2, q3, q4;
   double J_L, J_R, nxL, nxR, nyL, nyR, ds_dxL, ds_dyL, ds_dxR, ds_dyR;
   double ds_dx, ds_dy;
   double rho_ROE, ux_ROE, uy_ROE, h_ROE, ek_ROE, un_ROE, c_ROE;
@@ -1550,9 +1529,10 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
   double l1, l2, l3, l4;
   double alp1, alp2, alp3, alp4;
   DVector central_term, central_tan_term, upwind, fxL, fyL, fxR, fyR;
+  DVector fnormal, fnx, fny;
   int dirL=0, dirR=0;
   int ll_edge=0;
-  int signN = 1, signT = 1;
+  // int signN = 1, signT = 1;
   auto gamma = this->GAMMA;
   std::vector<double> normal;
   std::vector<std::vector<double>> T;
@@ -1562,7 +1542,7 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
   {
     dirL = (ll_edge == 0 || ll_edge == 2) ? 1 : 0; // 0: x, 1: y
     dirR = (ed.lr_edge == 0 || ed.lr_edge == 2) ? 1 : 0; // 0: x, 1: y
-    auto signN = ((ll_edge==0||ll_edge==3)) ? -1 : 1;
+    //auto signN = ((ll_edge==0||ll_edge==3)) ? -1 : 1;
 
     for (auto &fn : ed.fnodes)
     {
@@ -1579,10 +1559,10 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       hL = (EL + pL) / rhoL;
 
       // Physical Conserved Properties
-      q1 = rhoL;
-      q2 = rhoL*uL;
-      q3 = rhoL*vL;
-      q4 = EL;
+      // q1 = rhoL;
+      // q2 = rhoL*uL;
+      // q3 = rhoL*vL;
+      // q4 = EL;
 
       // Physical Fcfp_x
       fxL = DVector{{rhoL*uL,
@@ -1628,10 +1608,10 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
       hR = (ER + pR) / rhoR;
 
       // Physical Conserved Properties
-      q1 = rhoR;
-      q2 = rhoR*uR;
-      q3 = rhoR*vR;
-      q4 = ER;
+      // q1 = rhoR;
+      // q2 = rhoR*uR;
+      // q3 = rhoR*vR;
+      // q4 = ER;
 
       // Physical Fcfp_x
       fxR = DVector{{rhoR*uR,
@@ -1690,9 +1670,9 @@ void SD<Euler>::riemann_solver(std::shared_ptr<Element> &e, const std::vector<st
          0.5*std::abs(l1)*alp1*T[3][0] + 0.5*std::abs(l2)*alp2*T[3][1] + 0.5*std::abs(l3)*alp3*T[3][2] + 0.5*std::abs(l4)*alp4*T[3][3],
       };
 
-      auto fnormal = (central_term - upwind);
-      auto fnx = nx*fnormal - ny*central_tan_term;
-      auto fny = ny*fnormal + nx*central_tan_term;
+      fnormal = (central_term - upwind);
+      fnx = nx*fnormal - ny*central_tan_term;
+      fny = ny*fnormal + nx*central_tan_term;
      
       e->computational->Fcfp[dirL][fn.local] = ds_dxL*fnx + ds_dyL*fny;
       if (ed.right != -1 && elems[ed.right]->fringe != 2)
@@ -1711,10 +1691,12 @@ void SD<Euler>::interpolate_fp2sp(std::shared_ptr<Element> &e)
   type = 0;
   for (auto &vec_lines : this->fnodes)
   {
-    auto J = e->J[type+1];
-    auto results = this->weights->prod(type+2, e->computational->Fcfp[type], J); 
-    for (auto s_index=0; s_index<results.size(); s_index++)
-      e->computational->dFcsp[type][s_index] = results[s_index];
+    // auto J = e->J[type+1];
+    // auto results = this->weights->prod(type+2, e->computational->Fcfp[type], J); 
+    // e->computational->dFcsp[type] = this->weights->prod(type+2, e->computational->Fcfp[type], J);
+    this->weights->prod(type+2, e->computational->Fcfp[type], e->J[type+1], e->computational->dFcsp[type]);
+    // for (auto s_index=0; s_index<results.size(); s_index++)
+    //   e->computational->dFcsp[type][s_index] = results[s_index];
       //(w * e->computational->Fcfp[index][f_index]);
     type++;
   }
@@ -1824,7 +1806,8 @@ long SD<Equation>::mark_fringes_and_holes(std::shared_ptr<Static_Mesh>& backgrou
         if (g.type == PhysicalEnum::WALL)
           last_hole_cell = elem_id;
         if (g.type == PhysicalEnum::OVERSET)
-          background_msh->receivers.push_back(elem_id);
+          background_msh->receivers.insert(elem_id);
+        //  background_msh->receivers.push_back(elem_id);
       }
     }
   }
@@ -1844,9 +1827,9 @@ void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& background_msh,
   while (!stack.empty())
   {
     root = stack.back();
-    std::cout << "Pop: " << root << "\n";
+    //std::cout << "Pop: " << root << "\n";
     background_msh->elems[root]->fringe = 2;
-    std::cout << "Marking as hole: " << root << "\n";
+    //std::cout << "Marking as hole: " << root << "\n";
     stack.pop_back();
     for (auto& ed : background_msh->elems[root]->edges)
     {
@@ -1860,7 +1843,7 @@ void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& background_msh,
         if (background_msh->elems[child]->fringe == 0)
         {
           stack.push_back(child);
-          std::cout << "Stacking: " << child << "\n";
+          //std::cout << "Stacking: " << child << "\n";
         }
       }
     }
@@ -1878,13 +1861,24 @@ void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& ba
   auto num_ghosts = Ghost::num_ghosts;
   Ghost::num_ghosts = background_msh->Ngh;
   std::vector<fNode> fnodes = {};
-  std::vector<long> receivers = {};
+  //std::vector<long> receivers = {};
+  std::unordered_set<long> receivers = {};
   int local_id = -1;
   long elem_id = -1;
   bool create_ghost;
+  // DELETE AFTER TEST
+  long check_id = -1;
 
-  for (auto& r_id : background_msh->receivers)
+  std::vector<long> background_receivers = {};
+  for (auto id : background_msh->receivers)
+    background_receivers.push_back(id);
+
+  long size = background_receivers.size();
+  long r_id = 0;
+
+  for (auto index=0; index<size; index++)
   {
+    r_id = background_receivers[index];
     local_id = 0;
     for (auto& ed : background_msh->elems[r_id]->edges)
     {
@@ -1899,14 +1893,19 @@ void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& ba
           elem_id = nearbody_msh->mark_fringes(fn, PhysicalEnum::OVERSET);
           if (elem_id == -1) // not found
           {
-            background_msh->elems[ed.right]->fringe = 1;
-            background_msh->receivers.push_back(ed.right);
+            background_msh->elems[ed.right]->fringe = 3;
+            background_msh->receivers.insert(ed.right); 
+            if (background_msh->receivers.size() > size)
+            {
+              background_receivers.push_back(ed.right);
+              size++;
+            }
             fnodes.clear();
             create_ghost = false;
             break; // next edge
           }
           fn.donor = elem_id;
-          receivers.push_back(elem_id);
+          receivers.insert(elem_id);
         }
         if (create_ghost)
         {
@@ -1919,13 +1918,14 @@ void SD<Equation>::update_background_neighboors(std::shared_ptr<Static_Mesh>& ba
           background_msh->Ngh++;
 
           for (auto rec : receivers)
-            nearbody_msh->receivers.push_back(rec);
+            nearbody_msh->receivers.insert(rec);
           receivers.clear();
         }
       }
       local_id++;
     }
   }
+
   Ghost::num_ghosts = num_ghosts;
 }
 
@@ -1961,8 +1961,85 @@ void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& background_msh, 
 
 }
 
+
 template <>
-void SD<Euler>::communicate_data(std::shared_ptr<Static_Mesh>& receiver_msh, const std::shared_ptr<Static_Mesh>& donor_msh)
+Node& SD<Euler>::project_node(
+  fNode& fn,
+  Ghost &g,
+  std::shared_ptr<Static_Mesh>& receiver_msh, 
+  const std::shared_ptr<Static_Mesh>& donor_msh
+)
+{
+  if (fn.solved)
+    return fn.p_node;
+
+  boost::numeric::ublas::vector<double> guess(2);
+  boost::numeric::ublas::vector<double> solution(2);
+
+  auto b = fn.coords;
+  auto& receiver = receiver_msh->elems[g.elm_id];
+  auto& donor = donor_msh->elems[fn.donor];
+  // lambda function for ringleb flow x,y, V relation
+  auto f = [&](const boost::numeric::ublas::vector<double>& u, 
+                      boost::numeric::ublas::vector<double>& res) -> bool
+  {
+    auto csi = u(0);
+    auto eta = u(1);
+    auto result = donor->transform(Node{csi, eta, 0.0}, donor_msh->nodes);
+
+    res(0) = result.coords[0]-b[0];
+    res(1) = result.coords[1]-b[1];
+
+    return true;
+  };
+
+  // lambda function for ringleb flow x,y, V derivative relation
+  auto df = [&](const boost::numeric::ublas::vector<double>& u, 
+                      boost::numeric::ublas::matrix<double>& res) -> bool
+  {
+    auto csi = u(0);
+    auto eta = u(1);
+    auto Jm = donor->calculate_jacobian_matrix_at_node(Node{csi, eta, 0.0}, donor_msh->nodes);
+
+    res(0, 0) = Jm[0];
+    res(0, 1) = Jm[1];
+    res(1, 0) = Jm[2];
+    res(1, 1) = Jm[3];
+
+    return true;
+  };
+
+  // Finding
+  bool solved = false;
+  auto MAX_TRIES = 1E+03;
+  auto index = 0;
+
+  while (!solved)
+  {
+    guess(0) = (double) (std::rand() % 10) / 10.0;
+    guess(1) = (double) (std::rand() % 10) / 10.0;
+    solved = newton_raphson(guess, f, df, solution);
+    if (std::abs(solution(0)) > 1.0 || std::abs(solution(1)) > 1.0) solved=false;
+    if (index > MAX_TRIES) throw "ERROR: Max tries limit has been reached!";
+    index++;
+  }
+
+  auto check = donor->transform(Node{solution(0), solution(1), 0.0}, donor_msh->nodes);
+  int dir = (g.lr_edge == 0 || g.lr_edge == 2) ? 1 : 0;
+  auto comprec = this->fnodes[dir][fn.local];
+  if (std::abs(check.coords[0]-fn.coords[0])  > 1E-7 && std::abs(check.coords[1]-fn.coords[1]) > 1E-7) 
+    throw "ERROR: Wrong solution";
+
+  fn.p_node = Node{solution(0), solution(1), 0.0};
+  fn.solved = true;
+  return fn.p_node;
+}
+
+template <>
+void SD<Euler>::communicate_data(
+  std::shared_ptr<Static_Mesh>& receiver_msh, 
+  const std::shared_ptr<Static_Mesh>& donor_msh
+)
 {
   for (auto& g : receiver_msh->ghosts)
   {
@@ -1970,64 +2047,12 @@ void SD<Euler>::communicate_data(std::shared_ptr<Static_Mesh>& receiver_msh, con
     {
       for (auto& fn : g.fnodes)
       {
-        boost::numeric::ublas::vector<double> guess(2);
-        boost::numeric::ublas::vector<double> solution(2);
+        auto node_donor_ce = this->project_node(fn, g, receiver_msh, donor_msh);
 
-        auto b = fn.coords;
+        int dir = (g.lr_edge == 0 || g.lr_edge == 2) ? 1 : 0;
         auto& receiver = receiver_msh->elems[g.elm_id];
         auto& donor = donor_msh->elems[fn.donor];
-        // lambda function for ringleb flow x,y, V relation
-        auto f = [&](const boost::numeric::ublas::vector<double>& u, 
-                           boost::numeric::ublas::vector<double>& res) -> bool
-        {
-          auto csi = u(0);
-          auto eta = u(1);
-          auto result = donor->transform(Node{csi, eta, 0.0}, donor_msh->nodes);
 
-          res(0) = result.coords[0]-b[0];
-          res(1) = result.coords[1]-b[1];
-
-          return true;
-        };
-
-        // lambda function for ringleb flow x,y, V derivative relation
-        auto df = [&](const boost::numeric::ublas::vector<double>& u, 
-                            boost::numeric::ublas::matrix<double>& res) -> bool
-        {
-          auto csi = u(0);
-          auto eta = u(1);
-          auto Jm = donor->calculate_jacobian_matrix_at_node(Node{csi, eta, 0.0}, donor_msh->nodes);
-
-          res(0, 0) = Jm[0];
-          res(0, 1) = Jm[1];
-          res(1, 0) = Jm[2];
-          res(1, 1) = Jm[3];
-
-          return true;
-        };
-
-        // Finding
-        bool solved = false;
-        auto MAX_TRIES = 1E+03;
-        auto index = 0;
-
-        while (!solved)
-        {
-          guess(0) = (double) (std::rand() % 10) / 10.0;
-          guess(1) = (double) (std::rand() % 10) / 10.0;
-          solved = newton_raphson(guess, f, df, solution);
-          if (std::abs(solution(0)) > 1.0 || std::abs(solution(1)) > 1.0) solved=false;
-          if (index > MAX_TRIES) throw "ERROR: Max tries limit has been reached!";
-          index++;
-        }
-
-        auto check = donor->transform(Node{solution(0), solution(1), 0.0}, donor_msh->nodes);
-        int dir = (g.lr_edge == 0 || g.lr_edge == 2) ? 1 : 0;
-        auto comprec = this->fnodes[dir][fn.local];
-        if (std::abs(check.coords[0]-fn.coords[0])  > 1E-7 && std::abs(check.coords[1]-fn.coords[1]) > 1E-7) 
-          throw "ERROR: Wrong solution";
-        
-        auto node_donor_ce =  Node{solution(0), solution(1), 0.0};
         // Interpolation Solution within donor domain
         auto Qc_don = this->interpolate_solution_to_node(donor, node_donor_ce);
         // Calculating Donor Jacobian at the target node
@@ -2045,19 +2070,89 @@ void SD<Euler>::communicate_data(std::shared_ptr<Static_Mesh>& receiver_msh, con
   }
 }
 
+template <typename Equation>
+double SD<Equation>::get_min_dx(std::shared_ptr<Mesh>& mesh)
+{
+  long e_id = 0;
+  double min_dist = -1.0, dist = 0.0;
+  double dist1 = 0.0, dist2 = 0.0;
+  double xfp1, yfp1, zfp1;
+  double xfp2, yfp2, zfp2;
+  double xsp, ysp, zsp;
+  long closest;
+  long f_index, s_index;
+
+  for (auto &e : mesh->elems)
+  {
+    f_index = 0;
+    while (f_index < this->order * (this->order + 1))
+    {
+      auto nfp = e->transform(this->fnodes[0][f_index], mesh->nodes);
+      xfp1 = nfp.coords[0];
+      yfp1 = nfp.coords[1];
+      zfp1 = nfp.coords[2];
+
+      nfp = e->transform(this->fnodes[1][f_index], mesh->nodes);
+      xfp2 = nfp.coords[0];
+      yfp2 = nfp.coords[1];
+      zfp2 = nfp.coords[2];
+
+      s_index = 0;
+      while (s_index < this->order * this->order)
+      {
+        auto nsp = e->transform(this->snodes[s_index], mesh->nodes);
+        xsp = nsp.coords[0];
+        ysp = nsp.coords[1];
+        zsp = nsp.coords[2];
+
+        dist1 = std::sqrt(std::pow((xfp1 - xsp), 2.0) + std::pow((yfp1 - ysp), 2.0) + std::pow((zfp1 - zsp), 2.0));
+        dist2 = std::sqrt(std::pow((xfp2 - xsp), 2.0) + std::pow((yfp2 - ysp), 2.0) + std::pow((zfp2 - zsp), 2.0));
+        dist = (dist1 > dist2) ? dist2 : dist1;
+        if (min_dist > dist || min_dist < 0)
+          min_dist = dist;
+        s_index++;
+      }
+      f_index++;
+    }
+  }
+
+  return min_dist;
+}
+
+
+template <typename Equation>
+void SD<Equation>::interpolate_and_calculate_flux_sp(std::shared_ptr<Element>& e)
+{
+  if (e->fringe != 2) // not a hole cell
+  {
+    this->interpolate_sp2fp(e);
+    this->calculate_fluxes_fp(e);
+  }
+}
+
+template <typename Equation>
+void SD<Equation>::reconstruct_flux_and_residue(
+  std::shared_ptr<Element>& e, 
+  const std::vector<std::shared_ptr<Element>> & elems, 
+  const std::vector<Ghost> & ghosts) 
+{
+  if (e->fringe != 2) // not a hole cell
+  {
+    this->riemann_solver(e, elems, ghosts);
+    this->interpolate_fp2sp(e);
+    this->residue(e);
+  }
+}
+
+
+
 // 7) SOLVE
 template <typename Equation>
-void SD<Equation>::solve(std::shared_ptr<Mesh> &mesh)
+void SD<Equation>::solve(std::shared_ptr<Mesh>& mesh)
 {
   // Step 0)
   for (auto &e : mesh->elems)
-  {
-    if (e->fringe != 2) // not a hole cell
-    {
-      this->interpolate_sp2fp(e);
-      this->calculate_fluxes_fp(e);
-    }
-  }
+    this->interpolate_and_calculate_flux_sp(e);
 
   // Step 1)
   for (auto &g : mesh->ghosts)
@@ -2065,14 +2160,8 @@ void SD<Equation>::solve(std::shared_ptr<Mesh> &mesh)
     
   // Step 2)
   for (auto &e : mesh->elems)
-  {
-    if (e->fringe != 2) // not a hole cell
-    {
-      this->riemann_solver(e, mesh->elems, mesh->ghosts);
-      this->interpolate_fp2sp(e);
-      this->residue(e);
-    }
-  }
+    this->reconstruct_flux_and_residue(e, mesh->elems, mesh->ghosts);
+  
 }
 
 // 8) SAVE SOLUTION INTO A VTK FILE
@@ -2741,7 +2830,8 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
     // 1.1) First row:
     //      - Quad 1:
     auto evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
-    n1 = v_map.find(mesh->get_closest(e->transform(this->fnodes[1][0], mesh->nodes), evertices))->second; // nearest vertice from 0 y-FP
+    //n1 = v_map.find(mesh->get_closest(e->transform(this->fnodes[1][0], mesh->nodes), evertices))->second; // nearest vertice from 0 y-FP
+    n1 = v_map.find(evertices[0])->second; // nearest vertice from 0 y-FP
     global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + 0)->second;                        
     if (global_id<0) 
       n2 = nverts + nsps - (global_id+1);                                                                    // x-FP
@@ -2787,12 +2877,15 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
 
     //      - Quad 2:
     evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
+    
     global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + ((this->order + 1) * (this->order - 1)))->second;
     if (global_id<0)
       n1 = nverts + nsps - (global_id+1);                                                                                                           // x-FP
     else
       n1 = nverts + nsps + nxfps + global_id;                                                                                                   // y-FP
-    n2 = v_map.find(mesh->get_closest(e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)], mesh->nodes), evertices))->second;   // nearest vertice from 0 y-FP
+    //auto nn = e->transform(this->fnodes[1][(this->order + 1) * (this->order - 1)], mesh->nodes);
+    //auto closest_v = mesh->get_closest(nn, evertices);
+    n2 = v_map.find(evertices[1])->second;   // nearest vertice from 0 y-FP
     n3 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + this->order)->second;                                         // x-FP
     n4 = nverts + e->id * (this->order * this->order) + this->order * (this->order - 1);                                                        // SP
 
@@ -2893,7 +2986,8 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
       n3 = nverts + nsps - (global_id+1);                                                                                             // x-FP
     else
       n3 = nverts + nsps + nxfps + global_id;                                                                                     // y-FP
-    n4 = v_map.find(mesh->get_closest(e->transform(this->fnodes[1][this->order], mesh->nodes), evertices))->second;               // nearest vertice from n y-FP
+    //n4 = v_map.find(mesh->get_closest(e->transform(this->fnodes[1][this->order], mesh->nodes), evertices))->second;               // nearest vertice from n y-FP
+    n4 = v_map.find(evertices[3])->second;               // nearest vertice from n y-FP
 
     cells.push_back(std::string{"4 "} +
                     std::to_string(n1) + std::string{" "} +
@@ -2931,9 +3025,11 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
 
     //      - Quad 2:
     evertices = std::vector<long>(e->nodes.begin(), e->nodes.begin() + 4);
+
     n1 = nverts + e->id * (this->order * this->order) + this->order * this->order - 1;                                                       // SP
     n2 = nverts + nsps + xfp_map.find(e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1)->second;              // x-FP
-    n3 = v_map.find(mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1], mesh->nodes), evertices))->second;  // nearest vertice from n*(n+1)-1 x-FP
+    // n3 = v_map.find(mesh->get_closest(e->transform(this->fnodes[0][this->order * (this->order + 1) - 1], mesh->nodes), evertices))->second;  // nearest vertice from n*(n+1)-1 x-FP
+    n3 = v_map.find(evertices[2])->second;  // nearest vertice from n*(n+1)-1 x-FP
     global_id = yfp_map.find(e->id * (this->order * (this->order + 1)) + this->order * (this->order + 1) - 1)->second;
     if (global_id<0)
       n4 = nverts + nsps - (global_id+1);                                                                                                         // x-FP
@@ -2985,7 +3081,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
   // CELL_DATA 841
   // SCALARS boundary int 1
   // LOOKUP_TABLE default
-
+  
   output.close();
 }
 
@@ -3773,5 +3869,15 @@ void SD<NavierStokes>::residue(std::shared_ptr<Element> &e)
 
 template <>
 void SD<NavierStokes>::communicate_data(std::shared_ptr<Static_Mesh>& mesh1, const std::shared_ptr<Static_Mesh>& mesh2)
+{
+}
+
+template <>
+Node& SD<NavierStokes>::project_node(
+  fNode& fn,
+  Ghost &g,
+  std::shared_ptr<Static_Mesh>& receiver_msh, 
+  const std::shared_ptr<Static_Mesh>& donor_msh
+)
 {
 }

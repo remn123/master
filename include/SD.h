@@ -29,7 +29,7 @@ public:
   std::vector<Node> snodes;              // solution points (SP)
   std::shared_ptr<Weights> weights;
   //std::vector<std::vector<std::vector<std::vector<double>>>> weights;
-  std::vector<std::vector<std::vector<std::vector<double>>>> d_weights;
+  //std::vector<std::vector<std::vector<std::vector<double>>>> d_weights;
   
 
 private:
@@ -71,6 +71,7 @@ public:
   void interpolate_fp2sp(std::shared_ptr<Element> &);
   void residue(std::shared_ptr<Element> &);
   void update_fluxes(std::shared_ptr<Element> &, std::vector<std::shared_ptr<Element>> &);
+  double get_min_dx(std::shared_ptr<Mesh> &);
   // For Static_Meshes:
   void update_overset(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
   long mark_fringes_and_holes(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
@@ -78,6 +79,10 @@ public:
   void update_background_neighboors(std::shared_ptr<Static_Mesh>&, std::shared_ptr<Static_Mesh>&);
   void communicate_data(std::shared_ptr<Static_Mesh>&, const std::shared_ptr<Static_Mesh>&);
   
+  void interpolate_and_calculate_flux_sp(std::shared_ptr<Element> &);
+  void reconstruct_flux_and_residue(std::shared_ptr<Element> &, const std::vector<std::shared_ptr<Element>> &, const std::vector<Ghost> &);
+  Node& project_node(fNode&, Ghost &, std::shared_ptr<Static_Mesh>&, const std::shared_ptr<Static_Mesh>&);
+
 private:
   void _init_dvec(std::vector<DVector> &, size_t);
   void _init_dvec(std::vector<std::vector<DVector>> &, size_t);

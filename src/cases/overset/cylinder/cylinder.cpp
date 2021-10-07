@@ -4,6 +4,7 @@
 #include <string>
 #include <map>
 #include <memory>
+#include <valgrind/callgrind.h>
 
 #include <Dummies.h>
 #include <Mesh.h>
@@ -20,14 +21,20 @@ int main()
 
   // background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "cylinder_r100_bkgd_64x64.msh").string());
   // nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "cylinder_r100_body_64x64.msh").string());
-  background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "ho" / "cylinder_bkgd_16x16_ho.msh").string());
-  nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "ho" / "cylinder_body_16x16_4th.msh").string());
+  // background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "ho" / "cylinder_bkgd_16x16_ho.msh").string());
+  // nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "ho" / "cylinder_body_16x16_4th.msh").string());
+  background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "new" / "lo" / "cylinder_r100_bkgd_24x24_rf_Q1.msh").string());
+  nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "new" / "lo" / "cylinder_r100_body_16x16_Q1.msh").string());
+  // background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "new" / "ho" / "cylinder_r100_bkgd_32x32_Q4.msh").string());
+  // nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "new" / "ho" / "cylinder_r100_body_16x16_Q4.msh").string());
+  // background_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "new" / "lo" / "cylinder_r100_bkgd_24x24_rf_Q1.msh").string());
+  // nearbody_msh->read_gmsh((cur_path.parent_path() / "resources" / "overset" / "cylinder" / "new" / "ho" / "cylinder_r100_body_16x16_Q4.msh").string());
   
   // Creating kd-tree
   background_msh->create_kdtree();
   nearbody_msh->create_kdtree();
 
-  int p = 5;
+  int p = 1;
   int order = p+1;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
   /*
@@ -36,6 +43,9 @@ int main()
       1.2) Initialize solution and fluxes
   */
   Ghost::Mach = 0.2;
+  Ghost::U = 0.2;
+  Ghost::V = 0.0;
+  Ghost::rho = 1.0;
   Ghost::p = 1.0/1.4; 
   Ghost::analytical_solution = FIELDS::CYLINDER_FIELD_MAPPING;
 
@@ -56,11 +66,14 @@ int main()
   sd->communicate_data(background_msh, nearbody_msh);
   sd->communicate_data(nearbody_msh, background_msh);
   
+  double min_dx = sd->get_min_dx(nearbody_msh_);
+  std::cout << "Minimum dx = " << min_dx << "\n";
+
   // auto filename_bkgd = (cur_path.parent_path() / "results" / "overset" / "low"  / "fringes" / "background.vtk" ).string();
   // auto filename_body = (cur_path.parent_path() / "results" / "overset" / "low" /  "fringes" / "near_body.vtk"  ).string();
   
-  auto filename_bkgd = (cur_path.parent_path() / "results" / "overset" / "ho_v2"  / "fringes" / "background.vtk" ).string();
-  auto filename_body = (cur_path.parent_path() / "results" / "overset" / "ho_v2" /  "fringes" / "near_body.vtk"  ).string();
+  auto filename_bkgd = (cur_path.parent_path() / "results" / "overset" / "new"  /"lo"  / "fringes" / "background.vtk" ).string();
+  auto filename_body = (cur_path.parent_path() / "results" / "overset" / "new" / "lo" /  "fringes" / "near_body.vtk"  ).string();
 
   background_msh->to_vtk(filename_bkgd);
   nearbody_msh->to_vtk(filename_body);
@@ -68,8 +81,8 @@ int main()
   std::cout << "Saving Initial Condition ...\n";
   // filename_bkgd = (cur_path.parent_path() / "results" / "overset" / "low" / "iterations" / "pp_cylinder_bkgd_").string();
   // filename_body = (cur_path.parent_path() / "results" / "overset" / "low" / "iterations" / "pp_cylinder_body_").string();
-  filename_bkgd = (cur_path.parent_path() / "results" / "overset" / "ho_v2" / "iterations" / "pp_cylinder_bkgd_").string();
-  filename_body = (cur_path.parent_path() / "results" / "overset" / "ho_v2" / "iterations" / "pp_cylinder_body_").string();
+  filename_bkgd = (cur_path.parent_path() / "results" / "overset" / "new" / "lo" / "iterations" / "pp_cylinder_bkgd_").string();
+  filename_body = (cur_path.parent_path() / "results" / "overset" / "new" / "lo" / "iterations" / "pp_cylinder_body_").string();
   std::string tstamp = std::to_string(0);
   tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
   sd->to_vtk(background_msh_, filename_bkgd + tstamp + std::string{".vtk"});
@@ -95,29 +108,35 @@ int main()
       3.2) Check if it's already converged
       3.3) (if not) Apply time iteration then go to (2)
   */
-  double CFL = 3.0;
-  long MAX_ITER = 3E+4;
+  double CFL = 1.0;
+  long MAX_ITER = 5E+6;
   int rk_order = 3;
   int stages = 3;
   int size = (background_msh->Nel + nearbody_msh->Nel)*(order * order)*4; // overall number of solution points
 
-  auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>(CFL,
-                                                              MAX_ITER,
-                                                              stages,
-                                                              rk_order,
-                                                              size);
+  auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>(
+    CFL, MAX_ITER, stages, rk_order, size, p, Ghost::U, min_dx
+  );
   
   std::cout << "Time integration\n";
-  time->loop(
-    background_msh, 
-    nearbody_msh, 
-    [&sd](std::shared_ptr<Mesh> & m){sd->solve(m);},
-    [&sd](std::shared_ptr<Static_Mesh> & r, const std::shared_ptr<Static_Mesh> & d){sd->communicate_data(r, d);},
-    filename_bkgd,
-    filename_body,
-    [&sd](const std::shared_ptr<Mesh> & m, const std::string & f){sd->to_vtk(m, f);}
-  );
-
+  CALLGRIND_START_INSTRUMENTATION;
+  CALLGRIND_TOGGLE_COLLECT;
+  try {
+    time->loop(
+      background_msh, 
+      nearbody_msh, 
+      [&sd](std::shared_ptr<Mesh> & m){sd->solve(m);},
+      [&sd](std::shared_ptr<Static_Mesh> & r, const std::shared_ptr<Static_Mesh> & d){sd->communicate_data(r, d);},
+      filename_bkgd,
+      filename_body,
+      [&sd](const std::shared_ptr<Mesh> & m, const std::string & f){sd->to_vtk(m, f);}
+    );
+  } catch (const char* msg) {
+    std::cerr << msg;
+    throw;
+  }
+  CALLGRIND_TOGGLE_COLLECT;
+  CALLGRIND_STOP_INSTRUMENTATION;
   
   time->save(
     background_msh_, 

@@ -17,11 +17,9 @@ int main()
   fs::path cur_path = fs::current_path();
   auto mesh = std::make_shared<Mesh>(2);
 
-  //mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_16x16_Q4.msh").string());
-  // mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_32x32_lo.msh").string());
-  mesh->read_gmsh((cur_path.parent_path() / "resources" / "cylinder" / "cylinder_32x32_ho.msh").string());
+  mesh->read_gmsh((cur_path.parent_path() / "resources" / "vortex" / "vortex.msh").string());
 
-  int p = 4;
+  int p = 1;
   int order = p+1;
   auto sd = std::make_shared<SD<Euler>>(order, 2);
   /*
@@ -31,38 +29,67 @@ int main()
   */
   //Ghost::p = (1.0/1.4);
   auto gamma = 1.4;
-  auto rho_ref = 1.225;
-  auto temp_ref= 288.203086112494;
+  // auto rho_ref = 1.225;
+  // auto temp_ref= 288.203086112494;
+  // auto vel_ref = 340.2939905434710;
+  // auto gas_ref = temp_ref / std::pow(vel_ref, 2.0);
+  // auto ene_ref = rho_ref * std::pow(vel_ref, 2.0);
+  auto rho_ref = 1.0;
+  auto temp_ref= 300.0;
   auto vel_ref = 340.2939905434710;
   auto gas_ref = temp_ref / std::pow(vel_ref, 2.0);
   auto ene_ref = rho_ref * std::pow(vel_ref, 2.0);
-  auto R = 287.0;
-  auto Cv = R/(gamma-1.0);
+  auto R = 287.15;  
 
-  Ghost::R = R* gas_ref;
-  Ghost::Cv = Cv * gas_ref;
+  Ghost::R = R/gas_ref;
+  Ghost::p = 10E+5/(rho_ref*Ghost::R*temp_ref);
+  Ghost::Cv = R/(gamma-1.0);
+  Ghost::Cp = R*gamma/(gamma-1.0);
+  Ghost::Mach = 0.05;
+  Ghost::T = 300.0/temp_ref;
 
-  Ghost::Mach = 0.2;
-  Ghost::U = 0.2;
+  
+  Ghost::U = Ghost::Mach*std::sqrt(gamma*R*Ghost::T);
+  //Ghost::U = Ghost::Mach;
+  Ghost::V = Ghost::Mach*std::sqrt(gamma*R*Ghost::T);
+  //Ghost::T = (1.0 + Ghost::Mach*Ghost::Mach*(gamma-1.0)/2.0));
+  Ghost::rho = Ghost::p/(R*Ghost::T);
+  //Ghost::rho = 1.0;
+
+  // Ghost::Mach = 0.05;
+  // Ghost::U = Ghost::Mach;
+  // Ghost::V = 0.0;
+  // Ghost::rho = 1.0;
+  // Ghost::p = 1E+5;
+  // Ghost::T = 300.0;
+  // Ghost::R = 287.15;
+  
+  Ghost::Mach = 0.05;
+  Ghost::U = Ghost::Mach;
   Ghost::V = 0.0;
   Ghost::rho = 1.0;
-  //Ghost::T = (1.0 + Ghost::Mach*Ghost::Mach*(gamma-1.0)/2.0));
-  Ghost::p = 1.0/gamma; 
-  Ghost::T = (1.0/(gamma*Ghost::R));
-  Ghost::analytical_solution = FIELDS::CYLINDER_FIELD_MAPPING;
+  Ghost::p = 1E+5;
+  Ghost::T = 300.0;
+  Ghost::R = 287.15;
+  double min_dx = 0.1;
+  
+
+  //Ghost::analytical_solution = FIELDS::CYLINDER_FIELD_MAPPING;
 
   sd->setup(
     mesh, 
-    FIELDS::CYLINDER_FIELD_MAPPING
+    FIELDS::VORTEX_FIELD_MAPPING
   );
 
-  double min_dx = sd->get_min_dx(mesh);
-  std::cout << "Minimum dx = " << min_dx << "\n";
+  // double min_dx = sd->get_min_dx(mesh);
+  // std::cout << "Minimum dx = " << min_dx << "\n";
+
+  auto filename_msh = (cur_path.parent_path() / "results" / "vortex" / "mesh" / "vortex.vtk"  ).string();
+  mesh->to_vtk(filename_msh);
+
 
   std::cout << "Saving Initial Condition ...\n";
-  // auto filename = (cur_path.parent_path() / "results" / "cylinder" / "lo_32_opt_2" /  "iterations" / "pp_cylinder_").string();
-  //auto filename = (cur_path.parent_path() / "results" / "cylinder" / "lo_32_hosd" / "pp_cylinder_").string();
-  auto filename = (cur_path.parent_path() / "results" / "cylinder" / "test" / "pp_cylinder_").string();
+  auto filename = (cur_path.parent_path() / "results" / "vortex" / "iterations" / "pp_vortex_").string();
   std::string tstamp = std::to_string(0);
   tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
   sd->to_vtk(mesh, filename + tstamp + std::string{".vtk"});
@@ -85,8 +112,8 @@ int main()
       3.2) Check if it's already converged
       3.3) (if not) Apply time iteration then go to (2)
   */
-  double CFL = 0.8;
-  long MAX_ITER = 5E+5;
+  double CFL = 0.1;
+  long MAX_ITER = 5E+6;
   int rk_order = 3;
   int stages = 3;
   int size = mesh->Nel * (order * order)*4; // overall number of solution points

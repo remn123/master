@@ -21,8 +21,8 @@ public:
   Weights(int, int);
   ~Weights();
 
-  std::vector<DVector> prod(int , std::vector<DVector>&);
-  std::vector<DVector> prod(int , std::vector<DVector>&, std::vector<double>&);
+  void prod(int, std::vector<DVector>&, std::vector<DVector>&);
+  void prod(int, std::vector<DVector>&, std::vector<double>&, std::vector<DVector>&);
   void set(int, uint, uint, double);
 private:
   uvector _prod(int, uvector);

@@ -558,11 +558,12 @@ void Mesh::read_gmsh(const std::string &filename)
     Element::edges_map.clear();
     Ghost::tag_name_map.clear();
 
-    std::cout << "File <" + filename + "> has been read." << std::endl;
+    std::cout << "File <" + filename + "> has been read.\n";
+    std::cout << "Mesh with " << this->Nel << " elements.\n";
   }
   else
   {
-    std::cout << "File <" + filename + "> not found!" << std::endl;
+    std::cout << "File <" + filename + "> not found!\n";
   }
 }
 
@@ -1002,10 +1003,10 @@ long Static_Mesh::mark_fringes(const Node &n2, const PhysicalEnum& type)
   //std::cout << min_dist << std::endl;
   long closest = -1;
   closest = this->_search(n2, this->root, k, min_dist, this->root);
-  std::cout << "Test Node: " << n2.id << std::endl;
-  std::cout << "Closest: " << closest << std::endl;
+  // std::cout << "Test Node: " << n2.id << std::endl;
+  // std::cout << "Closest: " << closest << std::endl;
   long find_elm = this->_find_element(n2, this->nodes[closest].elems, type);
-  std::cout << "Find fringe at " << find_elm << std::endl;
+  // std::cout << "Find fringe at " << find_elm << std::endl;
   return find_elm;
 }
 

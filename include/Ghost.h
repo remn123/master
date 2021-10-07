@@ -29,6 +29,7 @@ public:
   std::shared_ptr<Property> computational;
   std::vector<fNode> fnodes;
   inline static double R = -1.0;
+  inline static double Cp = -1.0;
   inline static double Cv = -1.0;
   inline static double T = -1.0;
   inline static double p = -1.0;

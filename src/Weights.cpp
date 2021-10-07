@@ -17,18 +17,14 @@ Weights::~Weights()
 {
 }
 
-std::vector<DVector> Weights::prod(int type, std::vector<DVector>& Q)
+void Weights::prod(
+  int type, 
+  std::vector<DVector>& Q,
+  std::vector<DVector>& results
+)
 {
   std::size_t num_nodes = Q.size();
   std::size_t num_properties = Q[0].size();
-
-  std::vector<DVector> results;
-  
-  std::size_t nrows = this->_get_nrows(type);
-  results.clear();
-  results.resize(nrows); // number of nodes
-  for (auto &res : results)
-    res = DVector(std::vector<double>(num_properties, 0.0));
 
   for (std::size_t p_index=0; p_index<num_properties; p_index++)
   {
@@ -41,25 +37,27 @@ std::vector<DVector> Weights::prod(int type, std::vector<DVector>& Q)
     uvector result = this->_prod(type, u);
 
     // write
-    for (std::size_t n_index=0; n_index<nrows; n_index++)
+    for (std::size_t n_index=0; n_index<results.size(); n_index++)
       results[n_index][p_index] = result(n_index);
   }
   
-  return results;
+  //return results;
 }
 
-std::vector<DVector> Weights::prod(
-  int type, std::vector<DVector>& F, std::vector<double>& J
+void Weights::prod(
+  int type, std::vector<DVector>& F, 
+  std::vector<double>& J,
+  std::vector<DVector>& results
 ) {
   std::size_t num_nodes = F.size();
   std::size_t num_properties = F[0].size();
 
-  std::vector<DVector> results;
-  std::size_t nrows = this->_get_nrows(type);
-  results.clear();
-  results.resize(nrows); // number of nodes
-  for (auto &res : results)
-    res = DVector(std::vector<double>(num_properties, 0.0));
+  // std::vector<DVector> results;
+  // std::size_t nrows = this->_get_nrows(type);
+  // results.clear();
+  // results.resize(nrows); // number of nodes
+  // for (auto &res : results)
+  //   res = DVector(std::vector<double>(num_properties, 0.0));
 
   for (std::size_t p_index=0; p_index<num_properties; p_index++)
   {
@@ -72,11 +70,11 @@ std::vector<DVector> Weights::prod(
     uvector result = this->_prod(type, u);
 
     // write
-    for (std::size_t n_index=0; n_index<nrows; n_index++)
+    for (std::size_t n_index=0; n_index<results.size(); n_index++)
       results[n_index][p_index] = result(n_index);
   }
   
-  return results;
+  // return results;
 }
 
 uvector Weights::_prod(int type, uvector u)

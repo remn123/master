@@ -1,8 +1,10 @@
 #pragma once
 
-#include <memory>
-#include <math.h>
+#include <chrono>
 #include <iomanip>
+#include <future>
+#include <math.h>
+#include <memory>
 // #include <boost/numeric/ublas/vector.hpp>
 
 
@@ -21,14 +23,17 @@ template class Time<Explicit::SSPRungeKutta>;
 // Constructor
 template <>
 Time<Explicit::SSPRungeKutta>::Time(double CFL, long MAX_ITER,
-                                    int stages, int order, size_t size)
+                                    int stages, int order, size_t size,
+                                    int p, double Uinf, double dx)
 {
   this->CFL = CFL;
   this->MAX_ITER = MAX_ITER;
   this->stages = stages;
   this->order = order;
-  this->dt = -1.0;
+  //this->dt = -1.0;
   this->iter = 0;
+
+  this->dt = this->CFL * dx / (Uinf * (2.0 * p + 1.0));
 
   // Initialize DVectors
   for (auto i = 0; i <= stages; i++)
@@ -125,6 +130,9 @@ template <>
 void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
                                            std::function<void(std::shared_ptr<Mesh> &)> solve)
 {
+  // start timer
+  auto start = std::chrono::high_resolution_clock::now();
+
   // Strong-Stability-Preserving Runge Kutta(s,o) s-stage, o-order
   double L1 = 0.0;
   double L2 = 0.0;
@@ -136,7 +144,8 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
   // U(n+1) = U(s)
 
   //this->dt = CFL * dx / (U * (2.0 * p + 1.0)); // TO DO
-  this->dt = 0.01 * CFL;
+  
+  //this->dt = 0.01 * CFL;
 
   // Diferentes abordagens (preproc):
   // - const dx -> weak
@@ -239,8 +248,12 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
   L1 = mesh->get_residue_norm(0); // L1-norm
   L2 = mesh->get_residue_norm(1); // L2-norm
   Linf = mesh->get_residue_norm(2); // Linf-norm
-  if (this->iter % 100 == 0)
-    std::cout << "Iter[" << iter << "]: L1 = " << std::log10(L1) << "; L2 = " << log10(L2) << "; Linf = " << log10(Linf) << std::endl;
+
+  auto stop = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
+  if (this->iter % 10 == 0)
+    std::cout << "Iter[" << iter << "]: time/iter (" << duration.count() << " ms): L1 = " << std::log10(L1) << "; L2 = " << log10(L2) << "; Linf = " << log10(Linf) << std::endl;
   
   if (isinf(std::abs(log10(L2)))) throw "[Error]: Time iteration has diverged!\n";
   this->iter++;
@@ -254,6 +267,9 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
                                            std::function<void(std::shared_ptr<Static_Mesh> &, 
                                                               const std::shared_ptr<Static_Mesh> &)> communicate_data)
 {
+  // start timer
+  auto start = std::chrono::high_resolution_clock::now();
+
   // Strong-Stability-Preserving Runge Kutta(s,o) s-stage, o-order
   double L1 = 0.0;
   double L2 = 0.0;
@@ -264,15 +280,20 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
   // U(i)   = U(0) + dt*SUM(cik*Residue(U(k)))
   // U(n+1) = U(s)
 
-  //this->dt = CFL * dx / (U * (2.0 * p + 1.0)); // TO DO
-  this->dt = 0.001 * CFL;
-
   auto background_msh_ = std::static_pointer_cast<Mesh>(background_msh);
   auto nearbody_msh_   = std::static_pointer_cast<Mesh>(nearbody_msh);
+  std::vector<std::shared_ptr<Mesh>> meshes = {background_msh_, nearbody_msh_};
+  std::future<void> m_futures;
 
   // Deep Copy U(n) solution into a contiguous vector
   this->read_solution(background_msh, nearbody_msh, 0);
-  this->read_residue(background_msh, nearbody_msh, 0);
+  try {
+    this->read_residue(background_msh, nearbody_msh, 0);
+  } catch (const char* msg) {
+    std::cerr << msg;
+    throw;
+  }
+  
 
   this->Q[1] = this->Q[0] + dt * this->res[0];
   // writes solution into all mesh elements
@@ -281,22 +302,37 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
   communicate_data(background_msh, nearbody_msh);
   communicate_data(nearbody_msh, background_msh);
   // recalculates residue
-  solve(background_msh_);
-  solve(nearbody_msh_);
+  for (auto& mesh : meshes)
+    m_futures = std::async(std::launch::async, solve, std::ref(mesh));
+  m_futures.get();
+  
   // reads residue from meshes
-  this->read_residue(background_msh, nearbody_msh, 1);
+  try {
+    this->read_residue(background_msh, nearbody_msh, 1);
+  } catch (const char* msg) {
+    std::cerr << msg;
+    throw;
+  }
+  
 
-  this->Q[2] = (3.0/4.0)*this->Q[0] + (1.0/4.0)*this->Q[1] + (1.0/4.0)*dt * this->res[1];
+  this->Q[2] = this->Q[0]*(3.0/4.0) + this->Q[1]*(1.0/4.0) + this->res[1]*((1.0/4.0)*dt);
   // writes solution into all mesh elements
   this->write_solution(background_msh, nearbody_msh, 2);
   // Communicate data
   communicate_data(background_msh, nearbody_msh);
   communicate_data(nearbody_msh, background_msh);
   // recalculates residue
-  solve(background_msh_);
-  solve(nearbody_msh_);
+  for (auto& mesh : meshes)
+    m_futures = std::async(std::launch::async, solve, std::ref(mesh));
+  m_futures.get();
+
   // reads residue from meshes
-  this->read_residue(background_msh, nearbody_msh, 2);
+  try {
+    this->read_residue(background_msh, nearbody_msh, 2);
+  } catch (const char* msg) {
+    std::cerr << msg;
+    throw;
+  }
 
   this->Q[3] = (1.0/3.0)*this->Q[0] + (2.0/3.0)*this->Q[2] + (2.0/3.0)*dt * this->res[2];
   // writes solution into all mesh elements
@@ -304,20 +340,33 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
   // Communicate data
   communicate_data(background_msh, nearbody_msh);
   communicate_data(nearbody_msh, background_msh);
+  
   // recalculates residue
-  solve(background_msh_);
-  solve(nearbody_msh_);
-  // reads residue from mesh
-  this->read_residue(background_msh, nearbody_msh, 3);
+  for (auto& mesh : meshes)
+    m_futures = std::async(std::launch::async, solve, std::ref(mesh));
+  m_futures.get();
 
-  L1  = background_msh->get_residue_norm(0); // L1-norm
-  L1 += nearbody_msh->get_residue_norm(0); // L1-norm
+  // reads residue from mesh
+  try {
+    this->read_residue(background_msh, nearbody_msh, 3);
+  } catch (const char* msg) {
+    std::cerr << msg;
+    throw;
+  }
+  
+  auto stop = std::chrono::high_resolution_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+
   L2  = background_msh->get_residue_norm(1); // L2-norm
   L2 += nearbody_msh->get_residue_norm(1); // L2-norm
-  Linf  = background_msh->get_residue_norm(2); // Linf-norm
-  Linf += nearbody_msh->get_residue_norm(2); // Linf-norm
-  if (this->iter % 100 == 0)
-    std::cout << "Iter[" << iter << "]: L1 = " << std::log10(L1) << "; L2 = " << log10(L2) << "; Linf = " << log10(Linf) << std::endl;
+  if (this->iter % 10 == 0)
+  {
+    L1  = background_msh->get_residue_norm(0); // L1-norm
+    L1 += nearbody_msh->get_residue_norm(0); // L1-norm
+    Linf  = background_msh->get_residue_norm(2); // Linf-norm
+    Linf += nearbody_msh->get_residue_norm(2); // Linf-norm
+    std::cout << "Iter[" << iter << "]: time/iter ("<< duration.count() << " ms): L1 = " << std::log10(L1) << "; L2 = " << log10(L2) << "; Linf = " << log10(Linf) << std::endl;
+  }
   
   if (isinf(std::abs(log10(L2)))) throw "[Error]: Time iteration has diverged!\n";
   this->iter++;
@@ -370,7 +419,7 @@ void Time<Method>::loop(std::shared_ptr<Static_Mesh> &background_msh,
       throw;
     }
     
-    if (this->iter % 10 == 0)
+    if (this->iter % 1000 == 0)
     {
       std::string tstamp = std::to_string(this->iter);
       tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
@@ -468,10 +517,10 @@ void Time<Method>::read_solution(const std::shared_ptr<Static_Mesh> &background_
       for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
       {
         // std::cout << "BKG: " << e->computational->Qsp[s_index][j] << "\n";
-        if (isnan(e->computational->Qsp[s_index][j])) 
-          throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan solution " + std::to_string(j) + "\n";
-        if (isinf(std::abs(e->computational->Qsp[s_index][j]))) 
-          throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf solution " + std::to_string(j) + "\n";
+        // if (isnan(e->computational->Qsp[s_index][j])) 
+        //   throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan solution " + std::to_string(j) + "\n";
+        // if (isinf(std::abs(e->computational->Qsp[s_index][j]))) 
+        //   throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf solution " + std::to_string(j) + "\n";
         this->Q[k][index] = e->computational->Qsp[s_index][j];
         index++;
       }
@@ -487,10 +536,10 @@ void Time<Method>::read_solution(const std::shared_ptr<Static_Mesh> &background_
       for (auto j=0; j<e->computational->Qsp[s_index].size(); j++)
       {
         // std::cout << "NRB: " << e->computational->Qsp[s_index][j] << "\n";
-        if (isnan(e->computational->Qsp[s_index][j])) 
-          throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan solution " + std::to_string(j) + "\n";
-        if (isinf(std::abs(e->computational->Qsp[s_index][j]))) 
-          throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf solution " + std::to_string(j) + "\n";
+        // if (isnan(e->computational->Qsp[s_index][j])) 
+        //   throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan solution " + std::to_string(j) + "\n";
+        // if (isinf(std::abs(e->computational->Qsp[s_index][j]))) 
+        //   throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf solution " + std::to_string(j) + "\n";
         this->Q[k][index] = e->computational->Qsp[s_index][j];
         index++;
       }
@@ -627,10 +676,10 @@ void Time<Method>::read_residue(const std::shared_ptr<Static_Mesh> &background_m
       for (auto j=0; j<e->computational->res[s_index].size(); j++)
       {
         // std::cout << "rrBKG: e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
-        if (isnan(e->computational->res[s_index][j])) 
-          throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan residue\n";
-        if (isinf(std::abs(e->computational->res[s_index][j]))) 
-          throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf residue\n";
+        // if (isnan(e->computational->res[s_index][j])) 
+        //   throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan residue\n";
+        // if (isinf(std::abs(e->computational->res[s_index][j]))) 
+        //   throw "BackgroundMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf residue\n";
         
         this->res[k][index] = e->computational->res[s_index][j];
         // std::cout << "rrBKG: this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
@@ -648,10 +697,10 @@ void Time<Method>::read_residue(const std::shared_ptr<Static_Mesh> &background_m
       for (auto j=0; j<e->computational->res[s_index].size(); j++)
       {
         // std::cout << "rrNRB: e[" << e->id << "]->computational->res[" << s_index << "][" << j << "] = " << e->computational->res[s_index][j] << "\n";
-        if (isnan(e->computational->res[s_index][j])) 
-          throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan residue\n";
-        if (isinf(std::abs(e->computational->res[s_index][j]))) 
-          throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf residue\n";
+        // if (isnan(e->computational->res[s_index][j])) 
+        //   throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has nan residue\n";
+        // if (isinf(std::abs(e->computational->res[s_index][j]))) 
+        //   throw "NearBodyMesh: Element " + std::to_string(e->id) + " SP " + std::to_string(s_index) + " has inf residue\n";
         this->res[k][index] = e->computational->res[s_index][j];
         // std::cout << "rrNRB: this->res[" << k << "][" << index << "] = " << this->res[k][index] << "\n";
         index++;

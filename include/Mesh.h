@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include <functional>
+#include <unordered_set>
 
 #include <DVector.h>
 #include <Element.h>
@@ -81,7 +82,8 @@ public:
 	long root;
 	int dim;
 
-	std::vector<long> receivers;
+	//std::vector<long> receivers;
+	std::unordered_set<long> receivers;
 
 public:
 	Static_Mesh(int);
