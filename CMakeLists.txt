@@ -55,10 +55,10 @@ if (Boost_FOUND)
     # )
 
     # vortex
-    add_executable(
-        vortex
-        src/cases/vortex/vortex.cpp
-    )
+    # add_executable(
+    #     vortex
+    #     src/cases/vortex/vortex.cpp
+    # )
 
     # overset - cylinder 
     # add_executable(
@@ -66,8 +66,14 @@ if (Boost_FOUND)
     #     src/cases/overset/cylinder/cylinder.cpp
     # )
 
+    # overset - vortex 
+    add_executable(
+        overset_vortex
+        src/cases/overset/vortex/vortex.cpp
+    )
+
     target_link_libraries(
-        vortex
+        overset_vortex
         master_lib   
     )
 
@@ -114,8 +120,8 @@ if (Boost_FOUND)
     
     find_package (Threads)
 
-    target_link_libraries(vortex ${Boost_LIBRARY_DIRS})
-    target_link_libraries(vortex ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(overset_vortex ${Boost_LIBRARY_DIRS})
+    target_link_libraries(overset_vortex ${CMAKE_THREAD_LIBS_INIT})
 
 
     # tests

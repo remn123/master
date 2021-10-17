@@ -33,9 +33,9 @@ Time<Explicit::SSPRungeKutta>::Time(double CFL, long MAX_ITER,
   //this->dt = -1.0;
   this->iter = 0;
 
-  //this->dt = this->CFL * dx / (Uinf * (2.0 * p + 1.0));
-  auto deltat = 0.1/Uinf;
-  this->dt = this->CFL*deltat;
+  this->dt = this->CFL * dx / (Uinf * (2.0 * p + 1.0));
+  //auto deltat = 0.1/Uinf;
+  //this->dt = this->CFL*deltat;
 
   // Initialize DVectors
   for (auto i = 0; i <= stages; i++)
@@ -421,7 +421,7 @@ void Time<Method>::loop(std::shared_ptr<Static_Mesh> &background_msh,
       throw;
     }
     
-    if (this->iter % 1000 == 0)
+    if (this->iter % 10 == 0)
     {
       std::string tstamp = std::to_string(this->iter);
       tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');

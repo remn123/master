@@ -1792,8 +1792,10 @@ void SD<Euler>::residue(std::shared_ptr<Element> &e)
 }
 
 template <typename Equation>
-long SD<Equation>::mark_fringes_and_holes(std::shared_ptr<Static_Mesh>& background_msh, std::shared_ptr<Static_Mesh>& nearbody_msh)
-{
+long SD<Equation>::mark_fringes_and_holes(
+  std::shared_ptr<Static_Mesh>& background_msh, 
+  std::shared_ptr<Static_Mesh>& nearbody_msh
+){
   long elem_id = -1, last_hole_cell = -1;
   for (auto& g : nearbody_msh->ghosts) 
   {
@@ -1811,6 +1813,30 @@ long SD<Equation>::mark_fringes_and_holes(std::shared_ptr<Static_Mesh>& backgrou
       }
     }
   }
+
+  if (last_hole_cell == -1) 
+  {
+    for (auto& e : nearbody_msh->elems)
+    {
+      if(e->boundary == 0) // not a boundary
+      {
+        for (auto& ed : e->edges) 
+        {
+          for (auto& fn : ed.fnodes) 
+          {
+            elem_id = background_msh->mark_fringes(fn, PhysicalEnum::FARFIELD);
+            auto contains = background_msh->receivers.find(elem_id);
+            if (contains == background_msh->receivers.end())
+            {
+              last_hole_cell = background_msh->mark_fringes(fn, PhysicalEnum::WALL);
+              return last_hole_cell;
+            }
+          }
+        }
+      }
+    }
+  }
+
   return last_hole_cell;
 }
 
@@ -1829,6 +1855,14 @@ void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& background_msh,
     root = stack.back();
     //std::cout << "Pop: " << root << "\n";
     background_msh->elems[root]->fringe = 2;
+
+    auto index = 0;
+    for (auto& sp : this->snodes)
+    { 
+      background_msh->elems[root]->physical->Qsp[index] = 1.0;
+      background_msh->elems[root]->computational->Qsp[index] = background_msh->elems[root]->J[0][index];
+      index++;
+    }
     //std::cout << "Marking as hole: " << root << "\n";
     stack.pop_back();
     for (auto& ed : background_msh->elems[root]->edges)
@@ -1950,6 +1984,7 @@ void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& background_msh, 
       - If it is a hole or fringe, move to the next neighboor until all interior from the first holes until the fringe bound has been marked as hole.
       - Else, mark as a hole (fringe = 2)
   */
+  std::cout << "Last Hole Cell " << last_hole_cell << "\n";
   this->propagate_holes(background_msh, last_hole_cell);
 
   /*

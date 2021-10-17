@@ -27,32 +27,7 @@ int main()
       1.1) Calculate solution and fluxes points
       1.2) Initialize solution and fluxes
   */
-  //Ghost::p = (1.0/1.4);
   auto gamma = 1.4;
-  // auto rho_ref = 1.225;
-  // auto temp_ref= 288.203086112494;
-  // auto vel_ref = 340.2939905434710;
-  // auto gas_ref = temp_ref / std::pow(vel_ref, 2.0);
-  // auto ene_ref = rho_ref * std::pow(vel_ref, 2.0);
-  // auto rho_inf = 1.225;
-  // auto T_inf = 300.0;
-  // auto U_inf = 340.2939905434710;
-  //auto gas_ref = temp_ref / std::pow(vel_ref, 2.0);
-  // auto ene_ref = rho_ref * std::pow(vel_ref, 2.0);
-  // auto R = 287.15;  
-
-  // auto rho_inf = P_inf/(R_gas*T_inf);
-  // auto T_inf = 300.0;
-  // auto U_inf = 340.2939905434710;
-
-
-  // Ghost::Cp = R*gamma/(gamma-1.0);
-  // auto rho = rho_ref;
-  // auto p = rho_ref;
-  
-  // Ghost::R = R/gas_ref;
-  // Ghost::rho = std::exp(T/T_inf, (1.0/(gamma-1.0)));
-  // Ghost::p = p/p_ref;
   
   Ghost::Mach = 0.05;
   Ghost::U = Ghost::Mach;
@@ -64,44 +39,13 @@ int main()
   Ghost::rho = 1.0;
   Ghost::p = 1.0/gamma;
   
-  // Ghost::p = 10E+5/(rho_ref*Ghost::R*temp_ref);
-  // Ghost::Cv = R/(gamma-1.0);
-  // Ghost::Cp = R*gamma/(gamma-1.0);
-  // Ghost::Mach = 0.05;
-  // Ghost::T = 300.0/temp_ref;
-  // Ghost::U = Ghost::Mach*std::sqrt(gamma*R*Ghost::T);
-  //Ghost::U = Ghost::Mach;
-  // Ghost::V = Ghost::Mach*std::sqrt(gamma*R*Ghost::T);
-  //Ghost::T = (1.0 + Ghost::Mach*Ghost::Mach*(gamma-1.0)/2.0));
-  
-  //Ghost::rho = 1.0;
-
-  // Ghost::Mach = 0.05;
-  // Ghost::U = Ghost::Mach;
-  // Ghost::V = 0.0;
-  // Ghost::rho = 1.0;
-  // Ghost::p = 1E+5;
-  // Ghost::T = 300.0;
-  // Ghost::R = 287.15;
-  
-  // Ghost::Mach = 0.05;
-  // Ghost::U = Ghost::Mach;
-  // Ghost::V = 0.0;
-  // Ghost::rho = 1.0;
-  // Ghost::p = 1E+5;
-  // Ghost::T = 300.0;
-  // Ghost::R = 287.15;
-  //double min_dx = 0.1;
-  
-
-  //Ghost::analytical_solution = FIELDS::CYLINDER_FIELD_MAPPING;
-
   sd->setup(
     mesh, 
     FIELDS::VORTEX_FIELD_MAPPING
   );
 
-  double min_dx = sd->get_min_dx(mesh);
+  double min_dx = 0.1;
+  //double min_dx = sd->get_min_dx(mesh);
   // std::cout << "Minimum dx = " << min_dx << "\n";
 
   auto filename_msh = (cur_path.parent_path() / "results" / "output" / "vortex" / "3" / "mesh" / "vortex.vtk"  ).string();
