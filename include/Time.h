@@ -24,6 +24,7 @@ public:
   int order;
   double dt;
   long iter;
+  double tinf;
 
   
   std::vector<DVector> Q;
@@ -31,20 +32,27 @@ public:
   DVector res_sum;
   DVector alpha;
   DVector beta;
+  std::string log_path;
 
   Time(double, long);
-  Time(double, long, int, int, size_t, int, double, double);
+  Time(double, long, int, int, size_t, int, double, double, const std::string);
   virtual ~Time();
 
-  void update(std::shared_ptr<Mesh> &, std::function<void(std::shared_ptr<Mesh> &)>);
+  void update(
+    std::shared_ptr<Mesh> &, 
+    std::function<void(std::shared_ptr<Mesh> &)>,
+    std::function<std::vector<double>(std::shared_ptr<Mesh> &, double)>
+  );
   void update(std::shared_ptr<Static_Mesh> &,
               std::shared_ptr<Static_Mesh> &,
               std::function<void(std::shared_ptr<Mesh> &)>,
+              std::function<std::vector<double>(std::shared_ptr<Mesh> &, double)>,
               std::function<void(std::shared_ptr<Static_Mesh> &, 
                                  const std::shared_ptr<Static_Mesh> &)>);
   void loop(
     std::shared_ptr<Mesh> &, 
     std::function<void(std::shared_ptr<Mesh> &)>,
+    std::function<std::vector<double>(std::shared_ptr<Mesh> &, double)>,
     const std::string &,
     std::function<void(const std::shared_ptr<Mesh> &, const std::string &)>
   );
@@ -52,6 +60,7 @@ public:
     std::shared_ptr<Static_Mesh> &,
     std::shared_ptr<Static_Mesh> &, 
     std::function<void(std::shared_ptr<Mesh> &)>,
+    std::function<std::vector<double>(std::shared_ptr<Mesh> &, double)>,
     std::function<void(std::shared_ptr<Static_Mesh> &, 
                        const std::shared_ptr<Static_Mesh> &)>,
     const std::string &,
@@ -74,6 +83,7 @@ public:
   void save(const std::shared_ptr<Mesh> &,
             const std::string &,
             std::function<void(const std::shared_ptr<Mesh> &, const std::string &)>);
+  void save_log(const std::string &);
   double c(int, int);
 };
 

@@ -37,6 +37,7 @@ public:
   inline static double U = -1.0;
   inline static double V = -1.0;
   inline static double rho = -1.0;
+  inline static double time = -1.0;
   
   inline static std::any analytical_solution = {};
   inline static std::unordered_map<int, std::any> Qbnds = {};

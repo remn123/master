@@ -82,6 +82,7 @@ public:
   void interpolate_and_calculate_flux_sp(std::shared_ptr<Element> &);
   void reconstruct_flux_and_residue(std::shared_ptr<Element> &, const std::vector<std::shared_ptr<Element>> &, const std::vector<Ghost> &);
   Node& project_node(fNode&, Ghost &, std::shared_ptr<Static_Mesh>&, const std::shared_ptr<Static_Mesh>&);
+  std::vector<double> get_property_error_at_time(std::shared_ptr<Mesh>&, double);
 
 private:
   void _init_dvec(std::vector<DVector> &, size_t);

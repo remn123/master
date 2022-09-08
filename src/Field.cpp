@@ -337,56 +337,37 @@ std::vector<double> FIELDS::VORTEX_FIELD_MAPPING (const Node& n)
   double x = n.coords[0];
   double y = n.coords[1];
   
-  // r = std::sqrt(std::pow((x-xc), 2.0) + std::pow((y-yc), 2.0))/R;
-  // u = Ghost::U*(1.0-beta*(y-yc)*(std::exp(-std::pow(r, 2.0)/2.0))/R);
-  // v = Ghost::U*(beta*(x-xc)*(std::exp(-std::pow(r, 2.0)/2.0))/R);
-  // T = Ghost::T - std::pow(Ghost::U*beta, 2.0)*(std::exp(-std::pow(r, 2.0)))/(2.0*Ghost::Cp);
-
-  // rho = Ghost::rho*std::pow((T/Ghost::T), 1.0/(gamma-1.0));
-  // p = rho*Ghost::R*T;
-  
-  // double alpha = 0.0;
-  // double sigma = 1.0;
-  // auto f = (-0.5/std::pow(sigma, 2.0))*(std::pow((x-xc)/R, 2.0) + std::pow((y-yc)/R, 2.0));
-  // auto Omega = beta*std::exp(f);
-  // auto a_inf = std::sqrt(gamma*Ghost::p/std::pow(Ghost::T,  1.0/(gamma-1.0)));
-  // du = -(y-yc)*Omega/R;
-  // dv = +(x-xc)*Omega/R;
-  // dT = -(gamma-1.0)*std::pow(Omega, 2.0)/2.0;
-  
   double dx, dy;
   double rho, T, p;
   double beta, r, u, v, q, E, R, R_gas;
   double gamma = 1.4;
-  double xc = 0.05;
-  double yc = 0.05;
+  double xc = 0.0;
+  double yc = 0.0;
 
-  beta = 1.0/50.0;
-  R = 0.005;
+  beta = 5.0;
 
-  dx = (x-xc)/R;
-  dy = (y-yc)/R;
+  dx = (x-xc);
+  dy = (y-yc);
   r = std::sqrt(dx*dx + dy*dy);
-  auto e_rsqr = std::exp(-std::pow(r, 2.0));
+  auto e_rsqr = std::exp(1.0-std::pow(r, 2.0));
 
-  R_gas = Ghost::R;
-  auto M_inf = Ghost::Mach;
+  u = Ghost::U-dy*beta*std::sqrt(e_rsqr)/(2.0*M_PI);
+  v = Ghost::V+dx*beta*std::sqrt(e_rsqr)/(2.0*M_PI);
+  rho = std::pow((1.0 - (gamma-1.0)*std::pow(beta, 2.0)*e_rsqr/(8.0*gamma*std::pow(M_PI, 2.0))), (1.0/(gamma-1.0)));
+  p = std::pow(rho, gamma);
+
+  R_gas = Ghost::R;  
   auto T_inf = Ghost::T;
-  auto p_inf = 10E+5;
+  auto p_inf = Ghost::p;
   auto c_inf = std::sqrt(gamma*R_gas*T_inf);
-  auto Cp = R_gas*(gamma/(gamma-1.0));
+  auto rho_inf = Ghost::rho;
 
-  T = 1.0/std::pow(c_inf, 2.0) - std::pow(M_inf*beta, 2.0)*e_rsqr/(2.0*Cp);
-  rho = std::pow(T*std::pow(c_inf, 2.0), (1.0/(gamma-1.0)));
-  p = rho*R_gas*T*T_inf;
-  u = M_inf*(1.0-beta*dy*std::sqrt(e_rsqr));
-  v = M_inf*beta*dx*std::sqrt(e_rsqr);  
-  
-  // rho = std::pow(1.0 + dT, 1.0/(gamma-1.0));
-  // u = Ghost::Mach*1.0 + du;
-  // v = dv;
-  // p = ((1.0/gamma)*std::pow(1.0 + dT, gamma/(gamma-1.0)));
-  //p = (rho*std::pow(1.0 + dT, 1.0/(gamma-1.0)))/gamma;
+  // Adimensionalization
+  rho = rho/rho_inf;
+  u = u/c_inf;
+  v = v/c_inf;
+  p = p/(rho_inf*std::pow(c_inf, 2.0));
+
   q = std::sqrt(std::pow(u, 2.0)+std::pow(v, 2.0));
   E = p/(gamma-1.0) + rho*(std::pow(q, 2.0))/2.0;
 
@@ -398,3 +379,181 @@ std::vector<double> FIELDS::VORTEX_FIELD_MAPPING (const Node& n)
   return vec;
 };
 
+std::vector<double> FIELDS::VORTEX_T_FIELD_MAPPING (const Node& n)
+{
+  std::vector<double> vec(4, 0.0);
+  
+  // Coordinates
+  double x = n.coords[0];
+  double y = n.coords[1];
+  
+  double dx, dy;
+  double rho, T, p;
+  double beta, r, u, v, q, E, R, R_gas;
+  double gamma = 1.4;
+  double xc = 0.0;
+  double yc = 0.0;
+
+  auto time = Ghost::time;
+
+  xc = xc + Ghost::U*time;
+  yc = yc + Ghost::V*time;
+  //std::cout << "xc = " << xc << "; " << "yc = " << yc << "\n";
+  beta = 5.0;
+
+  dx = (x-xc);
+  dy = (y-yc);
+  r = std::sqrt(dx*dx + dy*dy);
+  auto e_rsqr = std::exp(1.0-std::pow(r, 2.0));
+
+  u = Ghost::U-dy*beta*std::sqrt(e_rsqr)/(2.0*M_PI);
+  v = Ghost::V+dx*beta*std::sqrt(e_rsqr)/(2.0*M_PI);
+  rho = std::pow((1.0 - (gamma-1.0)*std::pow(beta, 2.0)*e_rsqr/(8.0*gamma*std::pow(M_PI, 2.0))), (1.0/(gamma-1.0)));
+  p = std::pow(rho, gamma);
+
+  R_gas = Ghost::R;  
+  auto T_inf = Ghost::T;
+  auto p_inf = Ghost::p;
+  auto c_inf = std::sqrt(gamma*R_gas*T_inf);
+  auto rho_inf = Ghost::rho;
+
+  // Adimensionalization
+  rho = rho/rho_inf;
+  u = u/c_inf;
+  v = v/c_inf;
+  p = p/(rho_inf*std::pow(c_inf, 2.0));
+
+  q = std::sqrt(std::pow(u, 2.0)+std::pow(v, 2.0));
+  E = p/(gamma-1.0) + rho*(std::pow(q, 2.0))/2.0;
+
+  vec[0] = rho; 
+  vec[1] = rho*u; 
+  vec[2] = rho*v; 
+  vec[3] = E; 
+
+  return vec;
+};
+
+// std::vector<double> FIELDS::VORTEX_FIELD_MAPPING (const Node& n)
+// {
+//   std::vector<double> vec(4, 0.0);
+  
+//   // Coordinates
+//   double x = n.coords[0];
+//   double y = n.coords[1];
+  
+//   double dx, dy;
+//   double rho, T, p;
+//   double beta, r, u, v, q, E, R, R_gas;
+//   double gamma = 1.4;
+//   double xc = 0.05;
+//   double yc = 0.05;
+
+//   beta = 1.0/50.0;
+//   R = 0.005;
+
+//   dx = (x-xc)/R;
+//   dy = (y-yc)/R;
+//   r = std::sqrt(dx*dx + dy*dy);
+//   auto e_rsqr = std::exp(-std::pow(r, 2.0));
+
+//   R_gas = Ghost::R;  
+//   auto M_inf = Ghost::Mach;
+//   auto T_inf = Ghost::T;
+//   auto p_inf = Ghost::p;
+//   auto c_inf = std::sqrt(gamma*R_gas*T_inf);
+//   auto U_inf = M_inf*c_inf;
+//   auto rho_inf = Ghost::rho;
+//   auto Cp = R_gas*(gamma/(gamma-1.0));
+
+//   u = U_inf*(1.0-beta*dy*std::sqrt(e_rsqr));
+//   v = U_inf*beta*(dx*std::sqrt(e_rsqr));
+//   T = T_inf-std::pow(c_inf*beta, 2.0)*e_rsqr/(2.0*Cp);
+//   rho = rho_inf*std::pow((T/T_inf), (1.0/(gamma-1.0)));
+//   p = rho*R_gas*T;
+
+//   // Adimensionalization
+//   rho = rho/rho_inf;
+//   u = u/c_inf;
+//   v = v/c_inf;
+//   p = p/(rho_inf*std::pow(c_inf, 2.0));
+
+//   q = std::sqrt(std::pow(u, 2.0)+std::pow(v, 2.0));
+//   E = p/(gamma-1.0) + rho*(std::pow(q, 2.0))/2.0;
+
+//   vec[0] = rho; 
+//   vec[1] = rho*u; 
+//   vec[2] = rho*v; 
+//   vec[3] = E; 
+
+//   return vec;
+// };
+
+// std::vector<double> FIELDS::VORTEX_FIELD_MAPPING_2 (const Node& n)
+// {
+//   std::vector<double> vec(4, 0.0);
+  
+//   // Coordinates
+//   double x = n.coords[0];
+//   double y = n.coords[1];
+  
+//   // r = std::sqrt(std::pow((x-xc), 2.0) + std::pow((y-yc), 2.0))/R;
+//   // u = Ghost::U*(1.0-beta*(y-yc)*(std::exp(-std::pow(r, 2.0)/2.0))/R);
+//   // v = Ghost::U*(beta*(x-xc)*(std::exp(-std::pow(r, 2.0)/2.0))/R);
+//   // T = Ghost::T - std::pow(Ghost::U*beta, 2.0)*(std::exp(-std::pow(r, 2.0)))/(2.0*Ghost::Cp);
+
+//   // rho = Ghost::rho*std::pow((T/Ghost::T), 1.0/(gamma-1.0));
+//   // p = rho*Ghost::R*T;
+  
+//   // double alpha = 0.0;
+//   // double sigma = 1.0;
+//   // auto f = (-0.5/std::pow(sigma, 2.0))*(std::pow((x-xc)/R, 2.0) + std::pow((y-yc)/R, 2.0));
+//   // auto Omega = beta*std::exp(f);
+//   // auto a_inf = std::sqrt(gamma*Ghost::p/std::pow(Ghost::T,  1.0/(gamma-1.0)));
+//   // du = -(y-yc)*Omega/R;
+//   // dv = +(x-xc)*Omega/R;
+//   // dT = -(gamma-1.0)*std::pow(Omega, 2.0)/2.0;
+  
+//   double dx, dy;
+//   double rho, T, p;
+//   double beta, r, u, v, q, E, R, R_gas;
+//   double gamma = 1.4;
+//   double xc = 0.05;
+//   double yc = 0.05;
+
+//   beta = 1.0/50.0;
+//   R = 0.005;
+
+//   dx = (x-xc)/R;
+//   dy = (y-yc)/R;
+//   r = std::sqrt(dx*dx + dy*dy);
+//   auto e_rsqr = std::exp(-std::pow(r, 2.0));
+
+//   R_gas = Ghost::R;
+//   auto M_inf = Ghost::Mach;
+//   auto T_inf = Ghost::T;
+//   auto p_inf = 10E+5;
+//   auto c_inf = std::sqrt(gamma*R_gas*T_inf);
+//   auto Cp = R_gas*(gamma/(gamma-1.0));
+
+//   T = 1.0/std::pow(c_inf, 2.0) - std::pow(M_inf*beta, 2.0)*e_rsqr/(2.0*Cp);
+//   rho = std::pow(T*std::pow(c_inf, 2.0), (1.0/(gamma-1.0)));
+//   p = rho*R_gas*T*T_inf;
+//   u = M_inf*(1.0-beta*dy*std::sqrt(e_rsqr));
+//   v = M_inf*beta*dx*std::sqrt(e_rsqr);  
+  
+//   // rho = std::pow(1.0 + dT, 1.0/(gamma-1.0));
+//   // u = Ghost::Mach*1.0 + du;
+//   // v = dv;
+//   // p = ((1.0/gamma)*std::pow(1.0 + dT, gamma/(gamma-1.0)));
+//   //p = (rho*std::pow(1.0 + dT, 1.0/(gamma-1.0)))/gamma;
+//   q = std::sqrt(std::pow(u, 2.0)+std::pow(v, 2.0));
+//   E = p/(gamma-1.0) + rho*(std::pow(q, 2.0))/2.0;
+
+//   vec[0] = rho; 
+//   vec[1] = rho*u; 
+//   vec[2] = rho*v; 
+//   vec[3] = E; 
+
+//   return vec;
+// };

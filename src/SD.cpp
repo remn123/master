@@ -1000,13 +1000,25 @@ void SD<Euler>::boundary_condition(
       auto E = (1.0/J)*elems[g.elm_id]->computational->Qfp[dir][fn.right][3];
       auto p = (gamma - 1.0) * (E - 0.5 * rho * (u * u + v * v));
 
-      auto u_inf   = Ghost::U;
-      auto v_inf   = Ghost::V;
-      auto rho_inf = Ghost::rho;
-      auto p_inf   = Ghost::p;
+      auto u_inf_phys = Ghost::U;
+      auto v_inf_phys = Ghost::V;
+      auto rho_inf_phys = Ghost::rho;
+      auto p_inf_phys = Ghost::p;
+      auto a_inf_phys = std::sqrt(gamma*p_inf_phys/rho_inf_phys);
+
+      auto u_inf   = u_inf_phys/a_inf_phys;
+      auto v_inf   = v_inf_phys/a_inf_phys;
+      auto rho_inf = 1.0;
+      auto p_inf   = p_inf_phys/(rho_inf_phys*std::pow(a_inf_phys, 2.0));
+      auto a_inf   = std::sqrt(gamma*p_inf/rho_inf);
+
+      // auto u_inf   = u_inf_phys;
+      // auto v_inf   = v_inf_phys;
+      // auto rho_inf = 1.0;
+      // auto p_inf   = 1.0;
+      // auto a_inf   = 1.0;
 
       auto a_in = std::sqrt(gamma*p/rho);
-      auto a_inf = std::sqrt(gamma*p_inf/rho_inf);
       auto Vn_in = u*nx + v*ny;
       auto Vn_inf = u_inf*nx + v_inf*ny;
       auto R_p=0.0, R_m=0.0, Vb=0.0, a_bc=0.0;
@@ -1856,13 +1868,13 @@ void SD<Equation>::propagate_holes(std::shared_ptr<Static_Mesh>& background_msh,
     //std::cout << "Pop: " << root << "\n";
     background_msh->elems[root]->fringe = 2;
 
-    auto index = 0;
-    for (auto& sp : this->snodes)
-    { 
-      background_msh->elems[root]->physical->Qsp[index] = 1.0;
-      background_msh->elems[root]->computational->Qsp[index] = background_msh->elems[root]->J[0][index];
-      index++;
-    }
+    // auto index = 0;
+    // for (auto& sp : this->snodes)
+    // { 
+    //   background_msh->elems[root]->physical->Qsp[index] = 1.0;
+    //   background_msh->elems[root]->computational->Qsp[index] = background_msh->elems[root]->J[0][index];
+    //   index++;
+    // }
     //std::cout << "Marking as hole: " << root << "\n";
     stack.pop_back();
     for (auto& ed : background_msh->elems[root]->edges)
@@ -1993,6 +2005,20 @@ void SD<Equation>::update_overset(std::shared_ptr<Static_Mesh>& background_msh, 
       - if it's true, find which near-body mesh cell envolves its  flux points
   */
   this->update_background_neighboors(background_msh, nearbody_msh);
+
+  for (auto& e : background_msh->elems)
+  {
+    if (e->fringe == 2) 
+    {
+      auto index = 0;
+      for (auto& sp : this->snodes)
+      { 
+        e->physical->Qsp[index] = 1.0;
+        e->computational->Qsp[index] = e->J[0][index];
+        index++;
+      }
+    }
+  }
 
 }
 
@@ -2199,6 +2225,65 @@ void SD<Equation>::solve(std::shared_ptr<Mesh>& mesh)
   
 }
 
+
+template <typename Equation>
+std::vector<double> SD<Equation>::get_property_error_at_time(std::shared_ptr<Mesh>& mesh, double time)
+{
+  auto s_index = 0;
+  
+  double rho=0.0, u=0.0, v=0.0, E=0.0, P=0.0, entropy=0.0, J=0.0;
+  double an_P=0.0, an_entropy=0.0;
+  double rho_error=0.0, entropy_error=0.0;
+
+  Ghost::time = time;
+  DVector vec={};
+  Node n={};
+
+  long N = 0;
+  for (auto &e : mesh->elems)
+  {
+    s_index = 0;
+    while (s_index < this->order * this->order)
+    {
+      n = e->transform(this->snodes[s_index], mesh->nodes);
+      // Analytical Solution
+      auto an_solution = std::any_cast<std::vector<double>(*)(const Node&)> (Ghost::analytical_solution)(n);
+      DVector Qan = DVector(an_solution);
+
+      //vec = this->interpolate_solution_to_node(e, this->snodes[s_index]);
+      J = e->calculate_jacobian_at_node(this->snodes[s_index], mesh->nodes);
+      if (J<=0.0) 
+      {
+        std::cout << "Jacobian :" << J << "\n";
+        std::cout << "this->snodes["<<s_index<<"]\n";
+        std::cin.get();
+      }
+      rho      = e->computational->Qsp[s_index][0]/J;
+      u        = e->computational->Qsp[s_index][1]/e->computational->Qsp[s_index][0]; // vec[1]/((vec[0]/J)*J)
+      v        = e->computational->Qsp[s_index][2]/e->computational->Qsp[s_index][0]; // vec[2]/((vec[0]/J)*J)
+      E        = e->computational->Qsp[s_index][3]/J;
+
+      P        = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+      entropy  = P/std::pow(rho, this->GAMMA);
+
+      an_P        = (this->GAMMA-1.0)*(Qan[3] - (Qan[1]*Qan[1] + Qan[2]*Qan[2])/(2.0*Qan[0]));
+      an_entropy  = an_P/std::pow(Qan[0], this->GAMMA);
+      if(e->fringe!=2) { // not a hole cells
+        rho_error += std::pow(Qan[0]-rho, 2.0);
+        entropy_error += std::pow(an_entropy-entropy, 2.0);
+      }
+
+      s_index++;
+      N++;
+    }
+  }
+  rho_error = std::sqrt(rho_error/N);
+  entropy_error = std::sqrt(entropy_error/N);
+  std::vector<double> errors = {rho_error, entropy_error};
+  return errors;
+}
+
+
 // 8) SAVE SOLUTION INTO A VTK FILE
 template <typename Equation>
 void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &filename)
@@ -2217,7 +2302,8 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
   long n1, n2, n3, n4, n5, n6, n7, n8;
   // double q1, q2, q3, q4, q5, q6, q7, q8;
   long s_index=0, f_index=0, v_index=0, v_idx=0, which_node=-1;
-  double rho=0.0, u=0.0, v=0.0, E=0.0, P=0.0, J=0.0, Jacobian=0.0, Residue=0.0, Mach=0.0;
+  double rho=0.0, u=0.0, v=0.0, E=0.0, P=0.0, J=0.0, Jacobian=0.0, entropy=0.0, Residue=0.0, Mach=0.0;
+  double an_entropy=0.0;
   double el_num=0.0;
 
   long pd_index = 0;
@@ -2412,7 +2498,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
   header.push_back(std::string{"POINTS "} + std::to_string(total_num_nodes) + std::string{" float"});
 
   point_data.clear();
-  point_data.resize(7); // rho, P, Mach, Jacobian, Residue, Umag, BCtype
+  point_data.resize(8); // rho, P, Mach, Jacobian, Residue, Umag, BCtype, Entropy
   for (auto& pd_vec : point_data)
     pd_vec.resize(total_num_nodes + 3);
 
@@ -2445,6 +2531,10 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
   point_data[6][0] = std::string{" "};
   point_data[6][1] = std::string{"SCALARS BCtype int 1"};
   point_data[6][2] = std::string{"LOOKUP_TABLE default"};
+  // Entropy
+  point_data[7][0] = std::string{" "};
+  point_data[7][1] = std::string{"SCALARS Entropy float 1"};
+  point_data[7][2] = std::string{"LOOKUP_TABLE default"};
 
   pd_index += nverts+3;
 
@@ -2496,6 +2586,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
         v=0.0;
         E=0.0;
         P=0.0;
+        entropy=0.0;
         Jacobian=0.0;
         Residue = 0.0;
         Mach=0.0;
@@ -2541,21 +2632,15 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
         Jacobian = Jacobian/el_num;
         Residue = 0.0;
         P = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+        entropy = P/std::pow(rho, this->GAMMA);
         Mach = std::sqrt(u*u + v*v)/std::sqrt(this->GAMMA*P/rho);
-
-        // std::cout << "u :" << u << "\n";
-        // std::cout << "v :" << v << "\n";
-        // std::cout << "E :" << E << "\n";
-        // std::cout << "P :" << P << "\n";
-        // std::cout << "rho :" << rho << "\n";
-        // std::cout << "Mach :" << Mach << "\n";
-        // if (Mach<=0.0 || isinf(abs(Mach)) || isnan(abs(Mach)))
-        // {
-        //   std::cin.get();
-        // }
-
-        //std::cout << "el_num :" << el_num << "\n";
-        
+        if(e->fringe==2) { // hole cells
+          u = 0.0;
+          v = 0.0;
+          P = 0.0;
+          Mach = 0.0;
+          entropy=0.0;
+        }
         point_data[0][v_id] = std::to_string(rho);
         point_data[1][v_id] = std::to_string(P);
         point_data[2][v_id] = std::to_string(Mach);
@@ -2565,6 +2650,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
                               std::to_string(v) + std::string(" ") +
                               std::to_string(0.0);
         point_data[6][v_id] = std::to_string(-1);
+        point_data[7][v_id] = std::to_string(entropy);
       }
       v_index++;
     }
@@ -2596,6 +2682,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
       v        = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
       E        = vec[3]/J;
       P        = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+      entropy  = P/std::pow(rho, this->GAMMA);
       Jacobian = J;
       Residue  = std::sqrt(
           e->computational->res[s_index][0]*e->computational->res[s_index][0]+
@@ -2604,19 +2691,13 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
           e->computational->res[s_index][3]*e->computational->res[s_index][3]
       );
       Mach     = std::sqrt(u*u + v*v)/std::sqrt(this->GAMMA*P/rho);
-
-      // std::cout << "u :" << u << "\n";
-      // std::cout << "v :" << v << "\n";
-      // std::cout << "E :" << E << "\n";
-      // std::cout << "P :" << P << "\n";
-      // std::cout << "rho :" << rho << "\n";
-      // std::cout << "Mach :" << Mach << "\n";
-      // if (Mach<=0.0 || isinf(abs(Mach)) || isnan(abs(Mach)))
-      // {
-      //   std::cout << "Solution Point: " << s_index << "\n";
-      //   std::cout << "Element: " << e->id << "\n";
-      //   std::cin.get();
-      // }
+      if(e->fringe==2) { // hole cells
+        u = 0.0;
+        v = 0.0;
+        P = 0.0;
+        Mach = 0.0;
+        entropy=0.0;
+      }
       point_data[0][pd_index] = std::to_string(rho);
       point_data[1][pd_index] = std::to_string(P);
       point_data[2][pd_index] = std::to_string(Mach);
@@ -2626,6 +2707,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
                                 std::to_string(v) + std::string(" ") +
                                 std::to_string(0.0);
       point_data[6][pd_index] = std::to_string(-1);
+      point_data[7][pd_index] = std::to_string(entropy);
       s_index++;
       pd_index++;
     }
@@ -2701,46 +2783,18 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
         v        = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
         E        = vec[3]/J;
         P        = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+        entropy  = P/std::pow(rho, this->GAMMA);
         Jacobian = J;
-        Residue = 0.0;
+        Residue  = 0.0;
         Mach     = std::sqrt(u*u + v*v)/std::sqrt(this->GAMMA*P/rho);
-        
-        // std::cout << "x-flux point\n";
-        // std::cout << "u :" << u << "\n";
-        // std::cout << "v :" << v << "\n";
-        // std::cout << "E :" << E << "\n";
-        // std::cout << "P :" << P << "\n";
-        // std::cout << "rho :" << rho << "\n";
-        // std::cout << "Mach :" << Mach << "\n";
-        // std::cout << "f_index   :" << f_index << "\n";
-        // std::cout << "global_id :" << global_id << "\n";
-        // std::cout << "this->fnodes[0][f_index] :" << this->fnodes[0][f_index].coords[0] << ", " << this->fnodes[0][f_index].coords[1] << "\n";
-        // std::cout << "n                        :" << n.coords[0] << ", " << n.coords[1] << "\n";
-        // std::cout << "Element :" << e->id << "\n";
-        // if (rho <= 0.9 || rho > 1.01)
-        // {
-        //   std::cout << "Solution Jacobian: \n";
-        //   for (auto kk =0; kk < 4; kk++)
-        //     std::cout << "J[0][" << kk <<"] = " << e->J[0][kk] << "\n";
-        //   std::cout << "x-Flux Jacobian: \n";
-        //   for (auto kk =0; kk < 6; kk++)
-        //     std::cout << "J[1][" << kk <<"] = " << e->J[1][kk] << "\n";
-        //   std::cout << "y-Flux Jacobian: \n";
-        //   for (auto kk =0; kk < 6; kk++)
-        //     std::cout << "J[2][" << kk <<"] = " << e->J[2][kk] << "\n";
+        if(e->fringe==2) { // hole cells
+          u = 0.0;
+          v = 0.0;
+          P = 0.0;
+          Mach = 0.0;
+          entropy=0.0;
+        }
 
-        //   std::cout << "\nElement :" << mesh->elems[1]->id << "\n";
-        //   std::cout << "Solution Jacobian: \n";
-        //   for (auto kk =0; kk < 4; kk++)
-        //     std::cout << "J[0][" << kk <<"] = " << mesh->elems[1]->J[0][kk] << "\n";
-        //   std::cout << "x-Flux Jacobian: \n";
-        //   for (auto kk =0; kk < 6; kk++)
-        //     std::cout << "J[1][" << kk <<"] = " << mesh->elems[1]->J[1][kk] << "\n";
-        //   std::cout << "y-Flux Jacobian: \n";
-        //   for (auto kk =0; kk < 6; kk++)
-        //     std::cout << "J[2][" << kk <<"] = " << mesh->elems[1]->J[2][kk] << "\n";
-        //   std::cin.get();
-        // }
         auto BC = -1;
         if (f_index % (this->order + 1) == 0) 
         {
@@ -2765,6 +2819,8 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
                                    std::to_string(v) + std::string(" ") +
                                    std::to_string(0.0);
         point_data[6][global_id] = std::to_string(BC);
+        point_data[7][global_id] = std::to_string(entropy);
+        
       }
       f_index++;
     }
@@ -2810,23 +2866,18 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
         v        = vec[2]/vec[0]; // vec[2]/((vec[0]/J)*J)
         E        = vec[3]/J;
         P        = (this->GAMMA-1.0)*(E - rho*(u*u + v*v)/2.0);
+        entropy  = P/std::pow(rho, this->GAMMA);
         Jacobian = J;
         Residue = 0.0;
         Mach     = std::sqrt(u*u + v*v)/std::sqrt(this->GAMMA*P/rho);
+        if(e->fringe==2) { // hole cells
+          u = 0.0;
+          v = 0.0;
+          P = 0.0;
+          Mach = 0.0;
+          entropy=0.0;
+        }
         
-        // std::cout << "y-flux point\n";
-        // std::cout << "u :" << u << "\n";
-        // std::cout << "v :" << v << "\n";
-        // std::cout << "E :" << E << "\n";
-        // std::cout << "P :" << P << "\n";
-        // std::cout << "rho :" << rho << "\n";
-        // std::cout << "Mach :" << Mach << "\n";
-        // std::cout << "f_index :" << f_index << "\n";
-        // std::cout << "Element :" << e->id << "\n";
-        // if (rho <= 0.9 || rho > 1.01)
-        // {
-        //   std::cin.get();
-        // }
         auto BC = -1;
         if (f_index % (this->order + 1) == 0) 
         {
@@ -2852,6 +2903,7 @@ void SD<Equation>::to_vtk(const std::shared_ptr<Mesh> &mesh, const std::string &
                                    std::to_string(v) + std::string(" ") +
                                    std::to_string(0.0);
         point_data[6][global_id] = std::to_string(BC);
+        point_data[7][global_id] = std::to_string(entropy);
       }
       f_index++;
     }

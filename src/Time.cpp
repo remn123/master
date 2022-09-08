@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iomanip>
+#include <fstream>
 #include <future>
 #include <math.h>
 #include <memory>
@@ -24,7 +25,7 @@ template class Time<Explicit::SSPRungeKutta>;
 template <>
 Time<Explicit::SSPRungeKutta>::Time(double CFL, long MAX_ITER,
                                     int stages, int order, size_t size,
-                                    int p, double Uinf, double dx)
+                                    int p, double Uinf, double dx, const std::string log_path)
 {
   this->CFL = CFL;
   this->MAX_ITER = MAX_ITER;
@@ -32,10 +33,20 @@ Time<Explicit::SSPRungeKutta>::Time(double CFL, long MAX_ITER,
   this->order = order;
   //this->dt = -1.0;
   this->iter = 0;
-
-  this->dt = this->CFL * dx / (Uinf * (2.0 * p + 1.0));
+  this->log_path = log_path + "/log/log.txt";
+  
+  // Ringleb
+  //auto deltat = (dx/Uinf);
+  auto deltat = 1.0 / (Uinf * (2.0 * p + 1.0));
+  //auto deltat = 10.0 / Uinf;
+  
+  // Vortex
+  // auto c_inf = std::sqrt(1.4);
+  // auto deltat = (5.0*c_inf);
+  this->tinf = deltat;
   //auto deltat = 0.1/Uinf;
-  //this->dt = this->CFL*deltat;
+  this->dt = this->CFL*deltat;
+  std::cout << "dt = " << this->dt << "\n";
 
   // Initialize DVectors
   for (auto i = 0; i <= stages; i++)
@@ -129,8 +140,11 @@ Time<Explicit::SSPRungeKutta>::~Time()
 
 
 template <>
-void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
-                                           std::function<void(std::shared_ptr<Mesh> &)> solve)
+void Time<Explicit::SSPRungeKutta>::update(
+  std::shared_ptr<Mesh> &mesh,
+  std::function<void(std::shared_ptr<Mesh> &)> solve,
+  std::function<std::vector<double>(std::shared_ptr<Mesh> &, double)> calculate_error
+  )
 {
   // start timer
   auto start = std::chrono::high_resolution_clock::now();
@@ -187,75 +201,35 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
   solve(mesh);
   // reads residue from mesh
   this->read_residue(mesh, 3);
-
   
-  //std::cout << "U[" << i << "] = res_sum; \n";
-  // for (auto &qk : this->Q[i])
-  //   std::cout << "this->Q[" << i << "] = " << qk << "\n";
-  //std::cin.get();
-  // for (size_t i = 1; i <= this->stages; i++)
-  // {
-  //   this->res_sum = 0.0 * this->res_sum; // resets res_sum
-  //   // std::cout << "res_sum += ";
-  //   // for (size_t k = 0; k < i; k++)
-  //   // {
-      
-  //   //   //std::cout << " c(" << i << ", " << k << ") * res[" << k << "] + \n";
-  //   //   //this->res_sum += this->c(i, k) * this->res[k];
-  //   //   //std::cout << this->alpha[i*(this->stages+1) + k] << " * U(" << k << ") + " << this->beta[i*(this->stages+1) + k] << " * dt * R(" << k << ")\n";
-  //   //   this->res_sum += this->alpha[i*(this->stages+1) + k] * this->Q[k] + dt * this->beta[i*(this->stages+1) + k]*this->res[k];
-  //   //   // if (k == i - 1 && k > 0)
-  //   //   // {
-      
-  //   //   //}
-  //   //   // i = 5
-  //   //   // k = 0
-  //   //   // i*(s+1)+k => 5*(5+1)+0 => 30
-  //   //   // i = 1
-  //   //   // k = 0
-  //   //   // i*(s+1)+k => 1*(5+1)+0 => 6
-  //   // }
-  //   // // for (auto &qk : this->Q[0])
-  //   // //   std::cout << "qk = " << qk << "\n";
-  //   // // for (auto &qk : this->res_sum)
-  //   // //   std::cout << "res = " << qk << "\n";
-  //   // if (i == this->stages)
-  //   // { 
-  //   //   this->res_sum = 0.517231671970585*this->Q[2] + 0.096059710526147*this->Q[3] + 0.063692468666290*dt*this->res[3] + 0.386708617503268*this->Q[4] + 0.226007483236906*dt*this->res[4];
-  //   //   this->Q[i] = this->res_sum;
-  //   //   // writes solution into all mesh elements
-  //   //   this->write_solution(mesh, i);
-  //   //   solve(mesh);
-  //   //   break;
-  //   // }
-  //   this->Q[i] = this->res_sum;
-  //   // writes solution into all mesh elements
-  //   this->write_solution(mesh, i);
-  //   // recalculates residue
-  //   solve(mesh);
-  //   // reads residue from mesh
-  //   this->read_residue(mesh, i);
-  //   //std::cout << "U[" << i << "] = res_sum; \n";
-  //   // for (auto &qk : this->Q[i])
-  //   //   std::cout << "this->Q[" << i << "] = " << qk << "\n";
-  //   //std::cin.get();
-  // } 
-
-  // writes solution into all mesh elements
-  //this->write_solution(mesh, this->stages);
-  // re-calculates residue
-  //solve(mesh);
-  
-
   L1 = mesh->get_residue_norm(0); // L1-norm
   L2 = mesh->get_residue_norm(1); // L2-norm
   Linf = mesh->get_residue_norm(2); // Linf-norm
+  // vortex
+  auto computational_time = dt*iter;
+  auto physical_time = computational_time/this->tinf;
+  auto errors = calculate_error(mesh, physical_time);
 
   auto stop = std::chrono::high_resolution_clock::now();
   auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
 
-  if (this->iter % 10 == 0)
-    std::cout << "Iter[" << iter << "]: time/iter (" << duration.count() << " ms): L1 = " << std::log10(L1) << "; L2 = " << log10(L2) << "; Linf = " << log10(Linf) << std::endl;
+  if (this->iter % 10 == 0){
+    auto residue_log = "Iter[" + std::to_string(iter) + "|" + std::to_string(physical_time) + 
+                      "]: time/iter (" + std::to_string(duration.count()) +
+                       " ms): L1 = " + std::to_string(std::log10(L1)) +
+                       "; L2 = " + std::to_string(std::log10(L2)) + 
+                       "; Linf = " + std::to_string(std::log10(Linf)) +
+                       "; RhoL2 = " + std::to_string(std::log10(errors[0])) +
+                       "; EntropyL2 = " + std::to_string(std::log10(errors[1])) + "\n";
+    // auto residue_log = "Iter[" + std::to_string(iter) + 
+    //                   "]: time/iter (" + std::to_string(duration.count()) +
+    //                    " ms): L1 = " + std::to_string(std::log10(L1)) +
+    //                    "; L2 = " + std::to_string(std::log10(L2)) + 
+    //                    "; Linf = " + std::to_string(std::log10(Linf)) + "\n";
+    //std::cout << residue_log;
+    this->save_log(residue_log);
+  }
+    
   
   if (isinf(std::abs(log10(L2)))) throw "[Error]: Time iteration has diverged!\n";
   this->iter++;
@@ -263,11 +237,13 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Mesh> &mesh,
 }
 
 template <>
-void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &background_msh,
-                                           std::shared_ptr<Static_Mesh> &nearbody_msh,
-                                           std::function<void(std::shared_ptr<Mesh> &)> solve,
-                                           std::function<void(std::shared_ptr<Static_Mesh> &, 
-                                                              const std::shared_ptr<Static_Mesh> &)> communicate_data)
+void Time<Explicit::SSPRungeKutta>::update(
+  std::shared_ptr<Static_Mesh> &background_msh,
+  std::shared_ptr<Static_Mesh> &nearbody_msh,
+  std::function<void(std::shared_ptr<Mesh> &)> solve,
+  std::function<std::vector<double>(std::shared_ptr<Mesh> &, double)> calculate_error,
+  std::function<void(std::shared_ptr<Static_Mesh> &, 
+  const std::shared_ptr<Static_Mesh> &)> communicate_data)
 {
   // start timer
   auto start = std::chrono::high_resolution_clock::now();
@@ -361,13 +337,32 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
 
   L2  = background_msh->get_residue_norm(1); // L2-norm
   L2 += nearbody_msh->get_residue_norm(1); // L2-norm
+
+  auto computational_time = dt*iter;
+  auto physical_time = computational_time/this->tinf;
+  
+  std::vector<double> errors = {0.0, 0.0};
+  for (auto& mesh : meshes) {
+    auto errors_ = calculate_error(mesh, physical_time);
+    errors[0] = errors[0]+errors_[0];
+    errors[1] = errors[1]+errors_[1];
+  }    
+  
   if (this->iter % 10 == 0)
   {
     L1  = background_msh->get_residue_norm(0); // L1-norm
     L1 += nearbody_msh->get_residue_norm(0); // L1-norm
     Linf  = background_msh->get_residue_norm(2); // Linf-norm
     Linf += nearbody_msh->get_residue_norm(2); // Linf-norm
-    std::cout << "Iter[" << iter << "]: time/iter ("<< duration.count() << " ms): L1 = " << std::log10(L1) << "; L2 = " << log10(L2) << "; Linf = " << log10(Linf) << std::endl;
+    auto residue_log = "Iter[" + std::to_string(iter) + "|" + std::to_string(physical_time) + 
+                      "]: time/iter (" + std::to_string(duration.count()) +
+                       " ms): L1 = " + std::to_string(std::log10(L1)) +
+                       "; L2 = " + std::to_string(std::log10(L2)) + 
+                       "; Linf = " + std::to_string(std::log10(Linf)) +
+                       "; RhoL2 = " + std::to_string(std::log10(errors[0])) +
+                       "; EntropyL2 = " + std::to_string(std::log10(errors[1])) + "\n";
+    //std::cout << residue_log;
+    this->save_log(residue_log);
   }
   
   if (isinf(std::abs(log10(L2)))) throw "[Error]: Time iteration has diverged!\n";
@@ -378,36 +373,38 @@ void Time<Explicit::SSPRungeKutta>::update(std::shared_ptr<Static_Mesh> &backgro
 template <typename Method>
 void Time<Method>::loop(std::shared_ptr<Mesh> &mesh,
                         std::function<void(std::shared_ptr<Mesh> &)> solve,
+                        std::function<std::vector<double>(std::shared_ptr<Mesh> &, double)> calculate_error,
                         const std::string &filename,
                         std::function<void(const std::shared_ptr<Mesh> &, const std::string &)> to_vtk)
 {
   while (this->iter <= this->MAX_ITER)
   {
     try {
-      this->update(mesh, solve);
+      this->update(mesh, solve, calculate_error);
     } catch (const char* msg) {
       std::cerr << msg;
       throw;
     }
     
-    if (this->iter % 1 == 0)
+    if (this->iter % 500 == 0)
     {
       std::string tstamp = std::to_string(this->iter);
       tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
       this->save(mesh, filename + tstamp + std::string{".vtk"}, to_vtk);
-      //std::cin.get();
     }
   }
 }
 
 template <typename Method>
-void Time<Method>::loop(std::shared_ptr<Static_Mesh> &background_msh,
-                        std::shared_ptr<Static_Mesh> &nearbody_msh,
-                        std::function<void(std::shared_ptr<Mesh> &)> solve,
-                        std::function<void(std::shared_ptr<Static_Mesh> &, const std::shared_ptr<Static_Mesh> &)> communicate_data,
-                        const std::string &filename_bkg,
-                        const std::string &filename_nbd,
-                        std::function<void(const std::shared_ptr<Mesh> &, const std::string &)> to_vtk)
+void Time<Method>::loop(
+  std::shared_ptr<Static_Mesh> &background_msh,
+  std::shared_ptr<Static_Mesh> &nearbody_msh,
+  std::function<void(std::shared_ptr<Mesh> &)> solve,
+  std::function<std::vector<double>(std::shared_ptr<Mesh> &, double)> calculate_error,
+  std::function<void(std::shared_ptr<Static_Mesh> &, const std::shared_ptr<Static_Mesh> &)> communicate_data,
+  const std::string &filename_bkg,
+  const std::string &filename_nbd,
+  std::function<void(const std::shared_ptr<Mesh> &, const std::string &)> to_vtk)
 {
   auto background_msh_ = std::static_pointer_cast<Mesh>(background_msh);
   auto nearbody_msh_   = std::static_pointer_cast<Mesh>(nearbody_msh);
@@ -415,13 +412,13 @@ void Time<Method>::loop(std::shared_ptr<Static_Mesh> &background_msh,
   while (this->iter <= this->MAX_ITER)
   {
     try {
-      this->update(background_msh, nearbody_msh, solve, communicate_data);
+      this->update(background_msh, nearbody_msh, solve, calculate_error, communicate_data);
     } catch (const char* msg) {
       std::cerr << msg;
       throw;
     }
     
-    if (this->iter % 10 == 0)
+    if (this->iter % 1000 == 0)
     {
       std::string tstamp = std::to_string(this->iter);
       tstamp.insert(tstamp.begin(), 5 - tstamp.length(), '0');
@@ -438,6 +435,16 @@ void Time<Method>::save(const std::shared_ptr<Mesh> &mesh,
                         std::function<void(const std::shared_ptr<Mesh> &, const std::string &)> to_vtk)
 {
   to_vtk(mesh, filename);
+}
+
+template <typename Method>
+void Time<Method>::save_log(const std::string & message)
+{
+  std::ofstream output;
+
+  output.open(this->log_path, std::ios_base::app);
+  output << message;
+  output.close();
 }
 
 template <typename Method>

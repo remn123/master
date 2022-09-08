@@ -31,10 +31,10 @@ if (Boost_FOUND)
     # )
 
     # ringleb 
-    # add_executable(
-    #     ringleb 
-    #     src/cases/ringleb/ringleb.cpp
-    # )
+    add_executable(
+        ringleb 
+        src/cases/ringleb/ringleb.cpp
+    )
 
     # cylinder 
     # add_executable(
@@ -67,13 +67,13 @@ if (Boost_FOUND)
     # )
 
     # overset - vortex 
-    add_executable(
-        overset_vortex
-        src/cases/overset/vortex/vortex.cpp
-    )
+    # add_executable(
+    #     overset_vortex
+    #     src/cases/overset/vortex/vortex.cpp
+    # )
 
     target_link_libraries(
-        overset_vortex
+        ringleb
         master_lib   
     )
 
@@ -120,8 +120,8 @@ if (Boost_FOUND)
     
     find_package (Threads)
 
-    target_link_libraries(overset_vortex ${Boost_LIBRARY_DIRS})
-    target_link_libraries(overset_vortex ${CMAKE_THREAD_LIBS_INIT})
+    target_link_libraries(ringleb ${Boost_LIBRARY_DIRS})
+    target_link_libraries(ringleb ${CMAKE_THREAD_LIBS_INIT})
 
 
     # tests
