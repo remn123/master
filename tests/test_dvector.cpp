@@ -358,3 +358,145 @@ TEST_CASE("28: Test DVector - negative DVector", "[dvector]")
   REQUIRE(d1[1] == 2.0);
   REQUIRE(d1[2] == 1.0);
 }
+
+
+TEST_CASE("29: Test DVector - Addition operator += scalar*DVector", "[dvector]")
+{
+  DVector d{std::vector<double>{1.0, 2.0, 3.0}};
+  DVector d0{std::vector<double>{5.0, 2.0, 1.0}};
+  d += (1.0+1.0)*d0;
+  REQUIRE(d.size() == 3);
+  REQUIRE(d[0] == 11.0);
+  REQUIRE(d[1] == 6.0);
+  REQUIRE(d[2] == 5.0);
+}
+
+TEST_CASE("30: Test DVector - Addition operator += scalar*DVector with vector<DVector>", "[dvector]")
+{
+  std::vector<DVector> d = {{std::vector<double>{1.0, 2.0, 3.0}}};
+  std::vector<DVector> d0 = {{std::vector<double>{5.0, 2.0, 1.0}}};
+  d[0] += (1.0+1.0)*d0[0];
+  REQUIRE(d.size() == 1);
+  REQUIRE(d[0].size() == 3);
+  REQUIRE(d0.size() == 1);
+  REQUIRE(d0[0].size() == 3);
+
+  REQUIRE(d[0][0] == 11.0);
+  REQUIRE(d[0][1] == 6.0);
+  REQUIRE(d[0][2] == 5.0);
+}
+
+TEST_CASE("31: Test DVector - Addition operator += scalar*DVector with vector<DVector>", "[dvector]")
+{
+  DVector d = {{std::vector<double>{1.0, 2.0, 3.0}}};
+  std::vector<DVector> d0 = {{std::vector<double>{4.0, 5.0, 6.0}}};
+  double a = 1.0, b = 2.0, c = 3.0;
+  d += ((a*b*c)*d0[0]);
+  d += ((a*b*c)*d0[0]);
+  REQUIRE(d.size() == 3);
+  REQUIRE(d0.size() == 1);
+  REQUIRE(d0[0].size() == 3);
+
+  REQUIRE(d[0] == 49.0);
+  REQUIRE(d[1] == 62.0);
+  REQUIRE(d[2] == 75.0);
+}
+
+TEST_CASE("32: Test DVector - Addition operator += scalar*DVector with vector<DVector>", "[dvector]")
+{
+  std::vector<DVector> d  = {{std::vector<double>{7.0, 8.0, 9.0}},
+                             {std::vector<double>{1.0, 2.0, 3.0}},
+                             {std::vector<double>{4.0, 5.0, 6.0}}};
+  double dt = 0.1;
+  // this->Q[3] = (1.0/3.0)*this->Q[0] + (2.0/3.0)*this->Q[2] + (2.0/3.0)*dt * this->res[2];
+  d[0] += -1.0*d[1] + (1.0/3.0)*d[1] + (2.0/3.0)*dt*d[2];
+
+  REQUIRE(d[0][0] == (7.0 -1.0*1.0 + (1.0/3.0)*1.0 + (2.0/3.0)*dt*4.0));
+  REQUIRE(d[0][1] == (8.0 -1.0*2.0 + (1.0/3.0)*2.0 + (2.0/3.0)*dt*5.0));
+  REQUIRE(d[0][2] == (9.0 -1.0*3.0 + (1.0/3.0)*3.0 + (2.0/3.0)*dt*6.0));
+
+  REQUIRE(d[1][0] == 1.0);
+  REQUIRE(d[1][1] == 2.0);
+  REQUIRE(d[1][2] == 3.0);
+
+  REQUIRE(d[2][0] == 4.0);
+  REQUIRE(d[2][1] == 5.0);
+  REQUIRE(d[2][2] == 6.0);
+}
+
+TEST_CASE("33: Test DVector - Addition operator += scalar*DVector with vector<DVector>", "[dvector]")
+{
+  std::vector<DVector> d  = {{std::vector<double>{7.0, 8.0, 9.0}},
+                             {std::vector<double>{1.0, 2.0, 3.0}},
+                             {std::vector<double>{4.0, 5.0, 6.0}}};
+  double dt = 0.1;
+  // this->Q[3] = (1.0/3.0)*this->Q[0] + (2.0/3.0)*this->Q[2] + (2.0/3.0)*dt * this->res[2];
+  d[0] += d[1]*(-1.0) + d[1]*(1.0/3.0) + dt*d[2]*(2.0/3.0);
+
+  REQUIRE(d[0][0] == (7.0 -1.0*1.0 + (1.0/3.0)*1.0 + (2.0/3.0)*dt*4.0));
+  REQUIRE(d[0][1] == (8.0 -1.0*2.0 + (1.0/3.0)*2.0 + (2.0/3.0)*dt*5.0));
+  REQUIRE(d[0][2] == (9.0 -1.0*3.0 + (1.0/3.0)*3.0 + (2.0/3.0)*dt*6.0));
+
+  REQUIRE(d[1][0] == 1.0);
+  REQUIRE(d[1][1] == 2.0);
+  REQUIRE(d[1][2] == 3.0);
+
+  REQUIRE(d[2][0] == 4.0);
+  REQUIRE(d[2][1] == 5.0);
+  REQUIRE(d[2][2] == 6.0);
+}
+
+TEST_CASE("34: Test DVector - Addition operator += scalar*DVector with vector<DVector>", "[dvector]")
+{
+  std::vector<DVector> d  = {{std::vector<double>{7.0, 8.0, 9.0}},
+                             {std::vector<double>{1.0, 2.0, 3.0}},
+                             {std::vector<double>{4.0, 5.0, 6.0}}};
+  double dt = 0.1;
+  // this->Q[3] = (1.0/3.0)*this->Q[0] + (2.0/3.0)*this->Q[2] + (2.0/3.0)*dt * this->res[2];
+  d[0] = d[1]*(-1.0) + d[1]*(1.0/3.0) + d[2]*(2.0/3.0)*dt;
+
+  REQUIRE(d[0][0] == (-1.0*1.0 + (1.0/3.0)*1.0 + (2.0/3.0)*dt*4.0));
+  REQUIRE(d[0][1] == (-1.0*2.0 + (1.0/3.0)*2.0 + (2.0/3.0)*dt*5.0));
+  REQUIRE(d[0][2] == (-1.0*3.0 + (1.0/3.0)*3.0 + (2.0/3.0)*dt*6.0));
+
+  REQUIRE(d[1][0] == 1.0);
+  REQUIRE(d[1][1] == 2.0);
+  REQUIRE(d[1][2] == 3.0);
+
+  REQUIRE(d[2][0] == 4.0);
+  REQUIRE(d[2][1] == 5.0);
+  REQUIRE(d[2][2] == 6.0);
+}
+
+TEST_CASE("35: Test DVector - Addition operator += scalar*DVector", "[dvector]")
+{
+  DVector d{std::vector<double>{0.0, 0.0, 0.0}};
+  DVector d1{std::vector<double>{1.0, 2.0, 4.0}};
+  DVector d2{std::vector<double>{1.0, 2.0, 4.0}};
+  double J = 0.5;
+  d = J*d1;
+  std::transform(d2.begin(), d2.end(), d2.begin(), [&J](auto &c) { return c * J; });
+  REQUIRE(d.size() == 3);
+  REQUIRE(d[0] == 0.5);
+  REQUIRE(d[1] == 1.0);
+  REQUIRE(d[2] == 2.0);
+  REQUIRE(d[0] == d2[0]);
+  REQUIRE(d[1] == d2[1]);
+  REQUIRE(d[2] == d2[2]);
+}
+
+
+TEST_CASE("36: Test DVector - Addition operator += scalar*DVector", "[dvector]")
+{
+  DVector d{std::vector<double>{1.0, 2.0, 4.0}};
+  double J = 0.5;
+  auto d1 = J*d;
+
+  REQUIRE(d.size() == 3);
+  REQUIRE(d[0] == 1.0);
+  REQUIRE(d[1] == 2.0);
+  REQUIRE(d[2] == 4.0);
+  REQUIRE(d1[0] == 0.5);
+  REQUIRE(d1[1] == 1.0);
+  REQUIRE(d1[2] == 2.0);
+}

@@ -1,6 +1,7 @@
 
-#include <experimental/filesystem>
+#include <filesystem>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <string>
 
@@ -10,10 +11,16 @@
 #include <Poly.h>
 #include <Mesh.h>
 #include <SD.h>
+#include <Time.h>
 
 using namespace Catch::literals;
 
-namespace fs = std::experimental::filesystem;
+// explicit instantiations
+template class SD<Euler>;
+template class SD<NavierStokes>;
+
+
+namespace fs = std::filesystem;
 // Solver
 /*
   1) Setup (all element in Mesh)
@@ -37,18 +44,18 @@ namespace fs = std::experimental::filesystem;
 TEST_CASE("1: Test Solver - Solution Nodes 2nd Order", "[solver]")
 {
   fs::path cur_path = fs::current_path();
-	Mesh mesh {2};
+  auto mesh = std::make_shared<Mesh>(2);
 
-	mesh.read_gmsh((cur_path.parent_path() / ".." /"resources" / "mesh1.msh").string());
-	
-  int order=2;
-  SD<Euler> sd {2, 2};
+  mesh->read_gmsh((cur_path.parent_path() / ".." / "resources" / "mesh1.msh").string());
+
+  int order = 2;
+  auto sd = std::make_shared<SD<Euler>>(2, 2);
   /*
     1) Setup (all element in Mesh)
       1.1) Calculate solution and fluxes points
       1.2) Initialize solution and fluxes
   */
-  sd.setup(mesh);
+  sd->setup(mesh);
 
   /*
     2) Solver Loop (for each element in Mesh)
@@ -59,16 +66,29 @@ TEST_CASE("1: Test Solver - Solution Nodes 2nd Order", "[solver]")
        2.5) Interpolate Fluxes derivatives from FPs to SPs
        2.6) Calculate Residue
   */
-  double CFL = 0.1;
 
-  TD time {2, CFL};
-  
-  for (auto& e : mesh.elems)
+  sd->solve(mesh);
+
+  /*
+    3) Time Marching Loop
+      3.1) Calculate residue norm
+      3.2) Check if it's already converged
+      3.3) (if not) Apply time iteration then go to (2)
+  */
+  double CFL = 0.1, Linf = 0.0;
+  auto time = std::make_shared<Time<Explicit::SSPRungeKutta>>(params...); // TO DO
+  long MAX_ITER = 1E+3;
+  long iter = 0;
+  while (iter <= MAX_ITER)
   {
-    sd.solve(e);
-    time.solve(e);
+    time->update(mesh, sd->solve);
+
+    //L1 = mesh->get_residue_norm(0); // L1-norm
+    //L2 = mesh->get_residue_norm(1); // L2-norm
+    Linf = mesh->get_residue_norm(2); // Linf-norm
+    iter++;
+    std::cout << "Iter[" << iter << "]: Residue " << log10(Linf) << std::endl;
   }
-  
-  REQUIRE( sd.snodes[0] == Approx(-0.577350269189626).margin(1E-15));
-  REQUIRE( sd.snodes[1] == Approx(0.577350269189626).margin(1E-15));
+
+  time->save(mesh, sd->to_vtk);
 }

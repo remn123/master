@@ -11,11 +11,11 @@ class Poly
 {
 public:
   std::vector<double> nodes;
-  inline static double MAX_ERROR = 1e-5;
+  inline static double MAX_ERROR = 1e-15;
   inline static std::vector<double> memo{1};
 
 public:
-  Poly(){std::cout << "Poly Interface is Alive; \n";};
+  Poly(){/*std::cout << "Poly Interface is Alive; \n";*/};
   virtual ~Poly() = default;
     
   virtual void setup(unsigned int)=0;
@@ -35,8 +35,8 @@ public:
 class Chebyshev : public Poly
 {
 public:
-  Chebyshev(){std::cout << "Chebyshev is Alive; \n";};
-  ~Chebyshev(){std::cout << "Chebyshev is Dead; \n";};
+  Chebyshev(){/*std::cout << "Chebyshev is Alive; \n";*/};
+  ~Chebyshev(){/*std::cout << "Chebyshev is Dead; \n";*/};
     
   void setup(unsigned int);
   std::vector<double> get_nodes(void);
@@ -48,8 +48,8 @@ public:
 class GL : public Poly
 {
 public:
-  GL(){std::cout << "GL is Alive; \n";};
-  ~GL(){std::cout << "GL is Dead; \n";};
+  GL(){/*std::cout << "GL is Alive; \n";*/};
+  ~GL(){/*std::cout << "GL is Dead; \n";*/};
     
   void setup(unsigned int);
   std::vector<double> get_nodes(void);
@@ -60,8 +60,8 @@ public:
 class GLL : public Poly
 {
 public:
-  GLL(){std::cout << "GLL is Alive; \n";};
-  ~GLL(){std::cout << "GLL is Dead; \n";};
+  GLL(){/*std::cout << "GLL is Alive; \n";*/};
+  ~GLL(){/*std::cout << "GLL is Dead; \n";*/};
 
   void setup(unsigned int);    
   std::vector<double> get_nodes(void);
@@ -74,8 +74,8 @@ class Lagrange
 public:
   std::vector<double> nodes;
 public:
-  Lagrange(){std::cout << "Lagrange is Alive; \n";};
-  ~Lagrange(){std::cout << "Lagrange is Dead; \n";};
+  Lagrange(){/*std::cout << "Lagrange is Alive; \n";*/};
+  ~Lagrange(){/*std::cout << "Lagrange is Dead; \n";*/};
 
   void setup(std::vector<double>);    
   std::vector<double> get_nodes(void);

@@ -1,12 +1,12 @@
 #include <iostream>
-#include <experimental/filesystem>
+#include <filesystem>
 #include <string>
 #include <map>
 //#include <crtdbg.h>
 
 #include <Mesh.h>
 
-namespace fs = std::experimental::filesystem;
+namespace fs = std::filesystem;
 
 int main()
 {
@@ -22,7 +22,7 @@ int main()
   mesh1.print_element_by_id(1);
   //mesh1.print_element_by_id(80);
   // Creating kd-tree
-  mesh1.createKDtree();
+  mesh1.create_kdtree();
   mesh1.to_graphviz();
 	
   // Instantiating a new node
@@ -40,14 +40,14 @@ int main()
     {
       for (auto& ed : e->edges)
       {
-	if(ed.boundary==1)
+        if(ed.boundary==1)
         {
-	  for (auto& n : ed.nodes)
-	  {
-	    elm_id = mesh1.mark_fringes(mesh2.nodes[n]);
-	    //std::cout << "Element " << elm_id << " is a fringe!" << std::endl;
-	  }
-	}
+          for (auto& n : ed.nodes)
+          {
+            elm_id = mesh1.mark_fringes(mesh2.nodes[n]);
+            //std::cout << "Element " << elm_id << " is a fringe!" << std::endl;
+          }
+        }
       }
     }
   }

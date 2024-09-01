@@ -16,7 +16,7 @@ private:
 public:
 
   Helpers()=delete; // not instatiable
-  virtual ~Helpers(){std::cout<<"Helpers is Dead;\n";};
+  virtual ~Helpers(){/*std::cout<<"Helpers is Dead;\n";*/};
 
   static void init(void);
   static void set_nodes(int);
@@ -88,7 +88,7 @@ template <typename P>
 void Helpers<P>::init(void)
 {
   // stuff
-  std::cout << "Initializing Helper functions!" << "\n";
+  /*std::cout << "Initializing Helper functions!" << "\n";*/
 }
 
 template <typename P>
@@ -118,7 +118,7 @@ double Helpers<P>::dPn(unsigned int n, double x)
 template <typename P>
 void Helpers<P>::delete_nodes(void)
 {
-  std::cout << "Freeing memory!" << "\n";
+  /*std::cout << "Freeing memory!" << "\n";*/
   Helpers<P>::pol.delete_nodes();
 }
 
