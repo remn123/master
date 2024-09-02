@@ -73,25 +73,6 @@ int main()
   double min_dx = sd->get_min_dx(mesh);
   std::cout << "Minimum dx = " << min_dx << "\n";
 
-
-  // std::cout << "this->Ngh = " << mesh->Ngh << "\n";
-  // for (auto &g : mesh->ghosts)
-  // {
-  //   std::cout << "g.id = " << g.id << "\n";
-  //   std::cout << "g.edg_id = " << g.edg_id << "\n";
-  //   std::cout << "g.elm_id = " << g.elm_id << "\n";
-  //   std::cout << "g.group = " << g.group << "\n";
-  //   std::cout << "g.lr_edge = " << g.lr_edge << "\n";
-  //   std::cout << "g.type = " << g.type << "\n";
-  //   for (auto &f : g.fnodes)
-  //   {
-  //     std::cout << "f[" << f.id << "].coords = (" << f.coords[0] << ", " << f.coords[1] << ")\n";  
-  //     std::cout << "f[" << f.id << "].local = " << f.local << "\n";  
-  //     std::cout << "f[" << f.id << "].right = " << f.right << "\n\n";  
-  //   }
-  // }
-  // std::cin.get();
-
   /*
     2) Solver Loop (for each element in Mesh)
        2.1) Apply Boundary Conditions on interfaces (flux points)

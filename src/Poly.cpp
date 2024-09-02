@@ -70,8 +70,6 @@ unsigned long Poly::factorial(unsigned int n)
   }
   else if (this->memo.size() > n)
   {
-    // std::cout << "Ahá MEMO for n = " << n << "!!!!!\n";
-    // std::cout << "n! = " << this->memo[n] << "\n";
     return this->memo[n];
   }
 
@@ -92,8 +90,6 @@ void Poly::delete_nodes(void)
 // Chebyshev
 void Chebyshev::setup(unsigned int n)
 {
-  // std::cout << "Setting up Chebyshev Polynomials"
-  //           << "\n";
 
   double xk = 0.0;
   if (this->nodes.size() != n)
@@ -126,8 +122,6 @@ double Chebyshev::get_node(unsigned int k)
 // Gauss-Legendre
 void GL::setup(unsigned int n)
 {
-  // std::cout << "Setting up Gauss-Legendre Polynomials"
-  //           << "\n";
 
   double r = 0.0;
   if (this->nodes.size() != n)
@@ -167,8 +161,6 @@ double GL::get_node(unsigned int k)
 // Guass-Legendre-Lobatto
 void GLL::setup(unsigned int n)
 {
-  // std::cout << "Setting up Gauss-Legendre-Lobatto Polynomials"
-  //           << "\n";
 
   double r = 0.0;
   if (this->nodes.size() != n)
@@ -209,8 +201,6 @@ double GLL::get_node(unsigned int k)
 // Lagrange
 void Lagrange::setup(std::vector<double> nodes)
 {
-  // std::cout << "Setting up Lagrange Polynomials"
-  //           << "\n";
   this->nodes = nodes;
 }
 

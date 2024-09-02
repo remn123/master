@@ -14,14 +14,12 @@
 #include <Mesh.h>
 #include <Ghost.h>
 
-//int Static_Mesh::dim = 0;
 int Mesh::number_meshes = 0;
 long Element::num_elems = -1;
 long Element::num_faces = -1;
 long Element::num_edges = -1;
 std::unordered_map<std::vector<long>, std::vector<long>> Element::faces_map{};
 std::unordered_map<std::vector<long>, std::vector<long>> Element::edges_map{};
-//long Vertice::num_nodes = -1;
 
 //Mesh
 Mesh::Mesh(int d)
@@ -191,12 +189,10 @@ void Mesh::to_vtk(const std::string &filename)
   output << "ASCII\n";
   output << "DATASET UNSTRUCTURED_GRID\n";
   output << "POINTS " << this->N << " float\n";
-  //output << "POINT_DATA " << this->N << "\n";
-
+  
   // writing vertices
   for (auto &n : this->nodes)
   {
-    //output << n.id+1 << " " << n.coords[0] << " " << n.coords[1] << " " << n.coords[2];
     output << n.coords[0] << " " << n.coords[1] << " " << n.coords[2];
     output << "\n";
   }
@@ -284,28 +280,15 @@ void Mesh::read_gmsh(const std::string &filename)
 
     while (!gmshFile.eof())
     {
-      //std::getline(gmshFile, line); // this does not lead with different platform files
       this->get_line(gmshFile, line); // this one does!
 
       auto search = blck_map.find(line);
-      //auto search2 = blck_map.find("$MeshFormat\n");
-
-      // std::cout << "line.length = " << line.length() << std::endl;
-      // std::cout << "line= " << line << std::endl;
-      // for (auto &a : line)
-      //   std::cout << a << "\n";
-      // std::cout << "FIM\n";
-      // std::cout << "search->first.length() = " << search->first.length() << std::endl;
-      //std::cout << "search2->first = " << search2->first << " search2->first.length() " << search2->first.length() << std::endl;
       if (search != blck_map.end())
       {
-        //std::cout << "Found " << search->first << " " << search->second << std::endl;
         _BLOCK_ = search->second;
       }
-      // std::cin.get();
       std::istringstream check_(line);
 
-      //std::vector<std::string> parser;
       std::string value;
 
       // Getting into the Node Block
@@ -316,44 +299,23 @@ void Mesh::read_gmsh(const std::string &filename)
 
         if (parser.size() > 2)
         {
-          // std::cout << "[Nodes]: " << line << std::endl;
-          // std::cout << "That's the parser, dude: " << std::endl;
-          // for (const auto &v : parser)
-          //   std::cout << v << ", ";
-          // std::cout << std::endl;
-
           // [0] node_ID
           // [1] x
           // [2] y
           // [3] z
 
-          //long node_ID = std::stol(parser[0]);
           auto first = parser.begin() + 1;
           auto last = parser.end();
 
           std::vector<std::string> newVec{first, last};
-          // std::cout << "Creating mesh vertice..." << std::endl;
-          // for (auto &n : newVec)
-          //   std::cout << n << " ";
-          // std::cout << std::endl;
-          // std::cout << "N Nodes = " << this->N << " - this->nodes.size = " << this->nodes.size() << std::endl;
+          
           this->nodes.emplace_back(Vertice{newVec});
-          //std::cout << "Created mesh vertice!" << std::endl;
-
-          // for (auto &n : this->nodes)
-          //   std::cout << n.id << " ";
-          // std::cout << std::endl;
-          //newVec.clear();
-          //parser.clear();
         }
         else if (line.find("$Nodes") == std::string::npos &&
                  line.find("$EndNodes") == std::string::npos)
         {
-          //std::cout << "Reserving N Nodes..." << std::endl;
           this->N = std::stol(parser[0]);
           this->nodes.reserve(this->N);
-          //std::cout << "N Nodes = " << this->N << " - this->nodes.size = " << this->nodes.size() << std::endl;
-          // this->nodes.resize(this->N);
         }
       }
       // Getting into the Element Block
@@ -361,14 +323,12 @@ void Mesh::read_gmsh(const std::string &filename)
       { 
         std::vector<std::string> parser(std::istream_iterator<std::string>{check_},
                                         std::istream_iterator<std::string>());
-        // std::cout << "blocks::PHYSICALNAMES\n";
         if (parser.size() > 2)
         {
           // [0] dimension(ASCII int)  
           // [1] physicalTag(ASCII int)
           // [2] "name"(127 characters max)
 
-          //int dimension = std::stoi(parser[0]);
           int physical_tag_id = std::stoi(parser[1]);
           std::string physical_tag_name = parser[2];
           
@@ -414,19 +374,12 @@ void Mesh::read_gmsh(const std::string &filename)
 
         if (parser.size() > 2)
         {
-          //std::cout << "[Elements]: " << line << std::endl;
-          //std::cout << "That's the parser, dude: " << std::endl;
-          //for (const auto& v : parser)
-          //	std::cout << v << ", ";
-          //std::cout << std::endl;
-
           // [0] elem_ID
           // [1] elem_type
           // [2] number_of_tags (k)
           // [3..2+k] tags(k)
           // [3+k...vector.size()-1] nodes
 
-          //long elem_ID = std::stol(parser[0]);
           int elem_type = std::stoi(parser[1]);
           int num_tags = std::stoi(parser[2]);
           int physical_tag = std::stoi(parser[3]);
@@ -492,32 +445,6 @@ void Mesh::read_gmsh(const std::string &filename)
             case elm_type::NODE121_O10_QUAD:
               elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
               break;
-
-              // case elm_type::NODE10_O2_TETRA:
-              //   elems.emplace_back((std::make_shared<Tetrahedron>(newVec)));
-              //   break;
-              // case elm_type::NODE27_O2_HEXA:
-              //   elems.emplace_back((std::make_shared<Hexahedron>(newVec)));
-              //   break;
-              // case elm_type::NODE18_O2_PRIS:
-              //   elems.emplace_back((std::make_shared<Prism>(newVec)));
-              //   break;
-              // case elm_type::NODE14_O2_PYR:
-              //   elems.emplace_back((std::make_shared<Pyramid>(newVec)));
-              //   break;
-              // Serendipity
-              // case 16:
-              //   elems.emplace_back((std::make_shared<QuadrangleHO>(newVec)));
-              //   break;
-              // case elm_type::NODE20_O2_HEXA:
-              //   elems.emplace_back((std::make_shared<Hexahedron>(newVec)));
-              //   break;
-              // case elm_type::NODE15_O2_PRIS:
-              //   elems.emplace_back((std::make_shared<Prism>(newVec)));
-              //   break;
-              // case elm_type::NODE13_O2_PYR:
-              //   elems.emplace_back((std::make_shared<Pyramid>(newVec)));
-              //   break;
             }
             this->append_elem_to_nodes(elems.back());
             newVec.clear();
@@ -549,6 +476,7 @@ void Mesh::read_gmsh(const std::string &filename)
     this->mark_boundaries();
     this->update_physical_tags();
     this->Ngh = Ghost::num_ghosts + 1;
+
     // reset num_elems, num_edges and num_ghosts
     Element::num_elems = -1;
     Element::num_faces = -1;
@@ -679,10 +607,8 @@ void Mesh::append_elem_to_nodes(const std::shared_ptr<Element> &e)
 
   for (auto &n_id : e->nodes)
   {
-    //std::cout << "Appending " << e->id << " to node " << n_id << std::endl;
     this->nodes[n_id].elems.push_back(e->id);
   }
-  //std::cout << "Appending done!" << std::endl;
 }
 
 void Mesh::append_boundary_face(const int entity_tag, const int physical_tag, const std::vector<std::string> &node_list)
@@ -817,85 +743,6 @@ double Mesh::get_residue_norm(int type)
   return L_norm;
 }
 
-// double Mesh::get_residue_norm(int type)
-// {
-//   double res_norm = 0.0, cell_res_norm = 0.0, L_norm = 0.0;
-
-//   switch (type)
-//   {
-//   // L1-norm
-//   case 0:
-//     // for each cell
-//     for (auto &e : this->elems)
-//     {
-//       cell_res_norm = 0.0;
-//       // for each cell's node (solution points)
-//       for (auto &node : e->computational->res)
-//       {
-//         res_norm = 0.0;
-//         for (auto k = 0; k < node.size(); k++)
-//           res_norm += std::abs(node[k]);
-
-//         if (cell_res_norm <= res_norm)
-//           cell_res_norm = res_norm;
-//       }
-
-//       L_norm += cell_res_norm;
-//     }
-//     break;
-
-//   // L2-norm
-//   case 1:
-//     // for each cell
-//     for (auto &e : this->elems)
-//     {
-//       cell_res_norm = 0.0;
-//       // for each cell's node (solution points)
-//       for (auto &node : e->computational->res)
-//       {
-//         res_norm = 0.0;
-//         for (auto k = 0; k < node.size(); k++)
-//           res_norm += node[k] * node[k];
-//         res_norm = std::sqrt(res_norm);
-
-//         if (cell_res_norm <= res_norm)
-//           cell_res_norm = res_norm;
-//       }
-
-//       L_norm += std::pow(cell_res_norm, 2.0);
-//     }
-//     L_norm = std::sqrt(L_norm);
-//     break;
-
-//   // Linf-norm
-//   case 2:
-//     // for each cell
-//     for (auto &e : this->elems)
-//     {
-//       cell_res_norm = 0.0;
-//       // for each cell's node (solution points)
-//       for (auto &node : e->computational->res)
-//       {
-//         res_norm = 0.0;
-//         for (auto k = 0; k < node.size(); k++)
-//           res_norm += node[k] * node[k];
-//         res_norm = std::sqrt(res_norm);
-
-//         if (cell_res_norm <= res_norm)
-//           cell_res_norm = res_norm;
-//       }
-//       if (L_norm <= cell_res_norm)
-//         L_norm = cell_res_norm;
-//     }
-//     break;
-
-//   default:
-//     break;
-//   }
-
-//   return L_norm;
-// }
-
 // ------------------------------------------------------------------------ //
 
 // Static Mesh
@@ -916,12 +763,12 @@ void Static_Mesh::create_kdtree(void)
   std::cout << "Start KD-Tree creation..." << std::endl;
   std::vector<long> nodes_ptr;
   long k = -1;
-  //std::vector<Node *> nodes_ptr;
+
   std::unordered_map<long, bool> vertice_map = {};
   for (auto &e : this->elems)
   {
     long size = e->nodes.size();
-    // long order = static_cast<long>(std::sqrt(size));
+    
     long order = 2;
     for (auto n_id=0; n_id<((order-2)*4+4); n_id++)
     {
@@ -931,30 +778,18 @@ void Static_Mesh::create_kdtree(void)
   
   for (auto &n : this->nodes)
   {
-    //std::cout << "Node(" << n.id << "): " << " n->coords ={" << n.coords[0] << " " << n.coords[1] << " " << n.coords[2] << std::endl;
-    //std::cout << "Node Address: " << &n << std::endl;
     auto is_found = vertice_map.find(n.id);
     if (is_found != vertice_map.end())
       nodes_ptr.emplace_back(n.id);
   }
 
-  /* old */
-  // for (auto &n : this->nodes)
-  //   nodes_ptr.emplace_back(n.id);
-
-  //std::cout << "1) Size of v_nodes = " << nodes_ptr.size() << " and Size of nodes = " << this->nodes.size() << std::endl;
   this->get_pivot(this->root, nodes_ptr);
-  //std::cout << " Root has been assigned" << std::endl;
+
   this->build_kdtree(this->root, nodes_ptr, k);
 
   std::cout << "KD-Tree has been created with root at " << this->nodes[this->root].id << std::endl;
   nodes_ptr.clear();
 }
-
-//void Static_Mesh::print_tree(void)
-//{
-//
-//}
 
 // Status
 Status::~Status(void)
@@ -962,19 +797,12 @@ Status::~Status(void)
 }
 
 void Static_Mesh::build_kdtree(long &root_, std::vector<long> &v_nodes, long k)
-//void Static_Mesh::build_kdtree(Node* root_, std::vector<Node*>& v_nodes)
 {
   /*
     First I will get a random sample of my node vector.
     Then I order this sample by the layer dimension (x, y or z)
     get the median and return it as pivot.
   */
-  //std::cout << "Building KDtree..." << std::endl;
-
-  //for (auto& n : v_nodes)
-  //{
-  //	std::cout << "Build -> Node(" << this->nodes[n].id << "): " << " n->coords = {" << this->nodes[n].coords[0] << " " << this->nodes[n].coords[1] << " " << this->nodes[n].coords[2] << "}" << std::endl;
-  //}
 
   k++;
   k = k % this->dimension;
@@ -983,8 +811,6 @@ void Static_Mesh::build_kdtree(long &root_, std::vector<long> &v_nodes, long k)
   {
     std::vector<long> left_nodes;
     std::vector<long> right_nodes;
-    //std::vector<Node *> left_nodes;
-    //std::vector<Node *> right_nodes;
 
     // Split Nodes which have the coordinate dim less or greater than the root (pivot)
     for (auto &n : v_nodes)
@@ -995,7 +821,6 @@ void Static_Mesh::build_kdtree(long &root_, std::vector<long> &v_nodes, long k)
         {
           right_nodes.emplace_back(n);
         }
-        //if (this->nodes[n].coords[dim] <= this->nodes[root_].coords[dim])
         else
         {
           left_nodes.emplace_back(n);
@@ -1003,16 +828,13 @@ void Static_Mesh::build_kdtree(long &root_, std::vector<long> &v_nodes, long k)
       }
     }
 
-    //dim++;
-    //dim = dim % this->dimension; // cyclic layer dim
-    //std::cout << "Dim = " << dim << std::endl;
     this->dim = (k + 1) % this->dimension;
+
     // Find out left_nodes pivot and traverse it
     this->get_pivot(this->nodes[root_].left, left_nodes);
     if (this->nodes[root_].left > -1)
     {
       this->build_kdtree(this->nodes[root_].left, left_nodes, k);
-      //std::cout << "Node(" << this->nodes[root_].id << ")[" << this->nodes[root_].coords[dim] << "]->left = " << "Node(" << this->nodes[this->nodes[root_].left].id << ")[" << this->nodes[this->nodes[root_].left].coords[dim] << "]" << std::endl;
     }
     left_nodes.clear();
 
@@ -1021,7 +843,6 @@ void Static_Mesh::build_kdtree(long &root_, std::vector<long> &v_nodes, long k)
     if (this->nodes[root_].right > -1)
     {
       this->build_kdtree(this->nodes[root_].right, right_nodes, k);
-      //std::cout << "Node(" << this->nodes[root_].id << ")[" << this->nodes[root_].coords[dim] << "]->right = " << "Node(" << this->nodes[this->nodes[root_].right].id << ")[" << this->nodes[this->nodes[root_].right].coords[dim] << "]" << std::endl;
     }
     right_nodes.clear();
   }
@@ -1035,8 +856,6 @@ void Static_Mesh::get_pivot(long &root_, const std::vector<long> &v_nodes)
     3) Get the median
     4) Return median as pivot
   */
-
-  //std::cout << "Size of v_nodes = " << v_nodes.size() << std::endl;
 
   if (v_nodes.size() == 0)
   {
@@ -1062,17 +881,10 @@ void Static_Mesh::get_pivot(long &root_, const std::vector<long> &v_nodes)
 
     if (size % 2 == 0)
     {
-      //std::cout << "Dim = " << dim << "; Median(" << this->nodes[sampled_nodes[size / 2]].id << ") -> " << this->nodes[sampled_nodes[size / 2]].coords[dim] << std::endl;
       root_ = sampled_nodes[size / 2];
     }
-    //else if (size == i1)
-    //{
-    //std::cout << "Dim = " << dim << "; Median(" << this->nodes[sampled_nodes[0]].id << ") -> " << this->nodes[sampled_nodes[0]].coords[dim] << std::endl;
-    //  root_ = sampled_nodes[0];
-    //}
     else
     {
-      //std::cout << "Dim = " << dim << "; Median(" << this->nodes[sampled_nodes[(size + 1) / 2]].id << ") -> " << this->nodes[sampled_nodes[(size + 1) / 2]].coords[dim] << std::endl;
       root_ = sampled_nodes[(size + 1) / 2 - 1];
     }
     sampled_nodes.clear();
@@ -1083,13 +895,11 @@ long Static_Mesh::mark_fringes(const Node &n2, const PhysicalEnum& type)
 {
   int k = -1;
   double min_dist = std::numeric_limits<double>::max();
-  //std::cout << min_dist << std::endl;
+  
   long closest = -1;
   closest = this->_search(n2, this->root, k, min_dist, this->root);
-  // std::cout << "Test Node: " << n2.id << std::endl;
-  // std::cout << "Closest: " << closest << std::endl;
+  
   long find_elm = this->_find_element(n2, this->nodes[closest].elems, type);
-  // std::cout << "Find fringe at " << find_elm << std::endl;
   return find_elm;
 }
 
@@ -1097,7 +907,6 @@ void Static_Mesh::_get_kneighbors(long &sroot, std::vector<long> &kneighbors)
 {
   if (sroot != -1)
   {
-    //std::cout << "kNEIGHBORS(" << &kneighbors << ")\n";
     kneighbors.push_back(sroot);
     this->_get_kneighbors(this->nodes[sroot].left, kneighbors);
     this->_get_kneighbors(this->nodes[sroot].right, kneighbors);
@@ -1169,62 +978,6 @@ long Static_Mesh::_search(const Node &n2, long &sroot, int k, double min_dist, l
   return new_closest;
 }
 
-//long Static_Mesh::_search(const Node& n2, long& sroot, int& k, long& height)
-//{
-//	k++;
-//	k = k % this->dimension;
-//
-//        double max_height = 3.0;
-
-//	height++;
-//	if (n2.coords[k] <= this->nodes[sroot].coords[k])
-//	{
-
-//		if (this->nodes[sroot].left < 0 || height > (long)(log2(this->N)-max_height))
-//		{
-//			std::vector<long> kneighbors;
-//std::cout << "FOUND NODE: " << sroot << std::endl;
-
-//			this->_get_kneighbors(sroot, kneighbors);
-
-//std::cout << "WITH NEIGHBORS(" << &kneighbors << "): " ;
-//for (auto& n : kneighbors)
-//	std::cout << n << " ";
-//std::cout << std::endl;
-
-//			long closest = this->_get_closest(n2, kneighbors);
-//std::cout << "CLOSEST NODE: " << closest << std::endl;
-//std::cin.get();
-//			return this->_find_element(n2, this->nodes[closest].elems);
-//		}
-//		else return this->_search(n2, this->nodes[sroot].left, k, height);
-//	}
-//	else
-//	{
-//k++;
-//k = k % this->dimension;
-//		if (this->nodes[sroot].right < 0 || height > (long)(log2(this->N)-max_height))
-//		{
-//			std::vector<long> kneighbors;
-//std::cout << "FOUND NODE: " << sroot << std::endl;
-
-//			this->_get_kneighbors(sroot, kneighbors);
-
-//std::cout << "WITH NEIGHBORS(" << &kneighbors << "): " ;
-//for (auto& n : kneighbors)
-//	std::cout << n << " ";
-//std::cout << std::endl;
-
-//			long closest = this->_get_closest(n2, kneighbors);
-//std::cout << "CLOSEST NODE: " << closest << std::endl;
-//std::cin.get();
-//			return this->_find_element(n2, this->nodes[closest].elems);
-//		}
-//		else return this->_search(n2, this->nodes[sroot].right, k, height);
-//	}
-//	return -2;
-//}
-
 long Static_Mesh::_find_element(const Node &n2, std::vector<long> &elm_ids, const PhysicalEnum& type)
 {
   /*
@@ -1285,11 +1038,6 @@ long Static_Mesh::_find_element(const Node &n2, std::vector<long> &elm_ids, cons
 
       if (min_area >= 0.0)
       {
-        // if(e_id==2 || e_id==21)
-        // {
-        // 	std::cout << "Point(" << n2.coords[0] << "," << n2.coords[1] << ") is inside of the element (" << e_id << ")" << std::endl;
-        // 	this->print_element_by_id(e_id);
-        // }
         if (type == PhysicalEnum::OVERSET)
         { 
           this->elems[e_id]->fringe = 1; // mark as fringed
@@ -1425,38 +1173,3 @@ void Static_Mesh::print_tree(long &root_, long &height, std::string before, int 
   before = before.substr(0, before.length() - 2);
   height--;
 }
-
-/*
-
-build_kdtree(const std::vector<Node>& root, std::vector<std::shared_ptr<Node>>)
-
-vector:	1(0,0) 7(1,0) 9(0.5,0.5) 4(0.2,0) 2(0.7,0.8) 5(0.9,1) 3(0.8,0.2) 8(1,1)
-
-sample: 5(0.9,1) 3(0.8,0.2) 8(1,1)
-
-order by dimLayer: 3(0.8,0.2) 5(0.9,1) 8(1,1)
-
-median: 5(0.9,1)
-
-save address into the root: root = &median
-
-split:
-1) <  0.9: 1 9 4 2 3
-2) >= 0.9: 7 5 8
-
-build_kdtree(root.left,  <1 9 4 2 3>, dimLayer);
-build_kdtree(root.right, <7 5 8>, dimLayer);
-
-
-*/
-
-/*
-How to select a subvector<Node> without copying data?
-
-1) vector<shared_ptr<Node>> subvec that will hold the address of all nodes of interest for each run of my build_kdtree
-- it might have less memory usage?
-2) vector<int> that will hold all node indices to access the nodes of interest within my vector<Node>
-- I will try this one first and see if it's ok
-
-
-*/

@@ -40,8 +40,6 @@ void Weights::prod(
     for (std::size_t n_index=0; n_index<results.size(); n_index++)
       results[n_index][p_index] = result(n_index);
   }
-  
-  //return results;
 }
 
 void Weights::prod(
@@ -51,13 +49,6 @@ void Weights::prod(
 ) {
   std::size_t num_nodes = F.size();
   std::size_t num_properties = F[0].size();
-
-  // std::vector<DVector> results;
-  // std::size_t nrows = this->_get_nrows(type);
-  // results.clear();
-  // results.resize(nrows); // number of nodes
-  // for (auto &res : results)
-  //   res = DVector(std::vector<double>(num_properties, 0.0));
 
   for (std::size_t p_index=0; p_index<num_properties; p_index++)
   {
