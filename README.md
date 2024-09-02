@@ -47,7 +47,7 @@ Detailed documentation about the implementations and methodologies used in this 
 
 ### Validation Cases
 
-You can find all use cases setup in [`src/cases`](./src/cases") and their results well detailed in my Masters thesis [`masters_thesis_renan_santos.pdf`](./docs/masters_thesis_renan_santos.pdf).
+You can find all use cases setup in [`src/cases`](./src/cases) and their results well detailed in my Masters thesis [`masters_thesis_renan_santos.pdf`](./docs/masters_thesis_renan_santos.pdf).
 
 See below the main use cases:
 
@@ -109,7 +109,7 @@ ctest --test-dir build
 
 ### Source Code
 
-The main source code is located in the [`src`](./src") directory. Key components include:
+The main source code is located in the [`src`](./src) directory. Key components include:
 
 - **Element.cpp**: Implementation of elements.
 - **Field.cpp**: Implementation of fields.
@@ -123,7 +123,7 @@ The main source code is located in the [`src`](./src") directory. Key components
 
 ### Header Files
 
-Header files are located in the [`include`](./include") directory. Key headers include:
+Header files are located in the [`include`](./include) directory. Key headers include:
 
 - **Dict.h**: Dictionary utilities.
 - **DVector.h**: Vector utilities.
@@ -140,7 +140,7 @@ Header files are located in the [`include`](./include") directory. Key headers i
 
 ### Tests
 
-Unit tests are located in the [`tests`](./tests") directory. The main test file is [`tests/main.cpp`](./tests/main.cpp"), which includes the Catch2 main function.
+Unit tests are located in the [`tests`](./tests) directory. The main test file is [`tests/main.cpp`](./tests/main.cpp), which includes the Catch2 main function.
 
 ### Third-Party Libraries
 
