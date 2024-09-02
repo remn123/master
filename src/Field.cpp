@@ -186,7 +186,7 @@ std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)
   // Coordinates
   double x = n.coords[0];
   double y = n.coords[1];
-  //std::cout << "Solving for (" << x << "; " << y << ")\n";
+  
   double gamma = 1.4;
   double q = std::sqrt(x*x + y*y); // initial guess
 
@@ -194,14 +194,9 @@ std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)
   auto ringleb_f = [&](const boost::numeric::ublas::vector<double>& u, 
                        boost::numeric::ublas::vector<double>& res) -> bool
   {
-    //double V = std::max(0.5, std::min(u(0), 1.5));
     double V = u(0);
     double b = std::sqrt(1.0-0.2*std::pow(V, 2.0));
     double rho = std::pow(b, 5.0);
-    // std::cout << "V   = " << V << std::endl;
-    // std::cout << "b   = " << b << std::endl;
-    // std::cout << "rho = " << rho << std::endl;
-    //assert (rho > 0.0);
     double L = (1.0/b) + (1.0/(3.0*std::pow(b, 3.0))) + (1.0/(5.0*std::pow(b, 5.0))) - (0.5*(std::log((1.0+b)/(1.0-b))));
 
     res(0) = std::pow((x+L/2.0), 2.0) + std::pow(y, 2.0) - std::pow(1.0/(2.0*rho*std::pow(V, 2.0)), 2.0);
@@ -213,7 +208,6 @@ std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)
   auto ringleb_df = [&](const boost::numeric::ublas::vector<double>& u, 
                         boost::numeric::ublas::matrix<double>& res) -> bool
   {
-    //double V = std::max(0.5, std::min(u(0), 1.5));
     double V = u(0);
     double b = std::sqrt(1.0-0.2*std::pow(V, 2.0));
     double rho = std::pow(b, 5.0);
@@ -250,9 +244,6 @@ std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)
     {
       if (cur_fg*f_guess(0)<0.0) 
       {
-        // std::cout << "last fg: " << cur_fg << "; cur_fg = " << f_guess(0) << "\n";
-        // std::cout << "last guess: " << cur_g << "; current guess = " << g << "\n";
-        //guess(0)=-(cur_fg*g-f_guess(0)*cur_g)/(f_guess(0)-cur_fg);
         u1(0) = cur_g;
         u2(0) = g;
         fl(0) = cur_fg;
@@ -271,33 +262,14 @@ std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)
   double ds = 1E-5;
   double b = 0.0;
   double rho = 0.0;
-  //q = 0.5;
   q = u1(0);
   while (!solved)
   {
-    // if (fl(0) < 0.0) 
-    // {
-    //   ul(0)=u1(0);
-    //   uh(0)=u2(0);
-    // } else {
-    //   uh(0)=u1(0);
-    //   ul(0)=u2(0);
-    // }
     guess(0) = q;
     solved = newton_raphson(guess, ringleb_f, ringleb_df, velocity);
     b = std::sqrt(1.0-0.2*std::pow(velocity(0), 2.0));
     rho = std::pow(b, 5.0);
-    // if (abs(x+0.277229)<1E-5 && abs(y-0.814547)<1E-5)
-    // {
-    //   solved = ringleb_df(guess, df_guess);
-    //   solved = ringleb_f(guess, f_guess);
-    //   std::cout << "q  = " << q << "\n";
-    //   std::cout << "u  = " << guess << "\n";
-    //   std::cout << "f  = " << f_guess << "\n";
-    //   std::cout << "df = " << df_guess << "\n";
-    //   std::cout << "sol  = " << velocity << "\n";
-    //   std::cin.get();
-    // }
+    
     if (rho <= 0.0 || velocity(0) > 2.236 || velocity(0) < 0.0) solved=false;
     if (q > last_guess) throw "ERROR: domain limit has been reached!";
     q += ds;
@@ -305,7 +277,6 @@ std::vector<double> FIELDS::RINGLEB_FIELD_MAPPING (const Node& n)
   
   assert (solved==true);
   q = velocity(0);
-  //std::cout << "(x, y, V) = (" << x << ", "<< y << ", " << q << ")\n";
   b = std::sqrt(1.0-0.2*std::pow(q, 2.0));
   double L = (1.0/b) + (1.0/(3.0*std::pow(b, 3.0))) + (1.0/(5.0*std::pow(b, 5.0))) - (0.5*(std::log((1.0+b)/(1.0-b))));
   rho = std::pow(b, 5.0);
@@ -398,7 +369,7 @@ std::vector<double> FIELDS::VORTEX_T_FIELD_MAPPING (const Node& n)
 
   xc = xc + Ghost::U*time;
   yc = yc + Ghost::V*time;
-  //std::cout << "xc = " << xc << "; " << "yc = " << yc << "\n";
+  
   beta = 5.0;
 
   dx = (x-xc);
@@ -433,127 +404,3 @@ std::vector<double> FIELDS::VORTEX_T_FIELD_MAPPING (const Node& n)
 
   return vec;
 };
-
-// std::vector<double> FIELDS::VORTEX_FIELD_MAPPING (const Node& n)
-// {
-//   std::vector<double> vec(4, 0.0);
-  
-//   // Coordinates
-//   double x = n.coords[0];
-//   double y = n.coords[1];
-  
-//   double dx, dy;
-//   double rho, T, p;
-//   double beta, r, u, v, q, E, R, R_gas;
-//   double gamma = 1.4;
-//   double xc = 0.05;
-//   double yc = 0.05;
-
-//   beta = 1.0/50.0;
-//   R = 0.005;
-
-//   dx = (x-xc)/R;
-//   dy = (y-yc)/R;
-//   r = std::sqrt(dx*dx + dy*dy);
-//   auto e_rsqr = std::exp(-std::pow(r, 2.0));
-
-//   R_gas = Ghost::R;  
-//   auto M_inf = Ghost::Mach;
-//   auto T_inf = Ghost::T;
-//   auto p_inf = Ghost::p;
-//   auto c_inf = std::sqrt(gamma*R_gas*T_inf);
-//   auto U_inf = M_inf*c_inf;
-//   auto rho_inf = Ghost::rho;
-//   auto Cp = R_gas*(gamma/(gamma-1.0));
-
-//   u = U_inf*(1.0-beta*dy*std::sqrt(e_rsqr));
-//   v = U_inf*beta*(dx*std::sqrt(e_rsqr));
-//   T = T_inf-std::pow(c_inf*beta, 2.0)*e_rsqr/(2.0*Cp);
-//   rho = rho_inf*std::pow((T/T_inf), (1.0/(gamma-1.0)));
-//   p = rho*R_gas*T;
-
-//   // Adimensionalization
-//   rho = rho/rho_inf;
-//   u = u/c_inf;
-//   v = v/c_inf;
-//   p = p/(rho_inf*std::pow(c_inf, 2.0));
-
-//   q = std::sqrt(std::pow(u, 2.0)+std::pow(v, 2.0));
-//   E = p/(gamma-1.0) + rho*(std::pow(q, 2.0))/2.0;
-
-//   vec[0] = rho; 
-//   vec[1] = rho*u; 
-//   vec[2] = rho*v; 
-//   vec[3] = E; 
-
-//   return vec;
-// };
-
-// std::vector<double> FIELDS::VORTEX_FIELD_MAPPING_2 (const Node& n)
-// {
-//   std::vector<double> vec(4, 0.0);
-  
-//   // Coordinates
-//   double x = n.coords[0];
-//   double y = n.coords[1];
-  
-//   // r = std::sqrt(std::pow((x-xc), 2.0) + std::pow((y-yc), 2.0))/R;
-//   // u = Ghost::U*(1.0-beta*(y-yc)*(std::exp(-std::pow(r, 2.0)/2.0))/R);
-//   // v = Ghost::U*(beta*(x-xc)*(std::exp(-std::pow(r, 2.0)/2.0))/R);
-//   // T = Ghost::T - std::pow(Ghost::U*beta, 2.0)*(std::exp(-std::pow(r, 2.0)))/(2.0*Ghost::Cp);
-
-//   // rho = Ghost::rho*std::pow((T/Ghost::T), 1.0/(gamma-1.0));
-//   // p = rho*Ghost::R*T;
-  
-//   // double alpha = 0.0;
-//   // double sigma = 1.0;
-//   // auto f = (-0.5/std::pow(sigma, 2.0))*(std::pow((x-xc)/R, 2.0) + std::pow((y-yc)/R, 2.0));
-//   // auto Omega = beta*std::exp(f);
-//   // auto a_inf = std::sqrt(gamma*Ghost::p/std::pow(Ghost::T,  1.0/(gamma-1.0)));
-//   // du = -(y-yc)*Omega/R;
-//   // dv = +(x-xc)*Omega/R;
-//   // dT = -(gamma-1.0)*std::pow(Omega, 2.0)/2.0;
-  
-//   double dx, dy;
-//   double rho, T, p;
-//   double beta, r, u, v, q, E, R, R_gas;
-//   double gamma = 1.4;
-//   double xc = 0.05;
-//   double yc = 0.05;
-
-//   beta = 1.0/50.0;
-//   R = 0.005;
-
-//   dx = (x-xc)/R;
-//   dy = (y-yc)/R;
-//   r = std::sqrt(dx*dx + dy*dy);
-//   auto e_rsqr = std::exp(-std::pow(r, 2.0));
-
-//   R_gas = Ghost::R;
-//   auto M_inf = Ghost::Mach;
-//   auto T_inf = Ghost::T;
-//   auto p_inf = 10E+5;
-//   auto c_inf = std::sqrt(gamma*R_gas*T_inf);
-//   auto Cp = R_gas*(gamma/(gamma-1.0));
-
-//   T = 1.0/std::pow(c_inf, 2.0) - std::pow(M_inf*beta, 2.0)*e_rsqr/(2.0*Cp);
-//   rho = std::pow(T*std::pow(c_inf, 2.0), (1.0/(gamma-1.0)));
-//   p = rho*R_gas*T*T_inf;
-//   u = M_inf*(1.0-beta*dy*std::sqrt(e_rsqr));
-//   v = M_inf*beta*dx*std::sqrt(e_rsqr);  
-  
-//   // rho = std::pow(1.0 + dT, 1.0/(gamma-1.0));
-//   // u = Ghost::Mach*1.0 + du;
-//   // v = dv;
-//   // p = ((1.0/gamma)*std::pow(1.0 + dT, gamma/(gamma-1.0)));
-//   //p = (rho*std::pow(1.0 + dT, 1.0/(gamma-1.0)))/gamma;
-//   q = std::sqrt(std::pow(u, 2.0)+std::pow(v, 2.0));
-//   E = p/(gamma-1.0) + rho*(std::pow(q, 2.0))/2.0;
-
-//   vec[0] = rho; 
-//   vec[1] = rho*u; 
-//   vec[2] = rho*v; 
-//   vec[3] = E; 
-
-//   return vec;
-// };

@@ -16,10 +16,6 @@ Node::Node(const std::vector<std::string> &coordinates)
   // transforming vector<string> to vector<double> using lambda
   std::transform(coordinates.begin(), coordinates.end(), std::back_inserter((this->coords)),
                  [](const std::string &str) { return std::stod(str); });
-
-  // for (auto &n : this->coords)
-  //   std::cout << n << " ";
-  // std::cout << std::endl;
 }
 
 Node::Node(double x, double y, double z)
@@ -72,7 +68,6 @@ Vertice::Vertice(const std::vector<std::string> &coordinates) : Node(coordinates
 
   this->left = -1;
   this->right = -1;
-  // std::cout << "Create: " << this->id << std::endl;
 }
 
 Vertice::Vertice(double x, double y, double z) : Node(x, y, z)

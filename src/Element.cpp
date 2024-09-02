@@ -43,20 +43,11 @@ Edge::Edge(const std::vector<long> &e_nodes,
   this->ghost = -1;
   this->lr_edge = -1;
 
-  //if (right < 0)
-  //{
-  //	this->boundary = 1;
-  //}
-
-  //std::cout << "Edge(" << this->id << ") has been created with nodes: ";
-  //for (const auto& n : (this->nodes))
-  //	std::cout << n << " ";
-  //std::cout << std::endl;
 }
 
 Edge::~Edge(void)
 {
-  //std::cout << "Edge (" << this->id <<") has been deleted!" << std::endl;
+
 }
 
 void Edge::print_nodes(void)
@@ -71,22 +62,14 @@ void Edge::print_nodes(void)
 // Face
 Face::Face(std::vector<std::string> node_list)
 {
-  //num_faces++;
-  //this->id = num_faces;
-
   // transforming vector<string> to vector<int>
   std::transform(node_list.begin(), node_list.end(), std::back_inserter((*nodes)),
                  [](const std::string &str) { return std::stol(str); });
-
-  //std::cout << "Face(" << this->id << ") has been created with nodes: ";
-  //for (const auto& v : (*nodes))
-  //	std::cout << v << " ";
-  //std::cout << std::endl;
 }
 
 Face::~Face(void)
 {
-  //std::cout << "Face has been deleted!" << std::endl;
+  
 }
 
 void Face::print_nodes(void)
@@ -105,18 +88,16 @@ Element::Element(const std::vector<std::string> &node_list)
   this->id = num_elems;
   this->boundary = 0;
   this->fringe = 0;
-  //this->J = 0.0; // Jacobian
+  
   this->physical = std::make_shared<Property>();
   this->computational = std::make_shared<Property>();
-  //std::cout << "I am the (" << this->id << ") Element" << std::endl;
-
+  
   // transforming vector<string> to vector<int>
   // subtract 1 from the node_id because the first id for GMSH is 1, but as I am using the node id to consult it on a vector
   // I need it to be 0-started.
   std::transform(node_list.begin(), node_list.end(), std::back_inserter(this->nodes),
                  [](const std::string &str) { return std::stol(str) - 1; });
 
-  // this->print_nodes();
 }
 
 /* DESTRUCTORS */
@@ -171,19 +152,6 @@ void Triangle::enumerate_edges(void)
   //		  (1) 1-2
   //		  (2) 2-0
   std::cout << "Enumerating edges of a Triangle" << std::endl;
-
-  //long local_id = 0;
-  //while (local_id < NUM_FACES)
-  //{
-  //	std::vector<long> ordered_vertices(this->get_ordered_nodes_by_local_edge_id(local_id++));
-  //
-  //	if (!was_enumerated(ordered_vertices))
-  //	{
-  //		// if edge does not exist yet
-  //		edges_map[ordered_vertices]++;
-  //	}
-  //	ordered_vertices.clear();
-  //}
 }
 
 double Triangle::calculate_jacobian_at_node(const Node& node, const std::vector<Vertice> &enodes)
@@ -196,7 +164,6 @@ double Triangle::calculate_jacobian_at_node(const Node& node, const std::vector<
 /* ------------------------------ */
 std::vector<long> Quadrangle::get_nodes_by_local_edge_id(long edge_id, bool sorted)
 {
-  //auto num_nodes = nodes.size();
   auto first = this->nodes.begin() + edge_id;
 
   if (first == this->nodes.end() - 1)
@@ -204,9 +171,7 @@ std::vector<long> Quadrangle::get_nodes_by_local_edge_id(long edge_id, bool sort
     std::vector<long> edge_vertices;
     edge_vertices.push_back(this->nodes.back());
     edge_vertices.push_back(this->nodes.front());
-    //for (const auto& v : edge_vertices)
-    //	std::cout << v << " ";
-    //std::cout << std::endl;
+    
     if (sorted)
     {
       std::sort(edge_vertices.begin(), edge_vertices.end());
@@ -217,9 +182,7 @@ std::vector<long> Quadrangle::get_nodes_by_local_edge_id(long edge_id, bool sort
   {
     auto last = first + 2;
     std::vector<long> edge_vertices(first, last);
-    //for (const auto& v : edge_vertices)
-    //	std::cout << v << " ";
-    //std::cout << std::endl;
+    
     if (sorted)
     {
       std::sort(edge_vertices.begin(), edge_vertices.end());
@@ -237,8 +200,7 @@ void Quadrangle::enumerate_edges(void)
   //		  (1) 1-2
   //		  (2) 2-3
   //		  (3) 3-0
-  //std::cout << "Enumerating edges of a Quadrangle" << std::endl;
-
+  
   long local_id = 0;
   while (local_id < NUM_FACES)
   {
@@ -253,52 +215,18 @@ void Quadrangle::enumerate_edges(void)
       edges_map.emplace(
           std::make_pair(ordered_vertices, std::vector<long>{edge_id, this->id, -1}));
 
-      //std::cout << "Checking errors in edges_map: odered (" ;
-      //for (auto& v : ordered_vertices)
-      //{
-      //	std::cout << v << " ";
-      //}
-      //std::cout << ") unordered (";
-      //for (auto& v : unordered_vertices)
-      //{
-      //	std::cout << v << " ";
-      //}
-      //std::cout << std::endl;
-      //for (auto& e : edges_map.find(ordered_vertices)->second)
-      //{
-      //	std::cout << e << " ";
-      //}
-      //std::cout << std::endl;
-
       this->edges.emplace_back(Edge{unordered_vertices, edge_id, this->id, -1});
-
-      //std::cout << "Element(" << this->id << ")->Edge(" << local_id << "/" << edge_id << "/left=" << edges_map.find(ordered_vertices)->second[1] << "/right=" << edges_map.find(ordered_vertices)->second[2] << "): ";
     }
     else // if the edge exist, find its id
     {
       long edge_id = edges_map.find(ordered_vertices)->second[0];
       long neighbor_id = edges_map.find(ordered_vertices)->second[1];
-      //std::cout << "Checking errors in edges_map: ordered (";
-      //for (auto& v : ordered_vertices)
-      //{
-      //	std::cout << v << " ";
-      //}
-      //std::cout << ") unordered (";
-      //for (auto& v : unordered_vertices)
-      //{
-      //	std::cout << v << " ";
-      //}
-      //std::cout << std::endl;
       this->edges.emplace_back(Edge{unordered_vertices, edge_id, this->id, neighbor_id});
-
-      //std::cout << "Element(" << this->id << ")->Edge(" << local_id << "/" << edge_id << "/left=" << this->id << "/right=" << neighbor_id << "): ";
     }
     ordered_vertices.clear();
     unordered_vertices.clear();
     local_id++;
-    //std::cin.get();
   }
-  //edges_map.clear();
 }
 
 void Quadrangle::allocate_jacobian(int order)
@@ -314,8 +242,6 @@ void Quadrangle::allocate_jacobian(int order)
   // Ji[1][0:FPs][0:3] x
   // Ji[2][0:FPs][0:3] y
 
-  // this->Jm = DoubleArr3D{3, DoubleArr2D{(order + 1) * order, std::vector<double>{4}}};
-  // this->Ji = DoubleArr3D{3, DoubleArr2D{(order + 1) * order, std::vector<double>{4}}};
   this->J = DoubleArr2D(3, std::vector<double>(order * (order + 1), 0.0));
   this->Jm = DoubleArr3D(3, DoubleArr2D((order + 1) * order, std::vector<double>(4, 0.0)));
   this->Ji = DoubleArr3D(3, DoubleArr2D((order + 1) * order, std::vector<double>(4, 0.0)));
@@ -336,8 +262,6 @@ void Quadrangle::calculate_jacobian(const std::vector<Node> &snodes,
   double y4 = enodes[this->nodes[3]].coords[1];
 
   double a1, a2, b1, b2, c1, c2, d1, d2, csi, eta;
-
-  //this->J = 0.5 * (x2 - x1) + 0.5 * (y4 - y3);
 
   a1 = 0.25*(x2 - x1 + x3 - x4);
   b1 = 0.25*(-x2 - x1 + x3 + x4);
@@ -512,8 +436,6 @@ std::vector<double> Quadrangle::get_normal_vector(int index, int point, int loca
   
   auto signN = ((local_ed==0||local_ed==3)) ? -1 : 1;
 
-  // nx = (abs(ds_dx) > 1E-15) ? signN*J*ds_dx/abs(ds_dx) : 0.0;
-  // ny = (abs(ds_dy) > 1E-15) ? signN*J*ds_dy/abs(ds_dy) : 0.0;
   double S_norm = std::sqrt(ds_dx*ds_dx + ds_dy*ds_dy);
   nx = signN*ds_dx/S_norm;
   ny = signN*ds_dy/S_norm;
@@ -574,7 +496,6 @@ void QuadrangleHO::enumerate_edges(void)
   //		  (2) 2-3
   //		  (3) 3-0
   //      (4) ...
-  //std::cout << "Enumerating edges of a QuadrangleHO" << std::endl;
   this->NUM_NODES = this->nodes.size();
   this->ORDER = static_cast<int>(sqrt(this->NUM_NODES)) - 1;
   this->computational_map = std::unordered_map<long, std::vector<long>>{};
@@ -619,7 +540,6 @@ void QuadrangleHO::enumerate_edges(void)
     unordered_vertices.clear();
     local_id++;
   }
-  //edges_map.clear();
 }
 
 void QuadrangleHO::allocate_jacobian(int order)
@@ -638,8 +558,6 @@ void QuadrangleHO::allocate_jacobian(int order)
   this->J = DoubleArr2D(3, std::vector<double>(order * (order + 1), 0.0));
   this->Jm = DoubleArr3D(3, DoubleArr2D((order + 1) * order, std::vector<double>(4, 0.0)));
   this->Ji = DoubleArr3D(3, DoubleArr2D((order + 1) * order, std::vector<double>(4, 0.0)));
-  //this->Jm = DoubleArr3D{3, DoubleArr2D{(order + 1) * order, std::vector<double>{4}}};
-  //this->Ji = DoubleArr3D{3, DoubleArr2D{(order + 1) * order, std::vector<double>{4}}};
 }
 
 void QuadrangleHO::calculate_jacobian(const std::vector<Node> &snodes,

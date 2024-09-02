@@ -100,7 +100,6 @@ std::vector<double> newton_raphson(int a, int b, int m)
 // Jacobi polynomials
 double jacobipol(double csi, int order, int a, int b)
 {
-    //Pvec = zeros(1,order+1);
     std::vector<double > Pvec(order+1, 0.0);
     double a1=0.0,a2=0.0,a3=0.0,a4=0.0;
     
@@ -167,7 +166,6 @@ void NWquadratureGLL(int Qinput, std::vector<double>& nodes, std::vector<double>
     }
     Q = Q + 2;
 
-    //std::vector<double> weights (0.0, Q); // Gauss-Lobatto-Legendre quadrature weights
     double L=0.0;
     for (auto k=0; k<Q; k++)
     {
